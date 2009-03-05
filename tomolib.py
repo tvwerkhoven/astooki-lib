@@ -86,10 +86,14 @@ class wfwfs():
 			'sadispx' : 0.0,\
 			'sadispy' : 0.0,\
 			'sascl' : 0.95,\
-			'sfindx' : 10,\
-			'sfindy' : 10,\
-			'sftotx' : 19,\
-			'sftoty' : 19,\
+			'sftotx' : 10,\
+			'sftoty' : 10,\
+			'sfsizex' : 0.1,\
+			'sfsizey' : 0.1,\
+			'sfoffx' : 0.0,\
+			'sfoffy' : 0.0,\
+			'sfpitchx' : 0.1,\
+			'sfpitchy' : 0.1,\
 			'saifac' : 0.9,\
 			'datadir' : './rawdata',\
 			'outdir' : './data',\
@@ -123,13 +127,19 @@ class wfwfs():
 		self.sadispy = self.cfg.getfloat('telescope', 'sadispy')
 		self.sadisp = N.array([self.sadispx, self.sadispy])
 		self.sascl = self.cfg.getfloat('telescope', 'sascl')
-		self.sfindx = self.cfg.getfloat('telescope', 'sfindx')
-		self.sfindy = self.cfg.getfloat('telescope', 'sfindy')
-		self.sfind = N.array([self.sfindx, self.sfindy])
 		self.sftotx = self.cfg.getfloat('telescope', 'sftotx')
 		self.sftoty = self.cfg.getfloat('telescope', 'sftoty')
 		self.sftot = N.array([self.sftotx, self.sftoty])
-		self.nsf = product(self.sftot)
+		self.sfsizex = self.cfg.getfloat('telescope', 'sfsizex')
+		self.sfsizey = self.cfg.getfloat('telescope', 'sfsizey')
+		self.sfsize = N.array([self.sfsizex, self.sfsizey])
+		self.sfoffx = self.cfg.getfloat('telescope', 'sfoffx')
+		self.sfoffy = self.cfg.getfloat('telescope', 'sfoffy')
+		self.sfoff = N.array([self.sfoffx, self.sfoffy])
+		self.sfpitchx = self.cfg.getfloat('telescope', 'sfpitchx')
+		self.sfpitchy = self.cfg.getfloat('telescope', 'sfpitchy')
+		self.sfpitch = N.array([self.sfpitchx, self.sfpitchy])
+		self.nsf = N.product(self.sftot)
 		self.saifac = self.cfg.getfloat('telescope', 'saifac')
 		
 		# Some params about where the data is and what it looks like
@@ -246,9 +256,11 @@ class wfwfs():
 		Calculate the relative normalized centroid subfield positions and
 		sizes.
 		"""
-		self.sfpos = indices(self.sftot, dtype=N.float32).reshape(2,-1).T / \
-			(self.sftot) + 1./(2*self.sftot)
-		self.sfsize = 1./self.sfind
+		self.sfpos = self.sfoff + \
+			N.indices(self.sftot, dtype=N.float32).reshape(2,-1).T * \
+			self.sfpitch
+		self.sfpixpos = self.sfpos * self.sasize
+		if (self.sfsize > 0) self.sfpixsize = self.sfsize * self.sasize
 		
 	
 	def genSubaptmask(self):
@@ -284,7 +296,8 @@ class wfwfs():
 		# Apply scaling and displacement to the pattern before returning
 		self.sapos = (N.array(pos)*self.sascl) + self.sadisp
 		# Convert position to pixels
-		self.sapospix = (self.sapos + self.aptr)/(2*self.aptr) * self.res
+		self.sapospix = N.round((self.sapos + self.aptr) / \
+			(2*self.aptr) * self.res).astype(N.int)
 		# Count subimages
 		self.nsa = len(self.sapos)
 	
@@ -370,9 +383,16 @@ class wfwfs():
 		self.optsasize /= self.nsa
 		# Init the binary mask that will show where the subimages are
 		self.mask = N.zeros(self.res, dtype=N.uint8)
+		# Round the pixel position and sizes
+		self.optsasize = N.round(self.optsasize).astype(N.int)
+		self.optsapospix = N.round(self.optsapospix).astype(N.int)
+		# Change subfield pixel positions and sizes accordingly
+		self.sfpixpos = self.sfpos * self.optsasize
+		self.sfpixsize = self.sfsize * self.optsasize
+		
 		
 		if (verb > 0):
-			print "Subimage size optimized to (%.3g,%.3g) (was (%.3g,%.3g))"%\
+			print "Subimage size optimized to (%d,%d) (was (%.3g,%.3g))"%\
 				(self.optsasize[0], self.optsasize[1], \
 				self.pixsize[0], self.pixsize[1])
 		
@@ -473,7 +493,7 @@ class wfwfsImg():
 		
 		self.type = 'corrected'
 	
-	def maskSubimg(self, mask):
+	def maskSubimg(self, mask, whitebg=False):
 		"""
 		Mask out everything but the subimages by multiplying the data with a 
 		binary mask, then scaling the pixels to 0--1 within the data that is 
@@ -483,6 +503,11 @@ class wfwfsImg():
 		offset = mdata.min()
 		gain = 1./(mdata.max()-offset)
 		self.data = (self.data-offset) * gain * mask
+		
+		# If we want a white background, we don't set the other parts to 0,
+		# but the the maximum intensity in the image
+		if (whitebg):
+			self.data += (mask == 0) * self.data.max()
 		
 		self.type = 'masked'
 	
@@ -496,41 +521,13 @@ class wfwfsImg():
 		drms = (N.mean(tmp**2.0))**0.5
 		return (dmin, dmax, drms)
 	
-	def cropSfSa(self, nsf, nsa, sapos, sasize, sfpos, sfsize):
-		"""
-		Crop all subfields in all subimages out of the full frame and store
-		the cropped data in an nsa*nsf*x*y datacube, with x,y the the subfield
-		resolution, nsf the number of subfields per subimage and nsa
-		the number of subapertures
-		"""
-		
-		# Create empty datacube to hold the subimages
-		self.sfsubimgs = N.empty((nsa, nsf, sfsize[1], sfsize[0]), \
-		 	dtype=self.data.dtype)
-		
-		# Loop over the subimages and fill the cube with data
-		for (subimg, pos) in zip(self.sfsubimgs, sapos):
-			for (subfield, _pos) in zip(subimg, sfpos):
-				TODO
-				# TODO: this is not finished yet, do we really want to solve
-				# the problem like this? Maybe direct slicing and cutting and
-				# simultaneous x-correlation in C is better/faster? Do we need 
-				# to access the subfields/subimages here?
-				subfield = self.data[ \
-					pos[1]-sasize[1]/2 + _sfpos[1] * sasize[1] - : \
-					pos[1]-sasize[1]/2 + _sfpos[1] * sasize[1]
-					
-					, :pos[1]+sasize[1]/2, \
-					pos[0]-sasize[0]/2:pos[0]+sasize[0]/2]
-		
-		# Done
-	
 	def computeShifts(self, nsa, saref, sfpos, sfsize, usesf=None):
 		"""
 		Compute image shifts for the wfwfs subimages with saref as a reference 
 		subaperture
 		"""
 		# Init shift vectors
+		# TODO: this is not finished
 		self.disp = N.empty(nsa, )
 		refimg = self.subimgs[saref]
 		

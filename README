@@ -5,3 +5,8 @@ This set of scripts takes wide-field wavefront sensor measurements as input
 and aims to tomographically analyze the atmospheric seeing that disturbed
 the incoming light.
 
+TODO:
+ - look into sapos/sapospix, unify variable naming
+ - look into position: use origin or centroid position?
+ - look into x,y problem, use (x,y) for positions or not? problem with slicing 
+   numpy arrays
