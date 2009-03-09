@@ -6,7 +6,9 @@ and aims to tomographically analyze the atmospheric seeing that disturbed
 the incoming light.
 
 TODO:
- - look into sapos/sapospix, unify variable naming
  - look into position: use origin or centroid position?
- - look into x,y problem, use (x,y) for positions or not? problem with slicing 
-   numpy arrays
+  -- position: use centroid for subap pattern, ll for subfields?
+ - naming schedule:
+   [sa|sf][pix|][pos|size]
+ - coordinates, lengths, sizes stored as (x,y), slicing must therefore always 
+   be done with data[coord[1], coord[0]]

@@ -18,7 +18,14 @@ The analysis process works more or less like this:
 4) The image displacements are used for analysis of the seeing, which can be a 
    variety of different methods
 
-These routines are based on the earlier ctomo-py files which simulated the atmosphere. Here however, the shifts come from real WFWFS data.
+These routines are based on the earlier ctomo-py files which simulated the 
+atmosphere. Here however, the shifts come from real WFWFS data.
+
+Some conventions used in these (and other) routines include:
+ - Naming subap/subfield variables as: [sa|sf][pix|][pos|size]
+ - Coordinates, lengths, sizes stored as (x,y), slicing must therefore always 
+    be done with data[coord[1], coord[0]]
+ ? Position as centroid or LL?
 
 Created by Tim van Werkhoven on 2008-02-18.
 Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
@@ -44,7 +51,6 @@ import pyana, pyfits		# For loading images
 import cairo				# For PNG output
 import time					# For timing measurements
 
-verb = 1
 #import scipy.interpolate
 #import scipy.lib.blas
 #import scipy.sparse
@@ -61,6 +67,17 @@ verb = 1
 #import Gnuplot
 
 #=============================================================================
+# Some static defines, used for configuration
+#=============================================================================
+
+VERB_SILENT = 0
+VERB_INFO = 1
+VERB_DEBUG = 2
+
+# Init setting for verbosity:
+verb = VERB_DEBUG
+
+#=============================================================================
 # wfwfs, used for configuration and processing of wfwfs data
 #=============================================================================
 
@@ -73,7 +90,7 @@ class wfwfs():
 	subimages.
 	"""
 	def __init__(self, cfgfile):
-		# Default configuration paramters
+		# Default configuration parameters
 		self.cfgdef = {'aptr': 0.5, \
 			'apts' : 'circular',\
 			'fovx' : 50,\
@@ -95,12 +112,13 @@ class wfwfs():
 			'sfpitchx' : 0.1,\
 			'sfpitchy' : 0.1,\
 			'saifac' : 0.9,\
-			'datadir' : './rawdata',\
-			'outdir' : './data',\
+			'datadir' : './rawdata/',\
+			'outdir' : './data/',\
 			'darkpat' : '*dd*',\
 			'flatpat' : '*ff*',\
 			'datapat' : '*im*',\
 			'dfuse' : 'before'}
+		
 		# Load configuration from cfgfile
 		self.cfg = ConfigParser.ConfigParser()
 		self.cfg.read(cfgfile)
@@ -132,13 +150,13 @@ class wfwfs():
 		self.sftot = N.array([self.sftotx, self.sftoty])
 		self.sfsizex = self.cfg.getfloat('telescope', 'sfsizex')
 		self.sfsizey = self.cfg.getfloat('telescope', 'sfsizey')
-		self.sfsize = N.array([self.sfsizex, self.sfsizey])
+		self._sfsize = N.array([self.sfsizex, self.sfsizey])
 		self.sfoffx = self.cfg.getfloat('telescope', 'sfoffx')
 		self.sfoffy = self.cfg.getfloat('telescope', 'sfoffy')
-		self.sfoff = N.array([self.sfoffx, self.sfoffy])
+		self._sfoff = N.array([self.sfoffx, self.sfoffy])
 		self.sfpitchx = self.cfg.getfloat('telescope', 'sfpitchx')
 		self.sfpitchy = self.cfg.getfloat('telescope', 'sfpitchy')
-		self.sfpitch = N.array([self.sfpitchx, self.sfpitchy])
+		self._sfpitch = N.array([self.sfpitchx, self.sfpitchy])
 		self.nsf = N.product(self.sftot)
 		self.saifac = self.cfg.getfloat('telescope', 'saifac')
 		
@@ -167,22 +185,27 @@ class wfwfs():
 		self.loadLogs()
 		# Generate initial subaperture mask (positions based on config)
 		self.genSubaptmask()
-		# Calculate relative subfield positions
+		# Calculate initial subfield positions and sizes
 		self.calcSubfieldPos()
-		
+	
 	
 	def findData(self):
 		"""
-		Check if data (raw images, darks, flats) are available
+		Check if data (raw images, darks, flats) are available in the 
+		specified directories and with the specified masks.
 		"""
+		# Init empty lists to store the files in
 		self.rawfiles = []
 		self.flatfiles = []
 		self.darkfiles = []
 		self.logfiles = []
-		if (verb > 1):
-			print "Checking data in %s, matching raw, flats and darks with %s, %s and %s" % (self.datadir, self.rawpat, self.flatpat, self.darkpat)
 		
-		for root, dirs, files in os.walk(self.datadir):
+		if (verb > 1):
+			print "findData(): Checking data in %s, matching raw, flats, darks and logs with %s, %s, %s and %s" % (self.datadir, self.rawpat, self.flatpat, self.darkpat, self.logpat)
+		
+		# Walk through the directorie(s)
+		for (root, dirs, files) in os.walk(self.datadir):
+			# Add any raws, flats, darks or logs to the lists
 			self.rawfiles.extend(fnmatch.filter(files, self.rawpat))
 			self.flatfiles.extend(fnmatch.filter(files, self.flatpat))
 			self.darkfiles.extend(fnmatch.filter(files, self.darkpat))
@@ -194,6 +217,7 @@ class wfwfs():
 		self.darkfiles.sort()
 		self.logfiles.sort()
 		
+		# Check if we actually found any files
 		if len(self.rawfiles) == 0:
 			raise RuntimeError("Could not find any rawfiles in " + \
 			 	self.datadir + " matching the pattern '"+ self.rawpat + "'")
@@ -208,20 +232,23 @@ class wfwfs():
 			 	self.datadir + " matching the pattern '"+ self.logpat + "'")
 		
 		if (verb > 0): 
-			print "Found %d images, %d flats, %d darks and %d logs" % \
+			print "findData(): Found %d images, %d flats, %d darks and %d logs" % \
 			 	(len(self.rawfiles), \
 				len(self.flatfiles), \
 				len(self.darkfiles), \
 				len(self.logfiles))
+		
 		if (verb > 1):
-			print "Flat files: ", self.flatfiles
-			print "Dark files: ", self.darkfiles
-			print "Image files: ", self.rawfiles
-			print "Log files: ", self.logfiles
+			print "findData(): Flat files: ", self.flatfiles
+			print "findData(): Dark files: ", self.darkfiles
+			print "findData(): Image files: ", self.rawfiles
+			print "findData(): Log files: ", self.logfiles
+	
 	
 	def loadLogs(self):
 		"""
-		Load logfiles listed in self.logfiles to memory
+		Load logfiles listed in self.logfiles to memory. Only works on SST 
+		style log-syntax at the moment.
 		"""
 		self.logdata = {}
 		# Loop over all logfiles
@@ -239,7 +266,7 @@ class wfwfs():
 					int(entry[31:37]), \
 					float(entry[37:47]), \
 					int(entry[47:55]))
-		
+	
 	
 	def optDarkFlat(self, darkimg, flatimg):
 		"""
@@ -251,90 +278,152 @@ class wfwfs():
 		flatfloat = flatimg.data.astype(N.float32)
 		self.gainimg = 1./(flatfloat-self.darkimg)
 	
+	
 	def calcSubfieldPos(self):
 		"""
-		Calculate the relative normalized centroid subfield positions and
-		sizes.
+		Calculate the lower-left subfield positions and sizes in both pixels 
+		and in units of the subaperturesize.
 		"""
+		# We (should) already have sasize and sapixsize here. We don't need 
+		# sasize because for the subfields we are not too interested in the 
+		# absolute size, but would rather like to know the size in units of 
+		# subaperture size instead, or in pixels.
+		
+		# sfsize, sfpitch and sfoff can be given in both pixels (if negative) 
+		# or in units of the subaperture size (if positive). Fix this first.
+		if ((self._sfsize > 0).all()):
+			self.sfsize = self._sfsize
+			self.sfpixsize = self._sfsize * self.sapixsize
+		elif ((self._sfsize < 0).all()):
+			self.sfpixsize = -1*self._sfsize
+			self.sfsize = self.sfpixsize / self.sapixsize
+		else:
+			raise ValueError("calcSubfieldPos(): sfsize is invalid. Check configuration file.")
+		
+		if ((self._sfpitch > 0).all()):
+			self.sfpitch = self._sfpitch
+			self.sfpixpitch = self._sfpitch * self.sapixsize
+		elif ((self._sfpitch < 0).all()):
+			self.sfpixpitch = -1*self._sfpitch
+			self.sfpitch = self.sfpixpitch / self.sapixsize
+		else:
+			raise ValueError("calcSubfieldPos(): sfpitch is invalid. Check configuration file.")
+		
+		if ((self._sfoff >= 0).all()):
+			self.sfoff = self._sfoff
+			self.sfpixoff = self._sfoff * self.sapixsize
+		elif ((self._sfoff < 0).all()):
+			self.sfpixoff = -1*self._sfoff
+			self.sfoff = self.sfpixoff / self.sapixsize
+		else:
+			raise ValueError("calcSubfieldPos(): sfoff is invalid. Check configuration file.")
+		
+		if (verb>0):
+			print "calcSubfieldPos(): sfsize: (%.3g,%.3g), sfpixsize: (%d,%d))"% \
+				(self.sfsize[0], self.sfsize[1], self.sfpixsize[0], \
+				 self.sfpixsize[1])
+			print "calcSubfieldPos(): sfoff: (%.3g,%.3g), sfpixoff: (%d,%d))"% \
+				(self.sfoff[0], self.sfoff[1], self.sfpixoff[0], \
+				 self.sfpixoff[1])
+			print "calcSubfieldPos(): sfpitch: (%.3g,%.3g), sfpixpitch: (%d,%d))"% \
+				(self.sfpitch[0], self.sfpitch[1], self.sfpixpitch[0], \
+				 self.sfpixpitch[1])
+		
+		# Now calculate the positions of the subfields.
 		self.sfpos = self.sfoff + \
 			N.indices(self.sftot, dtype=N.float32).reshape(2,-1).T * \
 			self.sfpitch
-		self.sfpixpos = self.sfpos * self.sasize
-		if (self.sfsize > 0) self.sfpixsize = self.sfsize * self.sasize
-		
+		self.sfpixpos = self.sfpos * self.sapixsize
+	
 	
 	def genSubaptmask(self):
 		"""
-		Generate a subaperture mask based on a previously initialized 
-		telescope configuration. This returns a list with the centroid
-		subaperture positions.
+		Generate a subaperture mask based on a previously initialized  
+		telescope configuration. This returns a tuple with the centroid
+		subaperture positions in SI units and pixels.
 		"""
+		
 		# (half) width and height of the subaperture array
 		sa_arr = (N.ceil(self.aptr/self.sapitch)+1).astype(int)
 		# Init empty list to store positions
 		pos = []
 		# Loop over all possible subapertures and see if they fit inside the
-		# aperture shape
-		for sax in range(-sa_arr[0], sa_arr[0]+1):
-			for say in range(-sa_arr[1], sa_arr[1]+1):
-				# Coordinate for this possible subaperture is
+		# aperture shape. We loop y from positive to negative (top to bottom 
+		# in image coordinates) and x from negative to positive (left to
+		# right)
+		for say in range(sa_arr[1], -sa_arr[1]-1, -1):
+			for sax in range(-sa_arr[0], sa_arr[0]+1, 1):
+				# Lower-left coordinate for this possible subaperture is
 				sac = [sax, say] * self.sapitch
 				
 				# If we're in an odd row, check saxoffset
-				if say % 2 != 0: sac[0] -= self.saxoff * self.sapitch[0]
+				if (say % 2 != 0):
+					sac[0] -= self.saxoff * self.sapitch[0]
 				
 				# Check if we're in the apterture bounds, and store the subapt
 				# position in that case
-				if self.apts == 'circular':
-					if sum(sac**2) < self.aptr**2: pos.append(sac)
+				if (self.apts == 'circular'):
+					if (sum(sac**2) < self.aptr**2): 
+						pos.append(sac)
 				elif self.apts == 'square':
-					if (sac < self.aptr).all: pos.append(sac)
+					if (sac < self.aptr).all: 
+						pos.append(sac)
 				else:
 					raise ValueError("Unknown aperture shape", self.apts, \
 						"(should be 'circular' or 'square')")
-
+		
 		# Apply scaling and displacement to the pattern before returning
-		self.sapos = (N.array(pos)*self.sascl) + self.sadisp
+		self.csapos = (N.array(pos) * self.sascl) + self.sadisp
+		
 		# Convert position to pixels
-		self.sapospix = N.round((self.sapos + self.aptr) / \
-			(2*self.aptr) * self.res).astype(N.int)
+		self.csapixpos = N.round(\
+			(self.csapos + self.aptr) / \
+				(2*self.aptr) * self.res ).astype(N.int)
+		# Convert subimage size to pixels as well
+		self.sapixsize = self.sasize * self.res / (2*self.aptr)
+		
 		# Count subimages
-		self.nsa = len(self.sapos)
+		self.nsa = len(self.csapos)
+		if (verb >0):
+			print "genSubaptmask(): found %d subapertures." % (self.nsa)
+		
+		return (self.csapos, self.csapixpos)
+	
 	
 	def optMask(self, img):
 		"""
-		Optimize subaperture mask position using a sample image, preferably a
-		flatfield.
+		Optimize subaperture mask position using a flatfield image.
 		
-		To optimize the pattern, take the initial positions given by
-		genSubaptmask(), and cut a horizontal an vertical slice of pixels out
-		the image which are twice as large as the size of the subaperture.
+		To optimize the subaperture pattern, take the initial positions given 
+		by genSubaptmask(), and cut a horizontal an vertical slice of pixels
+		out the image which are twice as large as the size of the subaperture.
+		
 		These two slices should then give an intensity profile across the 
 		subimage, and since there is a dark band between the subimages, the 
 		dimensions of each of these can be determined by finding the minimum 
 		intensity in the slices.
+		
+		This methods is slightly sensitive to specks of dust on flatfields.
 		"""
-		# Init optimium position lists
-		self.optsapos = []
-		self.optsapospix = []
-		self.optsasize = N.array([0,0])
+		
+		# Init optimium position and size variables
+		optsapos = []
+		optsapixpos = []
+		optsapixsize = N.array([0.0, 0.0])
 		
 		# Check if the image is a flatfield
 		if (img.type != 'flat'):
 			raise RuntimeWarning("Optmizing the subimage mask works best with flatfields")
 		
-		# The subaperture size in pixels is given by:
-		self.pixsize = self.sasize/(2*self.aptr) * self.res
-		
 		# Loop over all subapertures
-		for pos in self.sapospix:
+		for pos in self.csapixpos:
 			# Calculate the ranges for the slices (make sure we don't get
 			# negative indices and stuff like that)
-			slxran = N.array([max(0, pos[0]-self.pixsize[0]), \
-				min(self.res[0], pos[0]+self.pixsize[0])])
-			slyran = N.array([max(0, pos[1]-self.pixsize[1]), \
-				min(self.res[1], pos[1]+self.pixsize[1])])
-
+			slxran = N.array([max(0, pos[0]-self.sapixsize[0]), \
+				min(self.res[0], pos[0]+self.sapixsize[0])])
+			slyran = N.array([max(0, pos[1]-self.sapixsize[1]), \
+				min(self.res[1], pos[1]+self.sapixsize[1])])
+			
 			# Get two slices in horizontal and vertical direction
 			# NB: image indexing goes reverse: pixel (x,y) is at data[y,x]
 			xslice = img.data[pos[1], 				slxran[0]:slxran[1]]
@@ -342,6 +431,8 @@ class wfwfs():
 			
 			# Find the first index where the intensity is lower than 0.8 times
 			# the maximum intensity in the slices *in slice coordinates*.
+			# TODO: this only uses a one-pixel slice, should use more than 
+			# that, maybe 30 -- 50 or something
 			slmax = N.max([xslice.max(), yslice.max()])
 			saxran = N.array([ \
 				N.argwhere(xslice[:slxran.ptp()/2.] < \
@@ -361,53 +452,159 @@ class wfwfs():
 			# plus the coordinate where the slice began in the big dataset 
 			# (slxran[0], slyran[0]), and then add half the size of the 
 			# subimage
-			optsasize = N.array([saxran.ptp(), sayran.ptp()])
-			optpixpos = N.array([saxran[0] + slxran[0], \
-				sayran[0] + slyran[0]]) + optsasize/2.
+			_optsapixsize = N.array([saxran.ptp(), sayran.ptp()])
+			_optsapixpos = N.array([saxran[0] + slxran[0], \
+				sayran[0] + slyran[0]])# + optsasize/2.
+			_optsapos = (_optsapixpos/self.res) * 2 * self.aptr - self.aptr
 			
-			# if (verb > 1):
-			# 	print "Xran: ", saxran, " Yran: ", sayran
-			# 	print "Sapos (%.4g,%.4g) -> (%.4g,%.4g), sasize (%.4g,%.4g) -> (%.4g,%.4g)" % (pos[0], pos[1], optpixpos[0], optpixpos[1], self.pixsize[0], self.pixsize[1], optsasize[0], optsasize[1])
-			
+			if (verb > 1):
+				print "optMask(): processing subap at (%d, %d), found size (%d, %d) at position (%d, %d)" % (pos[0], pos[1], _optsapixsize[0], _optsapixsize[1], _optsapixpos[0], _optsapixpos[1])
+				print "optMask(): used ranges: (%d,%d) and (%d,%d)" % (slxran[0], slxran[1], slyran[0], slyran[1])
 			
 			# Save positions as pixel and real coordinates
-			self.optsapospix.append(optpixpos)
-			self.optsapos.append( (optpixpos/self.res) * 2 * self.aptr - \
-			 	self.aptr )
+			optsapixpos.append(_optsapixpos)
+			optsapos.append(_optsapos)
+			
 			# The subimage size should be the same for all subimages. Enforce
 			# this by setting the subimage size to the average size for all 
 			# subimages. Do this by summing all sizes, and then dividing by
 			# the # of subimages
-			self.optsasize += optsasize
+			optsapixsize += _optsapixsize
 		
-		self.optsasize /= self.nsa
-		# Init the binary mask that will show where the subimages are
-		self.mask = N.zeros(self.res, dtype=N.uint8)
+		optsapixsize /= self.nsa
+		
+		# Calculate optimum size in SI units as well
+		optsasize = optsapixsize * (2*self.aptr) / self.res
+		
 		# Round the pixel position and sizes
-		self.optsasize = N.round(self.optsasize).astype(N.int)
-		self.optsapospix = N.round(self.optsapospix).astype(N.int)
-		# Change subfield pixel positions and sizes accordingly
-		self.sfpixpos = self.sfpos * self.optsasize
-		self.sfpixsize = self.sfsize * self.optsasize
-		
-		
+		optsapixsize = N.round(optsapixsize).astype(N.int)
+		optsapixpos = N.round(optsapixpos).astype(N.int)
+				
 		if (verb > 0):
-			print "Subimage size optimized to (%d,%d) (was (%.3g,%.3g))"%\
-				(self.optsasize[0], self.optsasize[1], \
-				self.pixsize[0], self.pixsize[1])
+			print "optMask(): subimage size optimized to (%d,%d) (was (%.3g,%.3g))" % \
+				(optsapixsize[0], optsapixsize[1], \
+				self.sapixsize[0], self.sapixsize[1])
 		
-		for optpos in self.optsapospix:	
+		# Save the new values globally
+		self.sapixsize = N.array(optsapixsize)
+		self.sasize = N.array(optsasize)
+		self.sapixpos = N.array(optsapixpos)
+		self.sapos = N.array(optsapos)
+		
+		# Init a binary mask that will show where the subimages are
+		self.mask = N.zeros(self.res, dtype=N.uint8)
+		self.gridmask = N.zeros(self.res, dtype=N.uint8)
+		
+		for optpos in self.sapixpos:	
 			# Now make a mask (0/1) for all subapertures (again, remember 
 			#image indexing is 'the wrong' way around in NumPy (pixel (x,y) is 
 			# at img[y,x]))
 			self.mask[ \
-				optpos[1]-self.optsasize[1]/2: \
-			 	optpos[1]+self.optsasize[1]/2, \
-				optpos[0]-self.optsasize[0]/2: \
-				optpos[0]+self.optsasize[0]/2] = 1
-
-		# Convert mask to bool for easier array indexing
+				optpos[1]: \
+			 	optpos[1]+self.sapixsize[1], \
+				optpos[0]: \
+				optpos[0]+self.sapixsize[0]] = 1
+			# The gridmask is only 1 at the edges...
+			self.gridmask[\
+				optpos[1]: \
+			 	optpos[1]+self.sapixsize[1], \
+				optpos[0]: \
+				optpos[0]+self.sapixsize[0]] = 1
+			# ... and zero everywhere else
+			self.gridmask[\
+				optpos[1]+1: \
+			 	optpos[1]+self.sapixsize[1]-1, \
+				optpos[0]+1: \
+				optpos[0]+self.sapixsize[0]-1] = 0
+		
+		# Convert mask to bool for easier array indexing lateron
 		self.mask = self.mask.astype(N.bool)
+	
+	# Mask modes for overlayMask()
+	MASK_NONE = 0
+	MASK_ALL = 1
+	MASK_CIRCULAR = 2
+	def overlayMask(self, img, filename='./test', number=False, coord=False, markCorner=True, maskOutside=MASK_NONE):
+		"""
+		Generate a 'fancy' image from 'img' with an overlay of the subaperture
+		mask, and possibly with indices and coordinates at the subapertures if 
+		requested.
+		"""
+		
+		# Apply mask first
+		if (maskOutside == MASK_ALL):
+			masked = img[self.mask]
+		else:
+			masked = img
+		
+		# Get extrema
+		maxval = N.max(masked)
+		minval = N.min(masked)
+		# Overlay the gridmask on a sample image
+		masked[self.gridmask.astype(N.bool)] = maxval
+		# Scale the values to 0-255
+		masked = (255*(masked - minval)/(maxval - minval)) 
+		
+		# Mark the 'lower left corner' in numpy coordinate space
+		if markCorner:
+			masked[0:10,0:20] = 255
+		
+		# Init a new empty Cairo surface as target surface
+		caidata = N.empty(masked.shape, dtype=N.uint8)
+		destsurf = cairo.ImageSurface.create_for_data(caidata, \
+		 	cairo.FORMAT_A8, caidata.shape[0], caidata.shape[1])
+		
+		# Create a context from the empty surface
+		ctx = cairo.Context(destsurf)
+		
+		# Init a new Cairo surface from the masked imaage
+		imgsurf = cairo.ImageSurface.create_for_data(masked.astype(N.uint8), \
+		 	cairo.FORMAT_A8, masked.shape[0], masked.shape[1])
+		
+		# Mirror the image vertically, so we use a FITS-like origin (first 
+		# quadrant of a graph) instead of an image like origin (where we see
+		# the 2nd  quadrant of a graph)
+		ctx.save()
+		mat = cairo.Matrix(1, 0, 0, -1, 0, imgsurf.get_height())
+		ctx.transform(mat)
+		
+		# Use the image as source, paint it
+		ctx.set_source_surface(imgsurf, 0,0)
+		ctx.paint()
+		ctx.restore()
+		
+		# Choose a font
+		ctx.set_font_size(12)
+		ctx.select_font_face('Serif', cairo.FONT_SLANT_NORMAL, \
+		 	cairo.FONT_WEIGHT_NORMAL)
+		
+		# Loop over the subapertures and put some text there
+		sanum = 0
+		for sapos in self.sapixpos:
+			# Move the 'cursor', show some text
+			# NOTE: we have to perform the position transform ourselves here, 
+			# because if we would use ctx.transform(), the text would be 
+			# transformed as well (which we do not want)
+			ctx.move_to(sapos[0] +1, imgsurf.get_height()- (sapos[1]+1))
+			txt = ''
+			if (number != False):
+				txt += '%d' % (sanum)
+				sanum += 1
+			if (coord != False):
+				txt += ' (%d,%d)' % (sapos[0], sapos[1])
+			
+			ctx.show_text(txt)
+		
+		# Done, save as PNG
+		destsurf.write_to_png(filename + '.png')
+		
+		# And as FITS file
+		pyfits.writeto(filename + '.fits', masked)
+		
+		if (verb > 0):
+			print "overlayMask(): done, wrote debug image as fits and png."
+	
+
 
 class wfwfsImg():
 	"""
@@ -452,7 +649,7 @@ class wfwfsImg():
 		Load an image file into memory
 		"""
 		if (verb > 1):
-			print "Trying to load file %s" % self.uri
+			print "load() Trying to load file %s" % self.uri
 			beg = time.time()
 		
 		# Check if file exists
@@ -472,7 +669,7 @@ class wfwfsImg():
 			self.data /= self.info.N
 		
 		if (verb > 1):
-			print "Duration:", time.time() - beg
+			print "load() Duration:", time.time() - beg
 				
 	def getIndex(self):
 		"""
@@ -537,7 +734,7 @@ class wfwfsImg():
 		Save an image as fits file
 		"""
 		if (verb > 1):
-			print "Trying to save image as FITS file %s" % filename
+			print "fitsSave(): Trying to save image as FITS file %s" % filename
 			beg = time.time()
 		
 		if (dtype):
@@ -550,7 +747,7 @@ class wfwfsImg():
 		hdu.header.update('type', self.type)
 		hdu.writeto(os.path.join(self.wfwfs.outdir, filename))
 		if (verb > 1):
-			print "Duration:", time.time() - beg
+			print "fitsSave(): Duration:", time.time() - beg
 	
 	def pngSave(self, filename):
 		"""
@@ -558,7 +755,7 @@ class wfwfsImg():
 		as grayscale image.
 		"""
 		if (verb > 1):
-			print "Trying to save image as PNG file %s" % filename
+			print "pngSave(): Trying to save image as PNG file %s" % filename
 			beg = time.time()
 		
 		scldat = (self.data - self.data.min())*255 / \
@@ -569,14 +766,14 @@ class wfwfsImg():
 			os.path.join(self.wfwfs.outdir, filename))
 		
 		if (verb > 1):
-			print "Duration:", time.time() - beg
+			print "pngSave(): Duration:", time.time() - beg
 	
 	def _anaload(self, filename):
 		"""
 		Wrapper for loading ana files
 		"""
 		if (verb > 1):
-			print "Trying to load ana file %s" % filename
+			print "_anaload(): Trying to load ana file %s" % filename
 		
 		anafile = pyana.load(filename)
 		self.data = anafile['data']		
@@ -594,6 +791,8 @@ class wfwfsImg():
 		info = None
 		for log in self.wfwfs.logdata:
 			# Check if this log file has our file
+			# TODO: idx is not unique! idx count is reset each day, so we 
+			# should check for date instead...
 			try:
 				info = self.wfwfs.logdata[log][self.idx]
 			except KeyError:
@@ -602,7 +801,7 @@ class wfwfsImg():
 		if (info == None):
 			raise RuntimeError("Could not find logfile information for image "+self.name +' or '+self.idx)
 		elif (verb >1):
-			print "Read in %sfield, info: " % self.type
+			print "_anainfo(): Read in %sfield, info: " % self.type
 			print info
 		
 		# Parsing info in a standard format
@@ -615,7 +814,7 @@ class wfwfsImg():
 		Wrapper for loading fits files
 		"""
 		if (verb > 1):
-			print "Trying to load fits file %s" % filename
+			print "_fitsload(): Trying to load fits file %s" % filename
 		self.data = pyfits.getdata(filename)
 		self.res = self.data.shape
 		self.bpp = self.data.nbytes / product(self.res)
