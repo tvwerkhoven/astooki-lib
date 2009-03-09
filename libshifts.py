@@ -84,6 +84,7 @@ import scipy.weave.converters	# For inlining C
 import scipy.fftpack			# For FFT functions in FFT cross-corr
 import scipy.signal				# For hanning/hamming windows
 import pyfits
+import timlib					# Some miscellaneous functions
 
 #=============================================================================
 # Some static defines
@@ -136,16 +137,26 @@ def crossCorrWeave(img, ref, pos, range):
 	shift, using normalization to make the results comparable.
 	"""
 	# Init the map to store the quality of each measured shift in
-	diffmap = N.empty(range*2+1)
+	diffmap = N.zeros(range*2+1)
 	
 	code = """
-	#line 135 "libshifts.py" (debugging info for compilation)
+	#line 142 "libshifts.py" (debugging info for compilation)
+	// We need minmax functions
+	#ifndef max
+	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
+	#endif
+	
+	#ifndef min
+	#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
+	#endif
+	
 	double tmpsum;
 	// Loop ranges
 	int sh0min = (int) -range(0)+pos(0);
 	int sh0max = (int) range(0)+pos(0);
 	int sh1min = (int) -range(1)+pos(1);
 	int sh1max = (int) range(1)+pos(1);
+	//printf("%d -- %d and %d -- %d\\n", sh0min, sh0max, sh1min, sh1max);
 	
 	// If sum(pos) is not zero, we expect that ref is large enough to naively 
 	// shift img around.
@@ -155,10 +166,10 @@ def crossCorrWeave(img, ref, pos, range):
 			for (int sh1=sh1min; sh1 <= sh1max; sh1++) {
 				// Loop over all pixels within the img and refimg, and compute
 				// the cross correlation between the two.
-				tmpsum = 0;
+				tmpsum = 0.0;
 				for (int i=0; i<Nimg[0]; i++) {
 					for (int j=0; j<Nimg[1]; j++) {
-						tmpsum += img(i,j) * ref(i+sh0,j+sh1);
+						tmpsum += img(i,j) * ref(i+sh0,j+sh1);	
 					}
 				}
 				// Store the current correlation value in the map.
@@ -172,7 +183,7 @@ def crossCorrWeave(img, ref, pos, range):
 	else {
 		for (int sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (int sh1=sh1min; sh1 <= sh1max; sh1++) {
-				tmpsum = 0;
+				tmpsum = 0.0;
 				// If the shift to compare is negative, we must make sure 
 				// i+sh0 in 'ref' will not be negative, so we start i at -sh0.
 				// If the shift is positive, we must make sure that i+sh0 in 
@@ -180,17 +191,20 @@ def crossCorrWeave(img, ref, pos, range):
 				// sh0.
 				// N<array>[<index>] gives the <index>th size of <array>, i.e. 
 				// Nimg[1] gives the second dimension of array 'img'
-				for (int i=0 - max(sh0, 0); i<Nimg[0] - max(sh0, 0); i++) {
-					for (int j=0 - max(sh1, 0); j<Nimg[1] - max(sh1, 0); j++){
+				for (int i=0 - min(sh0, 0); i<Nimg[0] - max(sh0, 0); i++) {
+					for (int j=0 - min(sh1, 0); j<Nimg[1] - max(sh1, 0); j++){
 						tmpsum += img(i,j) * ref(i+sh0,j+sh1);
 					}
 				}
+				
 				// Scale the value found by dividing it by the number of 
 				// pixels we compared.
-				diffmap((sh0-sh0min), (sh1-sh1min)) = 
-					tmpsum / (Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1));
+				diffmap((sh0-sh0min), (sh1-sh1min)) = tmpsum / 
+					((Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1)));
 			}
 		}
+		//printf("%lf, %d and %d \\n", 
+		//	tmpsum, (Nimg[0]), (Nimg[1]));
 	}
 	return_val = 1;
 	"""
@@ -218,7 +232,16 @@ def sqDiffWeave(img, ref, pos, range):
 	diffmap = N.empty(range*2+1)
 	
 	code = """
-	#line 214 "libshifts.py" (debugging info for compilation)
+	#line 234 "libshifts.py" (debugging info for compilation)
+	// We need minmax functions
+	#ifndef max
+	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
+	#endif
+	
+	#ifndef min
+	#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
+	#endif
+	
 	double tmpsum, diff;
 	// Loop ranges
 	int sh0min = (int) -range(0)+pos(0);
@@ -234,7 +257,7 @@ def sqDiffWeave(img, ref, pos, range):
 			for (int sh1=sh1min; sh1 <= sh1max; sh1++) {
 				// Loop over all pixels within the img and refimg, and compute
 				// the cross correlation between the two.
-				tmpsum = 0;
+				tmpsum = 0.0;
 				for (int i=0; i<Nimg[0]; i++) {
 					for (int j=0; j<Nimg[1]; j++) {
 						// First get the difference...
@@ -258,7 +281,7 @@ def sqDiffWeave(img, ref, pos, range):
 	else {
 		for (int sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (int sh1=sh1min; sh1 <= sh1max; sh1++) {
-				tmpsum = 0;
+				tmpsum = 0.0;
 				// If the shift to compare is negative, we must make sure 
 				// i+sh0 in 'ref' will not be negative, so we start i at -sh0.
 				// If the shift is positive, we must make sure that i+sh0 in 
@@ -266,8 +289,8 @@ def sqDiffWeave(img, ref, pos, range):
 				// sh0.
 				// N<array>[<index>] gives the <index>th size of <array>, i.e. 
 				// Nimg[1] gives the second dimension of array 'img'
-				for (int i=0 - max(sh0, 0); i<Nimg[0] - max(sh0, 0); i++) {
-					for (int j=0 - max(sh1, 0); j<Nimg[1] - max(sh1, 0); j++){
+				for (int i=0 - min(sh0, 0); i<Nimg[0] - max(sh0, 0); i++) {
+					for (int j=0 - min(sh1, 0); j<Nimg[1] - max(sh1, 0); j++){
 						// First get the difference...
 						diff = img(i,j) - ref(i+sh0,j+sh1);
 						// ...then square this
@@ -276,8 +299,8 @@ def sqDiffWeave(img, ref, pos, range):
 				}
 				// Scale the value found by dividing it by the number of 
 				// pixels we compared.
-				diffmap((sh0-sh0min), (sh1-sh1min)) = 
-					-tmpsum / (Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1));
+				diffmap((sh0-sh0min), (sh1-sh1min)) = -tmpsum / 
+					((Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1)));
 			}
 		}
 	}
@@ -307,7 +330,16 @@ def absDiffSqWeave(img, ref, pos, range):
 	diffmap = N.empty(range*2+1)
 	
 	code = """
-	#line 214 "libshifts.py" (debugging info for compilation)
+	#line 332 "libshifts.py" (debugging info for compilation)
+	// We need minmax functions
+	#ifndef max
+	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
+	#endif
+	
+	#ifndef min
+	#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
+	#endif
+	
 	double tmpsum;
 	// Loop ranges
 	int sh0min = (int) -range(0)+pos(0);
@@ -342,7 +374,7 @@ def absDiffSqWeave(img, ref, pos, range):
 	else {
 		for (int sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (int sh1=sh1min; sh1 <= sh1max; sh1++) {
-				tmpsum = 0;
+				tmpsum = 0.0;
 				// If the shift to compare is negative, we must make sure 
 				// i+sh0 in 'ref' will not be negative, so we start i at -sh0.
 				// If the shift is positive, we must make sure that i+sh0 in 
@@ -350,15 +382,15 @@ def absDiffSqWeave(img, ref, pos, range):
 				// sh0.
 				// N<array>[<index>] gives the <index>th size of <array>, i.e. 
 				// Nimg[1] gives the second dimension of array 'img'
-				for (int i=0 - max(sh0, 0); i<Nimg[0] - max(sh0, 0); i++) {
-					for (int j=0 - max(sh1, 0); j<Nimg[1] - max(sh1, 0); j++){
+				for (int i=0 - min(sh0, 0); i<Nimg[0] - max(sh0, 0); i++) {
+					for (int j=0 - min(sh1, 0); j<Nimg[1] - max(sh1, 0); j++){
 						tmpsum += fabs(img(i,j) - ref(i+sh0,j+sh1));
 					}
 				}
 				// Scale the value found by dividing it by the number of 
 				// pixels we compared.
 				diffmap((sh0-sh0min), (sh1-sh1min)) = -(tmpsum*tmpsum) /
-					(Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1));
+					 ((Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1)));
 			}
 		}
 	}
@@ -378,11 +410,12 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 	map[ii,jj] = FFT-1[ FFT[w * (img[i,j] - mean(img))] * 
 		FFT[w * (img[i+ii, j+jj] - mean(img))]* ]
 	with FFT and FFT-1 the forward and backward fourier transforms. 'pos' is
-	the lower left position of 'img' within 'ref'.
+	the lower left position of 'img' within 'ref', 'window' is the apodization 
+	method used.
 	
 	TODO: How to apply Fourier in case that img.shape != ref.shape?
 	"""
-	res = img.shape
+	res = N.array(img.shape)
 	wind = 1			# Default 'window' if none specified
 	
 	# Make the window
@@ -397,10 +430,10 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 		# direction, which is about 0.707. That leaves 1-sqrt(0.5) to get the 
 		# apodization at the edges.
 		
-		# Apodisation takes this many pixels per edge
-		apod = (res * 1-sqrt(0.5))/2
+		# Apodisation takes this many pixels *per edge*
+		apod = N.round((res * (1-N.sqrt(0.5)))/2)
 		# The number of pixels left for the top is then given by:
-		top = res - apod
+		top = res - apod*2
 		# Generate the window in the x-direction
 		winx = S.signal.hann(apod[0]*2+1)
 		winx = N.concatenate( \
@@ -409,19 +442,19 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 			winx[apod[0]+1:])).reshape(-1, 1)
 		# Window in y direction
 		winy = S.signal.hann(apod[1]*2+1)
-		winx = N.concatenate( \
-			(winx[:apod[1]], \
+		winy = N.concatenate( \
+			(winy[:apod[1]], \
 			N.ones(top[1]), \
-			winx[apod[1]+1:]))
+			winy[apod[1]+1:]))
 		# Total window
-		window = winx * winy
-	elif (window ==  FFTWINDOW_HAMM50):
+		wind = winx * winy
+	elif (window == FFTWINDOW_HAMM50):
 		# Similar to FFTWINDOW_HANN50, except with Hamming window
 		
-		# Apodisation takes this many pixels per edge
-		apod = (res * 1-sqrt(0.5))/2
+		# Apodisation takes this many pixels *per edge*
+		apod = N.round((res * (1-N.sqrt(0.5)))/2)
 		# The number of pixels left for the top is then given by:
-		top = res - apod
+		top = res - apod*2
 		# Generate the window in the x-direction
 		winx = S.signal.hamming(apod[0]*2+1)
 		winx = N.concatenate( \
@@ -430,22 +463,38 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 			winx[apod[0]+1:])).reshape(-1, 1)
 		# Window in y direction
 		winy = S.signal.hamming(apod[1]*2+1)
-		winx = N.concatenate( \
-			(winx[:apod[1]], \
+		winy = N.concatenate( \
+			(winy[:apod[1]], \
 			N.ones(top[1]), \
-			winx[apod[1]+1:]))
+			winy[apod[1]+1:]))
 		# Total window
-		window = winx * winy
+		wind = winx * winy
 	else:
 		raise ValueError("'window' must be one of the valid FFT windowing functions.")
 	
 	# Window the data
-	imgw = (img - N.mean(img)) * window
-	refw = (ref - N.mean(ref)) * window
+	imgw = (img - N.mean(img)) * wind
+	refw = (ref - N.mean(ref)) * wind
 	
 	# Get cross-correlation map
-	return S.fftpack.ifft2(S.fftpack.fft2(imgw) * \
-	 	(S.fftpack.fft2(refw)).conjugate())
+	fftmap = S.fftpack.ifft2(S.fftpack.fft2(refw) * \
+	 	(S.fftpack.fft2(imgw)).conjugate())
+	
+	# DEBUG (this should always be false):
+	if (abs(fftmap.imag).sum() > 0.0001 * abs(fftmap.real).sum()):
+		raise ValueError("FFT returned too much imaginary data (%.3g%, %.3g vs %.3g)" % \
+		 	(100 * abs(fftmap.imag).sum() / abs(fftmap.real).sum(), \
+		 	fftmap.real.sum(), fftmap.imag.sum()))
+	
+	# If range is not the full image, we crop the result with the zero shift 
+	# at the center, otherwise we merely shift the zero shift to the center.
+	if (range < res/2).all():
+		diffmap = (timlib.shift(fftmap.real, range))\
+			[:range[0]*2+1,:range[0]*2+1]
+	else:
+		raise RuntimeError("range > res/2 is not implemented.")
+	
+	return diffmap
 
 
 #=============================================================================
@@ -503,7 +552,7 @@ def quadInt2dWeave(data, limit=None):
 	# coordinate of the maximum.
 	submap = data[start[0]-1:start[0]+2, start[1]-1:start[1]+2]
 	code = """
-	#line 246 "libshifts.py" (debugging info)
+	#line 538 "libshifts.py" (debugging info)
 	double a2, a3, a4, a5, a6;
 	
 	a2 = 0.5 * (submap(2,1) -submap(0,1));
