@@ -407,9 +407,9 @@ class wfwfs():
 		"""
 		
 		# Init optimium position and size variables
-		optsapos = []
-		optsapixpos = []
-		optsapixsize = N.array([0.0, 0.0])
+		optsapos = []			# Store the optimized subap position
+		optsapixpos = []		# Store the optimized subap position in pixels
+		allsapixsize = []		# Stores all optimized subaperture sizes
 		
 		# Check if the image is a flatfield
 		if (img.type != 'flat'):
@@ -465,13 +465,12 @@ class wfwfs():
 			optsapixpos.append(_optsapixpos)
 			optsapos.append(_optsapos)
 			
-			# The subimage size should be the same for all subimages. Enforce
-			# this by setting the subimage size to the average size for all 
-			# subimages. Do this by summing all sizes, and then dividing by
-			# the # of subimages
-			optsapixsize += _optsapixsize
+			# The subimage size should be the same for all subimages. Store 
+			# all subaperture sizes found during looping and then take the
+			# mean afterwards.
+			allsapixsize.append(_optsapixsize)
 		
-		optsapixsize /= self.nsa
+		optsapixsize = N.array(allsapixsize).mean(axis=0)
 		
 		# Calculate optimum size in SI units as well
 		optsasize = optsapixsize * (2*self.aptr) / self.res
@@ -480,9 +479,11 @@ class wfwfs():
 		optsapixsize = N.round(optsapixsize).astype(N.int)
 		optsapixpos = N.round(optsapixpos).astype(N.int)
 				
+		tmpstddev = (N.array(allsapixsize)).std(axis=0)
 		if (verb > 0):
-			print "optMask(): subimage size optimized to (%d,%d) (was (%.3g,%.3g))" % \
+			print "optMask(): subimage size optimized to (%d,%d), stddev: (%.3g, %.3g) (was (%.3g, %.3g))" % \
 				(optsapixsize[0], optsapixsize[1], \
+				tmpstddev[0], tmpstddev[1], \
 				self.sapixsize[0], self.sapixsize[1])
 		
 		# Save the new values globally
@@ -532,7 +533,8 @@ class wfwfs():
 		"""
 		
 		# Apply mask first
-		if (maskOutside == MASK_ALL):
+		# TODO: not complete yet
+		if (maskOutside == self.MASK_ALL):
 			masked = img[self.mask]
 		else:
 			masked = img
@@ -599,11 +601,85 @@ class wfwfs():
 		destsurf.write_to_png(filename + '.png')
 		
 		# And as FITS file
-		pyfits.writeto(filename + '.fits', masked)
+		pyfits.writeto(filename + '.fits', masked, clobber=True)
 		
 		if (verb > 0):
 			print "overlayMask(): done, wrote debug image as fits and png."
 	
+	
+	def visCorrMaps(self, maps, res, sapos, sasize, sfpos, sfsize, shifts=None, filename='./debug/corrmaps', outpdf=False, outfits=False):
+		"""
+		Visualize the correlation maps generated and the shifts measured.
+		"""
+		
+		if (outfits):
+			raise RuntimeWarning("FITS output is not implemented yet.")
+			return
+		
+		if ((not outfits) & (not outpdf)):
+			raise RuntimeWarning("outfits and outpdf both false, no output will be generated, returning.")
+			return
+		
+		# Globally scale correlation maps to 0-255, convert to uint8
+		scmaps = 255*(maps - maps.min())/(maps.max() - maps.min())
+		scmaps = scmaps.astype(N.uint8)
+		
+		# Init cairo for PDF if necessary
+		# TODO: 72x72 pt (1x1 inch) reasonable?
+		if (outpdf):
+			pdfsurf = cairo.PDFSurface(filename+'.pdf', 72.0, 72.0)
+			# Create context
+			ctx = cairo.Context(pdfsurf)
+			
+			# Set coordinate system to 'res', origin at lower-left
+			ctx.translate(0, 72.0)
+			ctx.scale(72.0/res[0], -72.0/res[1])
+		
+		# Map/shvec counter
+		saidx = 0
+		msize = N.array(maps[0].shape)
+		
+		# Loop over the subapertures
+		for _sapos in sapos:
+			sfidx=0
+			# Loop over the subfields
+			for _sfpos in sfpos:
+				# Current lower-left pixel position of this subfield
+				_pos = _sapos + _sfpos
+				_end = _pos + sfsize
+				_cent = _pos + sfsize/2
+				
+				# Put the current correlation map at _cent
+				if (outpdf):
+					# Create a surface from the data
+					#tmpmap = N.ascontiguousarray(scmaps[saidx, sfidx]).copy()
+					tmpmap = (N.random.rand(15,15)*255).astype(N.uint8)
+					surf = cairo.ImageSurface.create_for_data(\
+					 	tmpmap, \
+					 	cairo.FORMAT_A8, \
+					 	tmpmap.shape[0], \
+					 	tmpmap.shape[1])
+					# Set it as source
+					ctx.set_source_surface(surf, _cent[0] - msize[0]/2, \
+					 	_cent[1] - msize[1]/2)
+					# Paint it
+					ctx.paint()
+					# If shifts are give, draw lines
+					if (shifts):
+						# Set to white
+						ctx.set_source_rgb(1.0, 1.0, 1.0)
+						# Move cursor to the center
+						ctx.move_to(_cent[0], _cent[1])
+						# Draw a shift vector
+						ctx.rel_line_to(shifts[saidx][sfidx][0], \
+						 	shifts[saidx][sfidx][1])
+						ctx.stroke()
+				sfidx += 1
+			saidx += 1
+		
+		if (outpdf):
+			pdfsurf.finish()
+		# Done
 
 
 class wfwfsImg():

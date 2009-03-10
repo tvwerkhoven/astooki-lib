@@ -54,13 +54,29 @@ The above routines compare the images themselves, but to find the best
 are available (function name prefixes listed between brackets):
 - 2d 9-point parabola interpolation (quadInt2d)
 - Maximum value (no interpolation) (maxVal)
-- (TODO?: Double 1d 3-point parabola interpolation)
 - (TODO: 2d 9-point spline interpolation)
+- (TODO?: Double 1d 3-point parabola interpolation)
 - (TODO?: double 1d 3-point spline interpolation)
 
 All these functions expect the maps to have a maximum. This is done to provide 
 easier and more general extremum finding when using various comparison 
 methods.
+
+* Naming/programming scheme
+
+The naming convention in this library for subaperture/subfield position and sizes is done as follows:
+- Full variable name is: [sa|sf][pix|][pos|size]
+- [sa|sf] defines whether it is a subaperture or subfield
+- [pix|] defines whether the units are in pixels or SI units
+- [pos|size] defines whether the quantity is the position or size
+
+Other conventions in this library:
+- Coordinates, lengths, sizes are stored as (x,y), slicing arrays/matrices in 
+  NumPy must therefore always be done with data[coord[1], coord[0]], because 
+  of the way data is ordered in NumPy arrays. Saving images to FITS files 
+  works correctly (origin is in the lowerleft corner), but saving files as PNG 
+  does not work out of the box (origin is in the top left corner), so the data 
+  must be shifted and mirrored first.
 
 Created by Tim van Werkhoven on 2009-02-24.
 Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
@@ -589,7 +605,7 @@ def maxValPython(data):
 # Helper routines -- other
 #=============================================================================
 
-def findRef(img, sapos, sasize, refmode=REF_BESTRMS, refapt=None, storeref=False):
+def findRef(img, sapos, sasize, refmode=REF_BESTRMS, refapt=None, storeref=False, verb=0):
 	"""
 	Find a reference subaperture within 'img' using 'refmode' as criteria. 
 	'img' is expected to be a wavefront sensor image with 'sapos' a list of 
@@ -644,23 +660,30 @@ def findRef(img, sapos, sasize, refmode=REF_BESTRMS, refapt=None, storeref=False
 #=============================================================================
 
 
-def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refapt=None, shrange=[3,3], verb=0):
+def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refapt=None, shrange=[3,3], verb=0, subfields=None, corrmaps=None):
 	"""
 	Calculate the image shifts for subapertures/subfields in 'img' located at 
-	'sapos' and 'sfpos' respectively,
-	each with the same 'subsize' pixelsize. Method defines the method to
-	compare the subimages (i.e. image cross correlation, fourier cross 
-	correlation, squared difference, absolute difference squared, etc), 
-	'extremum' defines the method to find the best subpixel shift, i.e. what 
-	interpolation should be used (double 1d fitting, 2d fitting, simple 
-	maximum finding, etc). 'range' defines the possible shifts to test (actual 
-	number of distances checked is 2*range+1)
+	pixel positions 'sapos' and 'sfpos' respectively, each with the same
+	'subsize' pixelsize. 
 	
-	For regular SH WFS, set sapos to the subaperture positions, sfpos to 
-	[[0,0]], and subsize to the subimage pixelsize. For wide-field SH WFS, set 
-	sapos similarly, but set sfpos to an array of pixelpositions relative to 
-	sapos for the subfields to compare. Set subsize not to the complete 
-	subimage size, but to the size of the subfield you want to use.
+	'method' defines the method to compare the subimages, 'extremum' defines 
+	the method to find the best subpixel shift, i.e. what interpolation should 
+	be used. 'srange' defines the possible shifts to test (actual number of 
+	distances checked is 2*range+1). 'refmode' sets method to choose a 
+	reference subaperture, 'refapt' is the reference subaperture used (index) 
+	if 'refmode' is set to REF_STATIC.
+	
+	If an empty list is passed to 'subfields' and/or 'corrmaps', these will 
+	contain the subfields analysed and the correlation maps calculated on 
+	return.
+	
+	For regular (non-wide-field) SH WFS, set 'sapos' to the subaperture
+	positions, 'sfpos' to [[0,0]], and 'subsize' to the subimage pixelsize.
+	
+	For wide-field SH WFS, set 'sapos' similarly, but set 'sfpos' to an array 
+	of pixelpositions relative to 'sapos' for the subfields to compare. Set
+	'subsize' not to the complete subimage size, but to the size of the
+	subfield you want to use.
 	"""
 	# TODO: remove average shift or not?
 	
@@ -715,8 +738,11 @@ def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremu
 		if (verb>1):
 			print "calcShifts(): -Processing subimage @ (%d, %d), sized (%dx%d)" % \
 			 	(_sapos[0], _sapos[1], sasize[0], sasize[1])
-		# Loop over the subfields
+		
 		ldisps = []
+		lcmaps = []
+		lsubfields = []
+		# Loop over the subfields
 		for _sfpos in sfpos:
 			# Current pixel position
 			_pos = _sapos + _sfpos
@@ -727,19 +753,27 @@ def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremu
 			# Get the current subfield (remember, the pixel at (x,y) is
 			# img[y,x])
 			_subimg = img[_pos[1]:_end[1], _pos[0]:_end[0]]
-			# Save subimage
-			pyfits.writeto('./debug/subimg-%d-%d.fits' % (_pos[0], _pos[1]), \
-			 	_subimg)
+			
+			# Store subfield
+			if (subfields != None):
+				lsubfields.append(_subimg)
+			
 			# Compare the image with the reference image
 			diffmap = mfunc(_subimg, ref, _sfpos, shrange)
+			
+			if (corrmaps != None):
+				lcmaps.append(diffmap)
+			
 			# Find the extremum
 			shift = extfunc(diffmap, limit=shrange)
 			ldisps.append(shift[::-1])
 			if (verb>1):
 				print "calcShifts(): --Found shift: (%.3g, %.3g)" % \
 				 	(shift[1], shift[0])
+		subfields.append(lsubfields)
+		corrmaps.append(lcmaps)
 		disps.append(ldisps)
-	
+		
 	return N.array(disps)
 
 if __name__ == '__main__':
