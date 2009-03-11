@@ -517,18 +517,24 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 # Helper routines -- extremum finding
 #=============================================================================
 
-def quadInt2dPython(data, range=ran, limit=None):
+def quadInt2dPython(data, range, limit=None):
 	"""
 	Find the extrema of 'data' using a two-dimensional 9-point quadratic
 	interpolation (QI formulae by Yi & Molowny Horas (1992, Eq. (10)).). 
 	The subpixel maximum will be examined around the coordinate of the pixel 
-	with the maximum intensity. Absolute returned value will be cropped at 
-	'limit', if this is set.
+	with the maximum intensity. 
+	
+	'range' must be set to the shift-range that the correlation map in 'data' 
+	corresponds to to find the pixel corresponding to a shift of 0. Absolute 
+	returned value will be cropped at 'limit', if this is set.
 	
 	This routine is implemented in pure Python.
 	"""
 	# Initial guess for the interpolation
 	start = N.argwhere(data == data.max())[0]
+	# Use the shift range measured to get the origin (i.e. what pixel 
+	# corresponds to a (0,0) shift?)
+	offset = -range[0]
 	# Crop from the full map to interpolate for
 	submap = data[start[0]-1:start[0]+2, start[1]-1:start[1]+2]
 	
@@ -540,7 +546,7 @@ def quadInt2dPython(data, range=ran, limit=None):
 		submap[0,2] + submap[0,0])
 	
 	v = N.array([(2*a2*a5-a4*a6)/(a6*a6-4*a3*a5), \
-		 	(2*a3*a4-a2*a6)/(a6*a6-4*a3*a5)]) + start
+		 	(2*a3*a4-a2*a6)/(a6*a6-4*a3*a5)]) + start + offset
 	if (limit != None):
 		v[v > limit] = limit
 		v[v < -limit] = -limit
@@ -548,13 +554,16 @@ def quadInt2dPython(data, range=ran, limit=None):
 	return v
 
 
-def quadInt2dWeave(data, limit=None):
+def quadInt2dWeave(data, range, limit=None):
 	"""
 	Find the extrema of 'data' using a two-dimensional 9-point quadratic
 	interpolation (QI formulae by Yi & Molowny Horas (1992, Eq. (10)).). 
 	The subpixel maximum will be examined around the coordinate of the pixel 
-	with the maximum intensity. Returned value will be cropped at 'limit', if
-	this is set.
+	with the maximum intensity. 
+	
+	'range' must be set to the shift-range that the correlation map in 'data' 
+	corresponds to to find the pixel corresponding to a shift of 0. Absolute 
+	returned value will be cropped at 'limit', if this is set.
 	
 	This routine is implemented in C using Weave.
 	"""
@@ -563,6 +572,9 @@ def quadInt2dWeave(data, limit=None):
 	extremum = N.empty(2)
 	# Initial guess for the interpolation
 	start = N.argwhere(data == data.max())[0]
+	# Use the shift range measured to get the origin (i.e. what pixel 
+	# corresponds to a (0,0) shift?)
+	offset = -range[0]
 	# Crop from the full map to interpolate for. We don't change indices here 
 	# because otherwise we would need to change them again when returning the 
 	# coordinate of the maximum.
@@ -586,7 +598,7 @@ def quadInt2dWeave(data, limit=None):
 		['submap', 'extremum'], \
 		type_converters=S.weave.converters.blitz)
 	
-	v = extremum+start
+	v = extremum + start + offset
 	if (limit != None):
 		v[v > limit] = limit
 		v[v < -limit] = -limit

@@ -637,7 +637,10 @@ class wfwfs():
 		
 		# Map/shvec counter
 		saidx = 0
-		msize = N.array(maps[0].shape)
+		# Take the size of the first correlation map as standard (should all 
+		# be the same)
+		msize = N.array(maps[0,0].shape)
+		print 'Mapshape is', maps[0].shape, msize
 		
 		# Loop over the subapertures
 		for _sapos in sapos:
@@ -653,6 +656,7 @@ class wfwfs():
 				if (outpdf):
 					# Create outline of the subfield
 					ctx.set_source_rgb(0.0, 0.0, 0.0)
+					ctx.set_line_width(0.75)
 					ctx.move_to(_pos[0], _pos[1])
 					ctx.rel_line_to(sfsize[0], 0)
 					ctx.rel_line_to(0, sfsize[1])
@@ -679,16 +683,16 @@ class wfwfs():
 					# TODO: surf can be as much as 3 pixels larger than the 
 					# map, because of striding problems. Therefore, we maybe 
 					# should clip the data before paint()ing or fill()ing it.
-					# - msize[0]/2
-					ctx.set_source_surface(surf, _cent[0], \
-					 	_cent[1])
-					#  - msize[1]/2
+					ctx.set_source_surface(surf, _cent[0] - msize[0]/2, \
+					 	_cent[1] - msize[1]/2)
 					# Paint it
 					ctx.paint()
 					# If shifts are give, draw lines
 					if (shifts != None):
-						# Set to black
+						# Set to black, make a thin line (0.5 pixel)
 						ctx.set_source_rgb(0.0, 0.0, 0.0)
+						ctx.set_line_width(0.5)
+						ctx.set_line_cap(cairo.LINE_CAP_ROUND)
 						# Move cursor to the center
 						ctx.move_to(_cent[0], _cent[1])
 						# Draw a shift vector
