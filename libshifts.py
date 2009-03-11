@@ -517,13 +517,13 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 # Helper routines -- extremum finding
 #=============================================================================
 
-def quadInt2dPython(data):
+def quadInt2dPython(data, range=ran, limit=None):
 	"""
 	Find the extrema of 'data' using a two-dimensional 9-point quadratic
 	interpolation (QI formulae by Yi & Molowny Horas (1992, Eq. (10)).). 
 	The subpixel maximum will be examined around the coordinate of the pixel 
-	with the maximum intensity. Returned value will be cropped at 'limit', if
-	this is set.
+	with the maximum intensity. Absolute returned value will be cropped at 
+	'limit', if this is set.
 	
 	This routine is implemented in pure Python.
 	"""
@@ -765,7 +765,7 @@ def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremu
 				lcmaps.append(diffmap)
 			
 			# Find the extremum
-			shift = extfunc(diffmap, limit=shrange)
+			shift = extfunc(diffmap, range=shrange, limit=shrange)
 			ldisps.append(shift[::-1])
 			if (verb>1):
 				print "calcShifts(): --Found shift: (%.3g, %.3g)" % \

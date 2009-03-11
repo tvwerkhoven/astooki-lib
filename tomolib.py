@@ -651,29 +651,62 @@ class wfwfs():
 				
 				# Put the current correlation map at _cent
 				if (outpdf):
+					# Create outline of the subfield
+					ctx.set_source_rgb(0.0, 0.0, 0.0)
+					ctx.move_to(_pos[0], _pos[1])
+					ctx.rel_line_to(sfsize[0], 0)
+					ctx.rel_line_to(0, sfsize[1])
+					ctx.rel_line_to(-sfsize[0], 0)
+					ctx.rel_line_to(0, -sfsize[1])
+					ctx.stroke()
+					
 					# Create a surface from the data
-					#tmpmap = N.ascontiguousarray(scmaps[saidx, sfidx]).copy()
-					tmpmap = (N.random.rand(15,15)*255).astype(N.uint8)
+					tmpmap = scmaps[saidx, sfidx]
+					tmps = scmaps[saidx, sfidx].shape
+					# Create slightly larger but proper strided array
+					tmpmap2 = N.zeros( \
+						(N.ceil(tmps[0]/4.0)*4, \
+						N.ceil(tmps[1]/4.0)*4), \
+						dtype=N.uint8)
+					tmpmap2[:tmps[0], :tmps[1]] = tmpmap
+					# Create a cairo surface from this buffer
 					surf = cairo.ImageSurface.create_for_data(\
-					 	tmpmap, \
+					 	tmpmap2, \
 					 	cairo.FORMAT_A8, \
-					 	tmpmap.shape[0], \
-					 	tmpmap.shape[1])
+					 	tmpmap2.shape[0], \
+					 	tmpmap2.shape[1])
 					# Set it as source
-					ctx.set_source_surface(surf, _cent[0] - msize[0]/2, \
-					 	_cent[1] - msize[1]/2)
+					# TODO: surf can be as much as 3 pixels larger than the 
+					# map, because of striding problems. Therefore, we maybe 
+					# should clip the data before paint()ing or fill()ing it.
+					# - msize[0]/2
+					ctx.set_source_surface(surf, _cent[0], \
+					 	_cent[1])
+					#  - msize[1]/2
 					# Paint it
 					ctx.paint()
 					# If shifts are give, draw lines
-					if (shifts):
-						# Set to white
-						ctx.set_source_rgb(1.0, 1.0, 1.0)
+					if (shifts != None):
+						# Set to black
+						ctx.set_source_rgb(0.0, 0.0, 0.0)
 						# Move cursor to the center
 						ctx.move_to(_cent[0], _cent[1])
 						# Draw a shift vector
 						ctx.rel_line_to(shifts[saidx][sfidx][0], \
 						 	shifts[saidx][sfidx][1])
 						ctx.stroke()
+						# Move cursor to lower-left
+						ctx.move_to(_pos[0]+5, _pos[1]+5)
+						ctx.set_font_size(10) # in pixels?
+						ctx.select_font_face('Serif', \
+							cairo.FONT_SLANT_NORMAL, \
+							cairo.FONT_WEIGHT_NORMAL)
+						# Reset scaling
+						ctx.scale(1,-1)
+						ctx.show_text('%d, %d: (%.3g,%.3g)' % \
+						 	(saidx, sfidx, shifts[saidx][sfidx][0], \
+						 	shifts[saidx][sfidx][1]))
+						ctx.scale(1,-1)
 				sfidx += 1
 			saidx += 1
 		
