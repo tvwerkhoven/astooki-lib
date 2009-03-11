@@ -607,9 +607,26 @@ class wfwfs():
 			print "overlayMask(): done, wrote debug image as fits and png."
 	
 	
-	def visCorrMaps(self, maps, res, sapos, sasize, sfpos, sfsize, shifts=None, filename='./debug/corrmaps', outpdf=False, outfits=False):
+	def visCorrMaps(self, maps, res, sapos, sasize, sfpos, sfsize, shifts=None, filename='./debug/corrmaps', mapscale=1.0, outpdf=False, outfits=False):
 		"""
 		Visualize the correlation maps generated and the shifts measured.
+		
+		Using the correlation maps in 'maps' and the meta-information on these 
+		maps in 'sapos' (subaperture position), 'sasize' (subap size), 'sfpos' 
+		(relative subfield position), 'sfsize' (relative sf size), make a nice 
+		plot to visualize these correlation maps.
+		
+		If 'shifts' is not None, lines originating from the center of each 
+		subaperture-subfield pair with 'shifts' as lengths will be drawn over 
+		the correlation maps.
+		
+		The layout of 'maps' and 'shifts' should be such that maps[sai][sfi] 
+		should correspond to the map for subaperture sai and subfield sfi.
+		
+		'filename' should be a path to a basename to be used for PDF output 
+		(enabled with 'outpdf') and FITS output (enabled with 'outfits'). If 
+		'mapscale' is not eqaul to 1, the correlation maps will be scaled 
+		according to this factor.
 		"""
 		
 		if (outfits):
@@ -640,7 +657,6 @@ class wfwfs():
 		# Take the size of the first correlation map as standard (should all 
 		# be the same)
 		msize = N.array(maps[0,0].shape)
-		print 'Mapshape is', maps[0].shape, msize
 		
 		# Loop over the subapertures
 		for _sapos in sapos:
@@ -654,7 +670,7 @@ class wfwfs():
 				
 				# Put the current correlation map at _cent
 				if (outpdf):
-					# Create outline of the subfield
+					# Create outline of the subfield in black
 					ctx.set_source_rgb(0.0, 0.0, 0.0)
 					ctx.set_line_width(0.75)
 					ctx.move_to(_pos[0], _pos[1])
@@ -683,25 +699,30 @@ class wfwfs():
 					# TODO: surf can be as much as 3 pixels larger than the 
 					# map, because of striding problems. Therefore, we maybe 
 					# should clip the data before paint()ing or fill()ing it.
-					ctx.set_source_surface(surf, _cent[0] - msize[0]/2, \
-					 	_cent[1] - msize[1]/2)
+					ctx.scale(mapscale, mapscale)
+					ctx.set_source_surface(surf, _cent[0]/mapscale - \
+					 	msize[0]/2, \
+						_cent[1]/mapscale - msize[1]/2)
 					# Paint it
-					ctx.paint()
+					ctx.paint()					
+					# Reset scaling
+					ctx.scale(1./mapscale, 1./mapscale)
 					# If shifts are give, draw lines
 					if (shifts != None):
-						# Set to black, make a thin line (0.5 pixel)
-						ctx.set_source_rgb(0.0, 0.0, 0.0)
+						# Set to red, make a thin line (0.5 pixel)
+						ctx.set_source_rgb(1, 0, 0)
 						ctx.set_line_width(0.5)
 						ctx.set_line_cap(cairo.LINE_CAP_ROUND)
 						# Move cursor to the center
 						ctx.move_to(_cent[0], _cent[1])
 						# Draw a shift vector
-						ctx.rel_line_to(shifts[saidx][sfidx][0], \
-						 	shifts[saidx][sfidx][1])
+						ctx.rel_line_to(shifts[saidx][sfidx][0] * mapscale, \
+						 	shifts[saidx][sfidx][1] * mapscale)
 						ctx.stroke()
+						
 						# Move cursor to lower-left
 						ctx.move_to(_pos[0]+5, _pos[1]+5)
-						ctx.set_font_size(10) # in pixels?
+						ctx.set_font_size(20) # in pixels?
 						ctx.select_font_face('Serif', \
 							cairo.FONT_SLANT_NORMAL, \
 							cairo.FONT_WEIGHT_NORMAL)
