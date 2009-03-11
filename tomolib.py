@@ -123,6 +123,9 @@ class wfwfs():
 		self.cfg = ConfigParser.ConfigParser()
 		self.cfg.read(cfgfile)
 		
+		# Save config filename
+		self.cfgfile = cfgfile
+		
 		# Set variables according to configuration
 		self.aptr = self.cfg.getfloat('telescope', 'aptr')
 		self.apts = self.cfg.get('telescope', 'apts')
@@ -607,7 +610,7 @@ class wfwfs():
 			print "overlayMask(): done, wrote debug image as fits and png."
 	
 	
-	def visCorrMaps(self, maps, res, sapos, sasize, sfpos, sfsize, shifts=None, filename='./debug/corrmaps', mapscale=1.0, outpdf=False, outfits=False):
+	def visCorrMaps(self, maps, res, sapos, sasize, sfpos, sfsize, shifts=None, filename='./debug/corrmaps', mapscale=1.0, text=None, outpdf=False, outfits=False):
 		"""
 		Visualize the correlation maps generated and the shifts measured.
 		
@@ -711,7 +714,7 @@ class wfwfs():
 					if (shifts != None):
 						# Set to red, make a thin line (0.5 pixel)
 						ctx.set_source_rgb(1, 0, 0)
-						ctx.set_line_width(0.5)
+						ctx.set_line_width(0.5 * mapscale)
 						ctx.set_line_cap(cairo.LINE_CAP_ROUND)
 						# Move cursor to the center
 						ctx.move_to(_cent[0], _cent[1])
@@ -736,6 +739,12 @@ class wfwfs():
 			saidx += 1
 		
 		if (outpdf):
+			# Write some text in the lower-left corner
+			if (text != None):
+				ctx.move_to(10, 10)
+				ctx.scale(1,-1)
+				ctx.show_text(text)
+				ctx.scale(1,-1)
 			pdfsurf.finish()
 		# Done
 

@@ -155,8 +155,14 @@ def crossCorrWeave(img, ref, pos, range):
 	# Init the map to store the quality of each measured shift in
 	diffmap = N.zeros(range*2+1)
 	
+	# Cross correlation needs some pre-processing
+	tmpimg = img - img.mean()
+	tmpref = ref - ref.mean()
+	
+	raise RuntimeWarning("crossCorrWeave() is not really working at the moment.")
+	
 	code = """
-	#line 142 "libshifts.py" (debugging info for compilation)
+	#line 159 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -225,7 +231,7 @@ def crossCorrWeave(img, ref, pos, range):
 	return_val = 1;
 	"""
 	one = S.weave.inline(code, \
-		['ref', 'img', 'pos', 'range', 'diffmap'], \
+		['tmpref', 'tmpimg', 'pos', 'range', 'diffmap'], \
 		type_converters=S.weave.converters.blitz)
 	
 	return diffmap
@@ -248,7 +254,7 @@ def sqDiffWeave(img, ref, pos, range):
 	diffmap = N.empty(range*2+1)
 	
 	code = """
-	#line 234 "libshifts.py" (debugging info for compilation)
+	#line 251 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -346,7 +352,7 @@ def absDiffSqWeave(img, ref, pos, range):
 	diffmap = N.empty(range*2+1)
 	
 	code = """
-	#line 332 "libshifts.py" (debugging info for compilation)
+	#line 349 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -547,6 +553,11 @@ def quadInt2dPython(data, range, limit=None):
 	
 	v = N.array([(2*a2*a5-a4*a6)/(a6*a6-4*a3*a5), \
 		 	(2*a3*a4-a2*a6)/(a6*a6-4*a3*a5)]) + start + offset
+	
+	# Debug
+	if (not N.isfinite(v).all()):
+		raise RuntimeError("Not all finite")
+	
 	if (limit != None):
 		v[v > limit] = limit
 		v[v < -limit] = -limit
@@ -580,7 +591,7 @@ def quadInt2dWeave(data, range, limit=None):
 	# coordinate of the maximum.
 	submap = data[start[0]-1:start[0]+2, start[1]-1:start[1]+2]
 	code = """
-	#line 538 "libshifts.py" (debugging info)
+	#line 583 "libshifts.py" (debugging info)
 	double a2, a3, a4, a5, a6;
 	
 	a2 = 0.5 * (submap(2,1) -submap(0,1));
@@ -599,6 +610,11 @@ def quadInt2dWeave(data, range, limit=None):
 		type_converters=S.weave.converters.blitz)
 	
 	v = extremum + start + offset
+	
+	# Debug
+	# if (not N.isfinite(v).all()):
+	# 	raise RuntimeError("Not all finite")
+	
 	if (limit != None):
 		v[v > limit] = limit
 		v[v < -limit] = -limit
@@ -672,7 +688,7 @@ def findRef(img, sapos, sasize, refmode=REF_BESTRMS, refapt=None, storeref=False
 #=============================================================================
 
 
-def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refapt=None, shrange=[3,3], verb=0, subfields=None, corrmaps=None):
+def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refapt=None, shrange=[3,3], verb=0, subfields=None, corrmaps=None):
 	"""
 	Calculate the image shifts for subapertures/subfields in 'img' located at 
 	pixel positions 'sapos' and 'sfpos' respectively, each with the same
@@ -697,7 +713,6 @@ def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremu
 	'subsize' not to the complete subimage size, but to the size of the
 	subfield you want to use.
 	"""
-	# TODO: remove average shift or not?
 	
 	#===============
 	# Initialisation
@@ -732,7 +747,7 @@ def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremu
 	else:
 		raise RuntimeError("'extremum' must be either one of the predefined extremum finding methods, or a function doing that.")
 	
-	# Find reference 
+	# Find reference subaperture
 	ref = findRef(img, sapos, sasize, refmode=refmode, refapt=refapt)
 	
 	# Init shift vectors (use a list so we can append())
@@ -743,25 +758,26 @@ def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremu
 	#=========================
 	
 	# Loop over the subapertures
-	if (verb>0):
-		print "calcShifts(): Processing data"
+	if (verb>0): print "calcShifts(): Processing data"
 	
 	for _sapos in sapos:
-		if (verb>1):
-			print "calcShifts(): -Processing subimage @ (%d, %d), sized (%dx%d)" % \
+		if (verb>1): print "calcShifts(): -Processing subimage @ (%d, %d), sized (%dx%d)" % \
 			 	(_sapos[0], _sapos[1], sasize[0], sasize[1])
 		
+		# Init lists to store displacements, correlation maps and subfields in
 		ldisps = []
 		lcmaps = []
 		lsubfields = []
+		
 		# Loop over the subfields
 		for _sfpos in sfpos:
 			# Current pixel position
 			_pos = _sapos + _sfpos
 			_end = _pos + sfsize
-			if (verb>1):
-				print "calcShifts(): --Processing subfield @ (%d, %d), sized (%dx%d)" % \
+			
+			if (verb>1): print "calcShifts(): --Processing subfield @ (%d, %d), sized (%dx%d)" % \
 				 	(_sfpos[0], _sfpos[1], sfsize[0], sfsize[1])
+			
 			# Get the current subfield (remember, the pixel at (x,y) is
 			# img[y,x])
 			_subimg = img[_pos[1]:_end[1], _pos[0]:_end[0]]
@@ -773,19 +789,25 @@ def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_SQDIFF, extremu
 			# Compare the image with the reference image
 			diffmap = mfunc(_subimg, ref, _sfpos, shrange)
 			
+			# Store correlation map
 			if (corrmaps != None):
 				lcmaps.append(diffmap)
 			
-			# Find the extremum
+			# Find the extremum, store to list
 			shift = extfunc(diffmap, range=shrange, limit=shrange)
 			ldisps.append(shift[::-1])
-			if (verb>1):
-				print "calcShifts(): --Found shift: (%.3g, %.3g)" % \
+			
+			if (verb>1): print "calcShifts(): --Found shift: (%.3g, %.3g)" % \
 				 	(shift[1], shift[0])
+		
+		# Append the list of subfield data to the list of subimage data (this
+		# gives us a 2d list that can be indexed using subimage and subfield
+		# indices)
 		subfields.append(lsubfields)
 		corrmaps.append(lcmaps)
 		disps.append(ldisps)
-		
+	
+	# Reform the shift vectors to an numpy array and return it
 	return N.array(disps)
 
 if __name__ == '__main__':
