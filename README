@@ -1,9 +1,8 @@
-## Tomo-dat: wide-field wavefront sensor tomographic data processing.
+## watchdog: wide-field wavefront sensor data processing.
 ## $Id:
 
 This set of scripts takes wide-field wavefront sensor measurements as input
-and aims to tomographically analyze the atmospheric seeing that disturbed
-the incoming light.
+and aims to analyze the atmospheric seeing that disturbed the incoming light.
 
 DATA STRUCTURES
 
