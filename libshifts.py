@@ -64,10 +64,12 @@ methods.
 
 * Naming/programming scheme
 
-The naming convention in this library for subaperture/subfield position and sizes is done as follows:
-- Full variable name is: [sa|sf][pix|][pos|size]
+The naming convention in this library for subaperture/subfield position and 
+sizes is done as follows:
+- Full variable name is: [sa|sf][ccd|ll][pos|size]
 - [sa|sf] defines whether it is a subaperture or subfield
-- [pix|] defines whether the units are in pixels or SI units
+- [ccd|ll] defines whether the units are in pixels on the CCD or SI units on 
+           the lenslet
 - [pos|size] defines whether the quantity is the position or size
 
 Other conventions in this library:
@@ -99,8 +101,12 @@ import scipy.weave				# For inlining C
 import scipy.weave.converters	# For inlining C
 import scipy.fftpack			# For FFT functions in FFT cross-corr
 import scipy.signal				# For hanning/hamming windows
-import pyfits
+import pyfits				
 import timlib					# Some miscellaneous functions
+from liblog import *			# Logging / printing functions
+
+import unittest
+import time						# For unittest
 
 #=============================================================================
 # Some static defines
@@ -118,15 +124,16 @@ EXTREMUM_2D9PTSQ = 0			# 2d 9 point parabola interpolation
 EXTREMUM_MAXVAL = 1				# maximum value (no interpolation)
 
 # Defines for reference usage
-REF_BESTRMS = 0					# Use subimage with best RMS as reference
-#REF_WHOLEFIELDREF = 1			# Supply a whole image to be used as reference
+REF_BESTRMS = 0					# Use subimages with best RMS as reference, 
+								# 'refopt' should be an integer indicating how 
+								# many references should be used.
 #REF_NOREF = 2					# Don't use a reference, cross-compare 
 								# everything with eachother. This will greatly 
-								# increase CPU load to about N! instead of N 
+								# increase CPU load to about N*N instead of N 
 								# comparisons.
-REF_STATIC = 4					# Use a static reference subaperture, use the 
-								# 'refapt' parameter in functions using this
-								# to specify which subap should be used
+REF_STATIC = 4					# Use static reference subapertures, pass a 
+								# list to the 'refopt' parameter to specify
+								# which subaps should be used.
 
 # Fourier windowing method constants
 FFTWINDOW_NONE = 0				# No window
@@ -156,13 +163,13 @@ def crossCorrWeave(img, ref, pos, range):
 	diffmap = N.zeros(range*2+1)
 	
 	# Cross correlation needs some pre-processing
-	tmpimg = img - img.mean()
-	tmpref = ref - ref.mean()
+	img = img - img.mean()
+	ref = ref - ref.mean()
 	
-	raise RuntimeWarning("crossCorrWeave() is not really working at the moment.")
+	#raise RuntimeWarning("crossCorrWeave() is not really working at the moment, probably some gradient or bias issue.")
 	
 	code = """
-	#line 159 "libshifts.py" (debugging info for compilation)
+	#line 168 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -195,6 +202,7 @@ def crossCorrWeave(img, ref, pos, range):
 					}
 				}
 				// Store the current correlation value in the map.
+				//printf("diff @ %d,%d = %f\\n", (sh0-sh0min), (sh1-sh1min), tmpsum);
 				diffmap((sh0-sh0min), (sh1-sh1min)) = tmpsum;
 			}
 		}
@@ -221,6 +229,7 @@ def crossCorrWeave(img, ref, pos, range):
 				
 				// Scale the value found by dividing it by the number of 
 				// pixels we compared.
+				//printf("diff @ %d,%d = %f\\n", (sh0-sh0min), (sh1-sh1min), tmpsum / ((Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1))));
 				diffmap((sh0-sh0min), (sh1-sh1min)) = tmpsum / 
 					((Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1)));
 			}
@@ -231,7 +240,7 @@ def crossCorrWeave(img, ref, pos, range):
 	return_val = 1;
 	"""
 	one = S.weave.inline(code, \
-		['tmpref', 'tmpimg', 'pos', 'range', 'diffmap'], \
+		['ref', 'img', 'pos', 'range', 'diffmap'], \
 		type_converters=S.weave.converters.blitz)
 	
 	return diffmap
@@ -514,7 +523,7 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 		diffmap = (timlib.shift(fftmap.real, range))\
 			[:range[0]*2+1,:range[0]*2+1]
 	else:
-		raise RuntimeError("range > res/2 is not implemented.")
+		raise NotImplemented("range > res/2 is not implemented.")
 	
 	return diffmap
 
@@ -621,6 +630,7 @@ def quadInt2dWeave(data, range, limit=None):
 	
 	return v
 
+
 def maxValPython(data):
 	"""
 	Return the coordinates of the pixel with maximum intensity in 'data'. 
@@ -633,54 +643,64 @@ def maxValPython(data):
 # Helper routines -- other
 #=============================================================================
 
-def findRef(img, sapos, sasize, refmode=REF_BESTRMS, refapt=None, storeref=False, verb=0):
+def findRefIdx(img, saccdpos, saccdsize, refmode=REF_BESTRMS, refopt=1, storeref=False):
 	"""
-	Find a reference subaperture within 'img' using 'refmode' as criteria. 
-	'img' is expected to be a wavefront sensor image with 'sapos' a list of 
-	lower-left pixel coordinates of the subapertures, each 'sasize' big.
-	Returns the cutout reference subaperture as result. Use the 'storeref'
-	option to save it to disk, if this is desired, pass a filepath to 
-	'storeref'. 
+	Based on 'refmode', return a list with indices of subapertures that will 
+	be used as a reference for image shift calculations lateron.
 	
+	'img' should be a wavefront sensor image with 'saccdpos' a list of 
+	lower-left pixel coordinates of the subapertures, each 'saccdsize' big. 
+	'refmode' should be a valid reference search strategy (see documentation 
+	of this file), and 'refopt' is an optional extra parameter for 'refmode'.
+		
 	NB: This only supports rectangular subapertures.
 	"""
 	
+	# Select the first 'refopt' subapertures with the best RMS
 	if (refmode == REF_BESTRMS):
-		# Find the subimage with the best RMS
-		bestrms = 0.0
-		for _sapos in sapos:
-			# Get subimage
-			_subimg = img[_sapos[1]:_sapos[1] + sasize[1], \
-				_sapos[0]:_sapos[0] + sasize[0]]
-			# Calc RMS^2
-			rms = ((_subimg)**2.0).sum()/sasize[0]/sasize[1]
-			# Comparse against previous best
-			if (rms > bestrms):
-				# If better, store this rms and reference subimage
-				if (verb>0): 
-					print "findRef(): Found new best rms^2 @ (%d,%d), rms^2 is: %.3g, was: %.3g." % (_sapos[0], _sapos[1], rms, bestrms)
-				bestrms = rms
-				bestpos = _sapos
-				ref = _subimg
-		# Take root to get real RMS
-		bestrms = bestrms**0.5
-		if (verb>1):
-			print "findRef(): -Best RMS subimage @ (%d,%d) (rms: %.3g)" % (bestpos[0], bestpos[1], bestrms)
+		# If refopt is not an integer, try to convert it
+		if (refopt.__class__ != int):
+			try:
+				refopt = int(refopt)
+			except:
+				raise ValueError("'refopt' should be an integer.")
+		
+		# Get RMS for all subimages
+		rmslist = []
+		saidx = 0
+		for _sapos in saccdpos:
+			# Get subimage (remember the reverse indexing)
+			_subimg = img[_sapos[1]:_sapos[1] + saccdsize[1], \
+				_sapos[0]:_sapos[0] + saccdsize[0]]
+			# Calculate RMS
+			rms = (((_subimg)**2.0).sum()/(saccdsize[0]*saccdsize[1]))**(0.5)
+			# Store in list, store RMS first, index second such that sorting 
+			# will be done on the RMS and not the index
+			rmslist.append([rms, saidx])
+		# Sort rmslist reverse, because we want highest values first.
+		rmslist.sort(reverse=True)
+		# Return the first 'refopt' best RMS indices. Generate a new list on 
+		# the fly where we only select the indices, we don't need to return 
+		#  the RMS values itself.
+		reflist = [rms[1] for rms in rmslist[:refopt]]
+	# Select static subapertures, 
 	elif (refmode == REF_STATIC):
-		# Use static subap here
-		_sapos = sapos[refapt]
-		ref = img[_sapos[1]:_sapos[1] + sasize[1], \
-			_sapos[0]:_sapos[0] + sasize[0]]
-		if (verb>1):
-			print "findRef(): -Static subap @ (%d,%d) (rms: %.3g)" % (_sapos[0], _sapos[1], (((ref)**2.0).sum()/sasize[0]/sasize[1])**0.5 )
+		# If refopt is not a list, try to convert it
+		if (refopt.__class__ != list):
+			try:
+				refopt = list(refopt)
+			except:
+				raise ValueError("'refopt' should be a list of integers.")
+		
+		# Use static subaps here, return refopt itself
+		reflist = refopt
 	else:
 		raise RuntimeError("'refmode' must be one of the predefined reference modes.")
 	
-	if (storeref != False):
-		# Store the reference subimage if requested
-		pyfits.writeto(storeref, ref)
-	
-	return ref
+	# if (storeref != False):
+	# 	# Store the reference subimage if requested
+	# 	pyfits.writeto(storeref, ref)
+	return reflist
 
 
 #=============================================================================
@@ -688,30 +708,32 @@ def findRef(img, sapos, sasize, refmode=REF_BESTRMS, refapt=None, storeref=False
 #=============================================================================
 
 
-def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refapt=None, shrange=[3,3], verb=0, subfields=None, corrmaps=None):
+def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refopt=None, shrange=[3,3], subfields=None, corrmaps=None):
 	"""
-	Calculate the image shifts for subapertures/subfields in 'img' located at 
-	pixel positions 'sapos' and 'sfpos' respectively, each with the same
-	'subsize' pixelsize. 
+	Calculate the image shifts for subapertures/subfields in 'img'. 
+	Subapertures must be located at pixel positions 'saccdpos' with sizes 
+	saccdsize. The subapertures are then located at 'sfccdpos' (relative to 
+	saccdpos), with sizes 'sfccdsize' pixelsize.
 	
 	'method' defines the method to compare the subimages, 'extremum' defines 
 	the method to find the best subpixel shift, i.e. what interpolation should 
-	be used. 'srange' defines the possible shifts to test (actual number of 
-	distances checked is 2*range+1). 'refmode' sets method to choose a 
-	reference subaperture, 'refapt' is the reference subaperture used (index) 
+	be used. 'shrange' defines the possible shifts to test (actual number of 
+	distances checked is 2*shrange+1). 'refmode' sets method to choose a 
+	reference subaperture, 'refopt' is the reference subaperture used (index) 
 	if 'refmode' is set to REF_STATIC.
 	
 	If an empty list is passed to 'subfields' and/or 'corrmaps', these will 
 	contain the subfields analysed and the correlation maps calculated on 
 	return.
 	
-	For regular (non-wide-field) SH WFS, set 'sapos' to the subaperture
-	positions, 'sfpos' to [[0,0]], and 'subsize' to the subimage pixelsize.
+	For regular (non-wide-field) SH WFS, set 'saccdpos' to the subaperture
+	positions, 'sfccdpos' to [[0,0]], and 'sfccdsize' to the subimage 
+	pixelsize.
 	
-	For wide-field SH WFS, set 'sapos' similarly, but set 'sfpos' to an array 
-	of pixelpositions relative to 'sapos' for the subfields to compare. Set
-	'subsize' not to the complete subimage size, but to the size of the
-	subfield you want to use.
+	For wide-field SH WFS, set 'saccdpos' similarly, but set 'sfccdpos' to an 
+	array of pixel positions relative to 'saccdpos' for the subfields to 
+	compare. Set 'sfccdsize' not to the complete subimage size, but to the 
+	size of the subfield you want to use.
 	"""
 	
 	#===============
@@ -720,96 +742,283 @@ def calcShifts(img, sapos, sasize, sfpos, sfsize, method=COMPARE_ABSDIFFSQ, extr
 	
 	# Parse the 'method' argument
 	if (method == COMPARE_XCORR):
-		if (verb>0): print "calcShifts(): Using direct cross correlation"
+		prNot(VERB_INFO, "calcShifts(): Using direct cross correlation")
 		mfunc = crossCorrWeave
 	elif (method == COMPARE_SQDIFF):
-		if (verb>0): print "calcShifts(): Using square difference"
+		prNot(VERB_INFO, "calcShifts(): Using square difference")
 		mfunc = sqDiffWeave
 	elif (method == COMPARE_ABSDIFFSQ):
-		if (verb>0): print "calcShifts(): Using absolute difference squared"
+		prNot(VERB_INFO, "calcShifts(): Using absolute difference squared")
 		mfunc = absDiffSqWeave
-	elif (is_function(method)):
-		if (verb>0): print "calcShifts(): Using user supplied image comparison function"
+	elif (hasattr(method, '__call__')):
+		prNot(VERB_INFO, "calcShifts(): Using custom image comparison")
 		mfunc = method
 	else:
 		raise RuntimeError("'method' must be either one of the predefined image comparison methods, or a function doing that.")
 	
 	# Parse the 'extremum' argument
 	if (extremum == EXTREMUM_2D9PTSQ):
-		if (verb>0): print "calcShifts(): Using 2d parabola interpolation"
+		prNot(VERB_INFO, "calcShifts(): Using 2d parabola interpolation")
 		extfunc = quadInt2dWeave
 	elif (extremum == EXTREMUM_MAXVAL):
-		if (verb>0): print "calcShifts(): Using maximum value"
+		prNot(VERB_INFO, "calcShifts(): Using maximum value")
 		extfunc = maxValPython
-	elif (is_function(extremum)):
-		if (verb>0): print "calcShifts(): Using user supplied maximum-finding function"
+	elif (hasattr(extremum, '__call__')):
+		prNot(VERB_INFO, "calcShifts(): Using custom interpolation")
 		extfunc = extremum
 	else:
 		raise RuntimeError("'extremum' must be either one of the predefined extremum finding methods, or a function doing that.")
 	
-	# Find reference subaperture
-	ref = findRef(img, sapos, sasize, refmode=refmode, refapt=refapt)
+	# Find reference subaperture(s)
+	reflist = findRefIdx(img, saccdpos, saccdsize, \
+		refmode=refmode, refopt=refopt)
 	
 	# Init shift vectors (use a list so we can append())
-	disps = [] # N.zeros((sapos.shape[0], sfpos.shape[0], 2))
+	# Shape will be: ((len(refopt), saccdpos.shape[0], sfccdpos.shape[0], 2))
+	disps = []
 	
 	#=========================
 	# Begin shift measurements
 	#=========================
 	
-	# Loop over the subapertures
-	if (verb>0): print "calcShifts(): Processing data"
+	prNot(VERB_INFO, "calcShifts(): Processing data")
 	
-	for _sapos in sapos:
-		if (verb>1): print "calcShifts(): -Processing subimage @ (%d, %d), sized (%dx%d)" % \
-			 	(_sapos[0], _sapos[1], sasize[0], sasize[1])
+	# Loop over the reference subapertures
+	#-------------------------------------
+	for sa in reflist:
+		# Cut out the reference subaperture
+		ref = img[saccdpos[sa][1]:saccdpos[sa][1]+saccdsize[1], \
+			saccdpos[sa][0]:saccdpos[sa][0]+saccdsize[0]]
 		
-		# Init lists to store displacements, correlation maps and subfields in
-		ldisps = []
-		lcmaps = []
-		lsubfields = []
+		# Expand lists to store measurements in
+		disps.append([])
+		if (subfields != None): subfields.append([])
+		if (corrmaps != None): corrmaps.append([])
 		
-		# Loop over the subfields
-		for _sfpos in sfpos:
-			# Current pixel position
-			_pos = _sapos + _sfpos
-			_end = _pos + sfsize
+		# Loop over the subapertures
+		#---------------------------
+		for _sapos in saccdpos:
+			prNot(VERB_ALL, "calcShifts(): -Subimage @ (%d, %d), (%dx%d)"% \
+				 	(_sapos[0], _sapos[1], saccdsize[0], saccdsize[1]))
 			
-			if (verb>1): print "calcShifts(): --Processing subfield @ (%d, %d), sized (%dx%d)" % \
-				 	(_sfpos[0], _sfpos[1], sfsize[0], sfsize[1])
+			# Expand lists to store measurements in
+			disps[-1].append([])
+			if (subfields != None): subfields[-1].append([])
+			if (corrmaps != None): corrmaps[-1].append([])
 			
-			# Get the current subfield (remember, the pixel at (x,y) is
-			# img[y,x])
-			_subimg = img[_pos[1]:_end[1], _pos[0]:_end[0]]
+			# Loop over the subfields
+			#------------------------
+			for _sfpos in sfccdpos:
+				# Current pixel coordinates
+				_pos = _sapos + _sfpos
+				_end = _pos + sfccdsize
+				
+				prNot(VERB_ALL, \
+					"calcShifts(): --subfield @ (%d, %d), (%dx%d)" % \
+					 	(_sfpos[0], _sfpos[1], sfccdsize[0], sfccdsize[1]))
+				
+				# Get the current subfield (remember, the pixel at (x,y) is
+				# img[y,x])
+				_subimg = img[_pos[1]:_end[1], _pos[0]:_end[0]]
+				
+				# Compare the image with the reference image
+				diffmap = mfunc(_subimg, ref, _sfpos, shrange)
+				
+				# Find the extremum, store to list
+				shift = extfunc(diffmap, range=shrange, limit=shrange)
+				disps[-1][-1].append(shift[::-1])
+				
+				# Store subfield and correlation map, if requested
+				if (subfields != None): subfields[-1][-1].append(_subimg)
+				if (corrmaps != None): corrmaps[-1][-1].append([diffmap])
 			
-			# Store subfield
-			if (subfields != None):
-				lsubfields.append(_subimg)
-			
-			# Compare the image with the reference image
-			diffmap = mfunc(_subimg, ref, _sfpos, shrange)
-			
-			# Store correlation map
-			if (corrmaps != None):
-				lcmaps.append(diffmap)
-			
-			# Find the extremum, store to list
-			shift = extfunc(diffmap, range=shrange, limit=shrange)
-			ldisps.append(shift[::-1])
-			
-			if (verb>1): print "calcShifts(): --Found shift: (%.3g, %.3g)" % \
-				 	(shift[1], shift[0])
-		
-		# Append the list of subfield data to the list of subimage data (this
-		# gives us a 2d list that can be indexed using subimage and subfield
-		# indices)
-		subfields.append(lsubfields)
-		corrmaps.append(lcmaps)
-		disps.append(ldisps)
+				prNot(VERB_ALL, "calcShifts(): --Shift: (%.3g, %.3g)" % \
+					 	(shift[1], shift[0]))
 	
 	# Reform the shift vectors to an numpy array and return it
-	return N.array(disps)
+	# TODO: if N.float32 sensible?
+	return N.array(disps).astype(N.float32)
 
+
+#=============================================================================
+# Some basic testing functions go here
+#=============================================================================
+
+class libshiftTests(unittest.TestCase):
+	def setUp(self):
+		# Create a test image, shift it, measure shift.
+		# As a test image source we use random noise at a certain resolution 
+		# (self.res). We then scale the image up with a factor self.scale to 
+		# generate structure in the image. After that we scale the image up 
+		# with another factor (self.shscl), in this size we will shift the 
+		# image around.
+		
+		# Debug info or not
+		self.debug = 0
+
+		# The resolution of the source image, after shifting and all
+		self.srcres = 32
+		# The edge of pixels to reserve for shifting around
+		self.edge = 4
+		# Scale factors
+		self.strscl = 4.
+		self.shscl = 8.
+		
+		# Shift vectors
+		self.shvecs = N.array([[0.5, 0.6], [1.2, 1.5], [0.2, 0.4], [2.1, 2.9], [3.2, 1.8]])
+		# Maximum shift range to test
+		self.shrange = N.array([4, 4])
+		
+		# Test file to use for calcShifts()
+		self.testfile = "/Users/tim/workdocs/data/wfwfs/20090217_wfwfs_data/2009-02-17/ES4020_single_im17Feb2009.0000978"
+		
+		# number of iterations to use for timing tests
+		self.nit = 1000
+		
+		# Generate image source
+		self.src = N.random.random([self.srcres/self.strscl]*2)*255
+		if (self.debug):
+			print "setUp(): src: %.3g (%dx%d)" % (self.src.mean(), \
+		 		self.src.shape[0], self.src.shape[1])
+		
+		# Blow up to get structure (self.strscl) and to make subpixel shifts 
+		# possible (self.shscl)
+		self.src = S.ndimage.zoom(self.src, self.strscl*self.shscl)
+		if (self.debug):
+			print "setUp(): src: %.3g (%dx%d)" % (self.src.mean(), \
+		 		self.src.shape[0], self.src.shape[1])
+		
+		# Get reference from source (the center)
+		self.refsame = self.src[\
+			self.edge*self.shscl:\
+			(self.srcres-self.edge)*self.shscl,\
+			self.edge*self.shscl:\
+			(self.srcres-self.edge)*self.shscl]
+		self.refsame = S.ndimage.zoom(self.refsame, 1.0/self.shscl)
+		# Get full reference (which is bigger)
+		self.refbigger = self.src
+		self.refbigger = S.ndimage.zoom(self.refbigger, 1.0/self.shscl)
+		
+		# Get shifted image(s)
+		self.shimgs = []
+		# These hold the *actual* shifts
+		self.rshvecs = []
+		for shvec in self.shvecs:
+			# We cannot shift arbitrary vectors, exact shifts depend on 
+			# self.shscl as well.
+			_shvec = N.round(shvec*self.shscl)/self.shscl
+			shimg = self.src[\
+				(self.edge + _shvec[1])*self.shscl:\
+				(self.srcres - self.edge + shvec[1])*self.shscl,\
+				(self.edge + _shvec[0])*self.shscl:\
+				(self.srcres - self.edge + shvec[0])*self.shscl]
+			shimg = S.ndimage.zoom(shimg, 1.0/self.shscl)
+			self.shimgs.append(shimg)
+			self.rshvecs.append(_shvec)
+			if (self.debug):
+				print "setUp(): img (%dx%d) %.3g +- %.3g, shift (%.3g,%.3g)"%\
+					(shimg.shape[0], shimg.shape[1], shimg.mean(), \
+					shimg.std(), _shvec[0], _shvec[1])
+		
+		if (self.debug):
+			print "setUp(): reference: %.3g (%dx%d)" % (self.refsame.mean(), \
+		 		self.refsame.shape[0], self.refsame.shape[1])
+		# Done
+	
+	def runTests(self):
+		unittest.TextTestRunner(verbosity=2).run(self.suite())
+	
+	def suite(self):
+		suite = unittest.TestLoader().loadTestsFromTestCase(self)
+		return suite
+	
+	def testCcQi(self):
+		print
+		# Test cross-correlation + quadratic interpolation
+		for (img, sh) in zip(self.shimgs, self.rshvecs):
+			diffmap = crossCorrWeave(img, self.refsame, N.array([0,0]), \
+		 		self.shrange)
+			if (self.debug):
+				print "testCcQi(): map: %.3g +- %.3g. %.3g -- %.3g" % \
+			 		(N.mean(diffmap), N.std(diffmap), N.min(diffmap), \
+			 		N.max(diffmap))
+			shift = quadInt2dWeave(diffmap, self.shrange)
+			print "testCcQi(): shift: (%.3g, %.3g), diff: (%.3g, %.3g)"%\
+				(shift[1], shift[0], shift[1]-sh[0], shift[0]-sh[1])
+	
+	def testSqdQi(self):
+		# sqDiffWeave + quadInt2dWeave
+		print
+		for (img, sh) in zip(self.shimgs, self.rshvecs):
+			diffmap = sqDiffWeave(img, self.refsame, N.array([0,0]), \
+		 		self.shrange)
+			if (self.debug):
+				print "testSqdQi(): map: %.3g +- %.3g. %.3g -- %.3g" % \
+			 		(N.mean(diffmap), N.std(diffmap), N.min(diffmap), \
+			 		N.max(diffmap))
+			shift = quadInt2dWeave(diffmap, self.shrange)
+			print "testSqdQi(): shift: (%.3g, %.3g), diff: (%.3g, %.3g)"%\
+				(shift[1], shift[0], shift[1]-sh[0], shift[0]-sh[1])
+	
+	def testAdsQi(self):
+		print
+		# absDiffSqWeave + quadInt2dWeave
+		for (img, sh) in zip(self.shimgs, self.rshvecs):
+			diffmap = absDiffSqWeave(img, self.refsame, N.array([0,0]), \
+		 		self.shrange)
+			if (self.debug):
+				print "testAdsQi(): map: %.3g +- %.3g. %.3g -- %.3g" % \
+			 		(N.mean(diffmap), N.std(diffmap), N.min(diffmap), \
+			 		N.max(diffmap))
+			shift = quadInt2dWeave(diffmap, self.shrange)
+			print "testAdsQi(): shift: (%.3g, %.3g), diff: (%.3g, %.3g)"%\
+				(shift[1], shift[0], shift[1]-sh[0], shift[0]-sh[1])
+	
+	def testCalcShifts(self):
+		# Test the whole calcShifts() function
+		pass
+		
+	def testTiming(self):
+		# Time the various methods
+		img = self.shimgs[0]
+		sh = self.rshvecs[0]
+		
+		print "testTiming(): Starting benchmarks."
+		
+		### absDiffSqWeave/quadInt2dWeave
+		beg = time.time()
+		for i in xrange(self.nit):
+			diffmap = absDiffSqWeave(img, self.refsame, N.array([0,0]), \
+		 		self.shrange)
+			shift = quadInt2dWeave(diffmap, self.shrange)
+		end = time.time()
+		print "testTiming(): absDiffSqWeave/quadInt2dWeave: %.3gs/it." % \
+			((end-beg)/self.nit)
+		
+		### sqDiffWeave/quadInt2dWeave
+		beg = time.time()
+		for i in xrange(self.nit):
+			diffmap = sqDiffWeave(img, self.refsame, N.array([0,0]), \
+		 		self.shrange)
+			shift = quadInt2dWeave(diffmap, self.shrange)
+		end = time.time()
+		print "testTiming(): sqDiffWeave/quadInt2dWeave: %.3gs/it." % \
+			((end-beg)/self.nit)
+
+		### crossCorrWeave/quadInt2dWeave
+		beg = time.time()
+		for i in xrange(self.nit):
+			diffmap = crossCorrWeave(img, self.refsame, N.array([0,0]), \
+		 		self.shrange)
+			shift = quadInt2dWeave(diffmap, self.shrange)
+		end = time.time()
+		print "testTiming(): crossCorrWeave/quadInt2dWeave: %.3gs/it." % \
+			((end-beg)/self.nit)
+		
+# Run tests if we call this library instead of importing it
 if __name__ == '__main__':
-	pass
+	print "libshifts.py: Running selftests"
+	suite = unittest.TestLoader().loadTestsFromTestCase(libshiftTests)
+	unittest.TextTestRunner(verbosity=2).run(suite)
+
 
