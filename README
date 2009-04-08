@@ -1,5 +1,5 @@
 ## watchdog: wide-field wavefront sensor data processing.
-## $Id:
+## $Id$
 
 This set of scripts takes wide-field wavefront sensor measurements as input
 and aims to analyze the atmospheric seeing that disturbed the incoming light.

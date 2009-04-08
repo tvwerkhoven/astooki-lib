@@ -87,7 +87,7 @@ This file is licensed under the Creative Commons Attribution-Share Alike
 license versions 3.0 or higher, see
 http://creativecommons.org/licenses/by-sa/3.0/
 
-$Id
+$Id$
 """
 
 #=============================================================================

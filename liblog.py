@@ -8,7 +8,7 @@ Some routines for printing and logging messages to screen, disk or whatever.
 Created by Tim on 2009-03-30.
 Copyright (c) 2009 Tim van Werkhoven. All rights reserved.
 
-$Id:
+$Id$
 """
 
 #=============================================================================

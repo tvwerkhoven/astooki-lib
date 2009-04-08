@@ -7,6 +7,8 @@ Some plotting routines, especially for WFWFS data plotting.
 
 Created by Tim on 2009-03-27.
 Copyright (c) 2009 Tim van Werkhoven. All rights reserved.
+
+$Id$
 """
 
 #=============================================================================
