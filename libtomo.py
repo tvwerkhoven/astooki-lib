@@ -845,7 +845,9 @@ class WfsData():
 		# ==========================
 				
 		# Shape of the data we'll receive.
-		dshape = (len(runfiles['files']), ) + self.ws.saccdpos.shape
+		NUM_SA_REFERENCE = 4
+		dshape = (len(runfiles['files']), ) + (NUM_SA_REFERENCE,) + \
+		 	self.ws.saccdpos.shape
 		
 		# Check if there are already results available and check if the shape 
 		# matches what we expect it to be.
@@ -854,90 +856,90 @@ class WfsData():
 		
 		# This is the data-analysis part, run this if we want static shifts 
 		# and loading cached data fails.
-		if (self.dostatic and statshift is False):
-			prNot(VERB_INFO, "parseRun(): measuring static subimg shift.")
+		if (self.dostatic):
+			# Still need to get data
+			if (statshift is False):
+				prNot(VERB_INFO, "parseRun(): measuring static subimg shift.")
 			
-			# Allocate buffer
-			statshift = N.zeros(dshape, dtype=N.float32)
+				# Allocate buffer
+				statshift = N.zeros(dshape, dtype=N.float32)
 			
-			# First broadcast subaperture positions to all workers
-			broadcastCB(self.ws.saccdsize, self.TASK_SETSASIZE)
-			broadcastCB(self.ws.saccdpos, self.TASK_SETSAPOS)
-			broadcastCB(N.array([1]), self.TASK_SETNSAREF)
+				# First broadcast subaperture positions to all workers
+				broadcastCB(self.ws.saccdsize, self.TASK_SETSASIZE)
+				broadcastCB(self.ws.saccdpos, self.TASK_SETSAPOS)
+				broadcastCB(N.array([NUM_SA_REFERENCE]), self.TASK_SETNSAREF)
 			
-			# DEBUG
-			# Get heap information
-			hp = guppy.hpy()
-			cheap = hp.heap()
-			print cheap
+				# DEBUG
+				# Get heap information
+				# hp = guppy.hpy()
+				# cheap = hp.heap()
+				# print cheap
 			
-			frame = -1
-			for raw in runfiles['files']:
-				frame += 1
-				# Print progress
-				prNot(VERB_INFO, "parseRun(): P: 1, R: %s, F: %d/%d, " % \
-				 	(runfiles['runid'], frame, runfiles['nfiles']))
-				prNot(VERB_INFO, "#"*70)
+				frame = -1
+				for raw in runfiles['files']:
+					frame += 1
+					# Print progress
+					prNot(VERB_INFO, "parseRun(): P: 1, R: %s, F: %d/%d, " % \
+					 	(runfiles['runid'], frame, runfiles['nfiles']))
+					prNot(VERB_INFO, "#"*70)
 				
-				# See if data was already processed:
-				statsh = loadData(runfiles['cachedir'], \
-					raw + '-static', shape=statshift[frame].shape, \
-					asnpy=True)
-				if (statsh is not False):
-					prNot(VERB_INFO, "parseRun(): Found cache, skipping file")
-					statshift[frame] = statsh
-					continue
+					# See if data was already processed:
+					statsh = loadData(runfiles['cachedir'], \
+						raw + '-static', shape=statshift[frame].shape, \
+						asnpy=True)
+					if (statsh is not False):
+						prNot(VERB_INFO, "parseRun(): Found cache, skipping file")
+						statshift[frame] = statsh
+						continue
 				
-				fileuri = os.path.join(runfiles['datadir'], raw)
-				#_img = pyana.getdata(fileuri)
-				img = WfwfsImg(fileuri, imgtype='raw', format=self.format)
+					fileuri = os.path.join(runfiles['datadir'], raw)
+					#_img = pyana.getdata(fileuri)
+					img = WfwfsImg(fileuri, imgtype='raw', format=self.format)
 				
-				# Check if we need to do darks/flats
-				if (self.dodarkflat):
-					prNot(VERB_DEBUG, "parseRun(): doing dark-/flatfield.")
-					img.darkFlatField(dark=darkimg, gain=gainimg)
+					# Check if we need to do darks/flats
+					if (self.dodarkflat):
+						prNot(VERB_DEBUG, "parseRun(): doing dark-/flatfield.")
+						img.darkFlatField(dark=darkimg, gain=gainimg)
 					
-				prNot(VERB_DEBUG, "parseRun() image stats:")
-				prNot(VERB_DEBUG, img.getStats())
+					prNot(VERB_DEBUG, "parseRun() image stats:")
+					prNot(VERB_DEBUG, img.getStats())
 				
-				# Recv buffer is a slice of the bigger buffer allocated before
-				rbuf = statshift[frame]
-				sub = submitCB(img.data, raw, self.TASK_SUBIMG, rbuf)
-				# If the function did not return True, the job could not be 
-				# submitted to a worker and there is probably data to be read
-				if (sub != True):
-					prNot(VERB_DEBUG, \
-						"parseRun(): submit queue full, getting results.")
+					# Recv buffer is a slice of the bigger buffer allocated before
+					rbuf = statshift[frame]
+					sub = submitCB(img.data, raw, self.TASK_SUBIMG, rbuf)
+					# If the function did not return True, the job could not be 
+					# submitted to a worker and there is probably data to be read
+					if (sub != True):
+						prNot(VERB_DEBUG, \
+							"parseRun(): submit queue full, getting results.")
+						(rawid, results) = resultCB()
+						prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
+						if (rawid is False): break
+						prNot(VERB_DEBUG, results[:8])
+						saveData(runfiles['cachedir'], rawid + '-static', \
+					 		results, asnpy=True)
+						# Retry submit, this time it must work
+						sub = submitCB(img.data, raw, self.TASK_SUBIMG, rbuf)
+			
+			
+				# Wait for all workers to finish
+				prNot(VERB_INFO, "parseRun(): flushing result buffer.")
+				while (True):
 					(rawid, results) = resultCB()
-					prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
 					if (rawid is False): break
+					prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
 					prNot(VERB_DEBUG, results[:8])
 					saveData(runfiles['cachedir'], rawid + '-static', \
-				 		results, asnpy=True)
-					# Retry submit, this time it must work
-					sub = submitCB(img.data, raw, self.TASK_SUBIMG, rbuf)
+					 	results, asnpy=True)
+			# // if (statshift is False):
 			
-			
-			# Wait for all workers to finish
-			prNot(VERB_INFO, "parseRun(): flushing result buffer.")
-			while (True):
-				(rawid, results) = resultCB()
-				if (rawid is False): break
-				prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
-				prNot(VERB_DEBUG, results[:8])
-				saveData(runfiles['cachedir'], rawid + '-static', \
-				 	results, asnpy=True)
-		
-		# This is the data-plotting part, run this if we want static shifts 
-		# and we have data (either cached or calculated)
-		if (self.dostatic):
 			# Process static measurements locally
 			prNot(VERB_INFO, "parseRun(): Phase 1 completed, saving data.")
 			files = saveData(runfiles['cachedir'], 'static-shifts', \
 			 	statshift, asnpy=True)
 			progress['statshift'] = files
-			prNot(VERB_INFO, statshift.mean(0)[:10])
-			prNot(VERB_INFO, statshift.std(0)[:10])
+			#prNot(VERB_INFO, statshift.mean(0)[:10])
+			#prNot(VERB_INFO, statshift.std(0)[:10])
 		
 			# Make a (nice) plot from the static shifts
 			pltit = 'Subimage-shifts for %s \@ %s (zoom: %.3g, #: %d).' % \
@@ -955,16 +957,28 @@ class WfsData():
 			files = saveData(runfiles['cachedir'], \
 			 	'static-shifts-dimm-r0', statdimmr0, asnpy=True)
 			progress['statdimmr0'] = files
+			
 		
-		# Phase 2, subfield measurement
-		# =============================
+		# Phase 2, subfield shift measurement
+		# ===================================
 		
+		# Shape of the data we'll receive.
+		dshape = (len(runfiles['files']), ) + self.ws.nsa + self.ws.sfccdpos.shape
+		
+		# Check if there are already results available and check if the shape 
+		# matches what we expect it to be.
+		subshifts = loadData(runfiles['cachedir'], 
+			'subfield-shifts', shape=dshape, asnpy=True)
 		if (self.dosubfield):
 			prNot(VERB_DEBUG, "parseRun(): measuring subfield shifts.")
 			
 			# Optmize subfield positions using the static offsets
 			#optSubfPos()
 			
+			# Still need to get data
+			if (subshifts is False):
+				prNot(VERB_INFO, "parseRun(): measuring static subimg shift.")
+				
 			# Loop over files, measure (differential) subfield/subimage shifts
 			for raw in runfiles['raw']:
 				fileuri = os.path.join(runfiles['datadir'], raw)
@@ -1013,21 +1027,37 @@ class WfsData():
 					corrmaps=None)
 				#shvec = N.arange(N.product(self.ws.saccdpos.shape), \
 				# 	dtype=N.float32)
-				shvec.shape = self.ws.saccdpos.shape
+				prNot(VERB_DEBUG, "procFrame(): shvec shape before:", shvec.shape)
+				#shvec.shape = self.ws.saccdpos.shape
+				#prNot(VERB_DEBUG, "procFrame(): shvec shape after:", shvec.shape)
 				
 				# Send out data back to master MPI thread
 				sendfunc(shvec)
 			
 			elif (task == self.TASK_SUBFIELD):
 				prNot(VERB_INFO, "procFrame(): calculating subfield shifts.")
-				pass
+				shvec = libshifts.calcShifts(img=data, \
+				 	saccdpos=self.ws.saccdpos, \
+					saccdsize=self.ws.saccdsize, \
+				 	sfccdpos=self.ws.sfccdpos, \
+					sfccdsize=self.ws.sfccdsize, \
+					method=libshifts.COMPARE_ABSDIFFSQ, \
+					extremum=libshifts.EXTREMUM_2D9PTSQ, \
+					refmode=libshifts.REF_BESTRMS, \
+					refopt=self.ws.nref, \
+					shrange=N.array([7,7]), \
+					subfields=None, \
+					corrmaps=None)
+				
+				# Send out data back to the master MPI thread
+				sendfunc(shvec)
 			
 			### These are configuration tasks
 			### =============================
 			
 			elif (task == self.TASK_SETSAPOS):
 				prNot(VERB_INFO, "procFrame(): setting saccdpos:")
-				prNot(VERB_DEBUG, data[:8])
+				prNot(VERB_DEBUG, data)
 				self.ws.saccdpos = data
 			elif (task == self.TASK_SETSASIZE):
 				prNot(VERB_INFO, "procFrame(): setting saccdsize:")
@@ -1037,6 +1067,15 @@ class WfsData():
 				prNot(VERB_INFO, "procFrame(): setting # of references:")
 				prNot(VERB_DEBUG, data)
 				self.ws.nref = data
+			elif (task == self.TASK_SETSFPOS):
+				prNot(VERB_INFO, "procFrame(): setting sfccdpos:")
+				prNot(VERB_DEBUG, data)
+				self.ws.sfccdpos = data
+			elif (task == self.TASK_SETSFSIZE):
+				prNot(VERB_INFO, "procFrame(): setting sfccdsize:")
+				prNot(VERB_DEBUG, data)
+				self.ws.sfccdsize = data
+				
 	
 	
 

@@ -98,7 +98,7 @@ import numpy as N
 import scipy as S
 import scipy.ndimage			# For fast ndimage processing
 import scipy.weave				# For inlining C
-import scipy.weave.converters	# For inlining C
+#import scipy.weave.converters	# For inlining C
 import scipy.fftpack			# For FFT functions in FFT cross-corr
 import scipy.signal				# For hanning/hamming windows
 import pyfits				
@@ -667,8 +667,8 @@ def findRefIdx(img, saccdpos, saccdsize, refmode=REF_BESTRMS, refopt=1, storeref
 		
 		# Get RMS for all subimages
 		rmslist = []
-		saidx = 0
-		for _sapos in saccdpos:
+		for saidx in range(len(saccdpos)):
+			_sapos = saccdpos[saidx]
 			# Get subimage (remember the reverse indexing)
 			_subimg = img[_sapos[1]:_sapos[1] + saccdsize[1], \
 				_sapos[0]:_sapos[0] + saccdsize[0]]
@@ -677,6 +677,7 @@ def findRefIdx(img, saccdpos, saccdsize, refmode=REF_BESTRMS, refopt=1, storeref
 			# Store in list, store RMS first, index second such that sorting 
 			# will be done on the RMS and not the index
 			rmslist.append([rms, saidx])
+		
 		# Sort rmslist reverse, because we want highest values first.
 		rmslist.sort(reverse=True)
 		# Return the first 'refopt' best RMS indices. Generate a new list on 
@@ -785,10 +786,11 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	
 	# Loop over the reference subapertures
 	#-------------------------------------
-	for sa in reflist:
+	for _refsa in reflist:
+		prNot(VERB_DEBUG, "calcShifts(): Using subap #%d as reference" % (_refsa))
 		# Cut out the reference subaperture
-		ref = img[saccdpos[sa][1]:saccdpos[sa][1]+saccdsize[1], \
-			saccdpos[sa][0]:saccdpos[sa][0]+saccdsize[0]]
+		ref = img[saccdpos[_refsa][1]:saccdpos[_refsa][1]+saccdsize[1], \
+			saccdpos[_refsa][0]:saccdpos[_refsa][0]+saccdsize[0]]
 		
 		# Expand lists to store measurements in
 		disps.append([])
