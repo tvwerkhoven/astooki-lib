@@ -63,13 +63,116 @@ def procDimmR0(plotfile, r0dat):
 	 	(datafile, datafile))
 	
 	# Done, convert to PDF
-	# Wait until the file is done
 	waitForFile(plotfile)
-	# Convert to PDF files
-	ret = subprocess.call(["cd " + os.path.dirname(plotfile) + \
-		"; for i in `ls *eps`; do epstopdf $i; done; cd -"], shell=True)
+	convertPdf(plotfile)
 	# Remove datafiles
 	rmFiles([datafile])
+
+
+def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plorigin=(0,0), plrange=(2048, 2048), mag=1.0, allsh=False, title=None, legend=True):
+	"""
+	Plot 'shifts', which should be a N * Nref * Nsa * Nsf * 2 array. Array will 
+	be averaged over Nref before processing. 'filebase' should be a complete uri 
+	which will be appended with eps, pdf and txt for various output formats. 
+	'sapos', 'sasize', 'sfpos' and 'sfsize' should hold subaperture position and 
+	-size and subfield position and -size, respectively.
+	"""
+	
+	# Output filenames
+	plotfile = filebase + '.eps'
+	infofile =  filebase + '-info.txt'
+	
+	# Average over Nref, the number of references we have
+	shifts = shifts.mean(axis=1)
+	plrange = N.array(plrange)
+	plorigin = N.array(plorigin)
+	
+	# Reform data, save to file. Use 4 column x, y, dx, dy syntax.
+	allcpos = (sapos.reshape(-1,1,2) + sfpos.reshape(1,-1,2)) + sfsize/2.0
+	allcpos = allcpos.reshape(-1,2)
+	shiftspl = (N.mean(shifts, axis=0)).reshape(-1,2) * mag
+	datafile = os.path.join('/tmp', 'tmpgnuplot-%f' % (time.time()))
+	N.savetxt(datafile, N.concatenate((allcpos, shiftspl), axis=1))
+	
+	# Init plotting
+	gp = Gnuplot.Gnuplot()
+	gnuplotInit(gp, hardcopy=plotfile, rmfile=True)
+	
+	gp('set xrange [%d:%d]' % (plorigin[0], plrange[0]))
+	gp('set yrange [%d:%d]' % (plorigin[1], plrange[1]))
+	gp('set xlabel "x [pixel]"')
+	gp('set ylabel "y [pixel]"')
+	plsize = plrange-plorigin
+	gp('set size ratio %f' % (1.0*plsize[1]/plsize[0]))
+	gp('set key off')
+	
+	if (title != None):
+		title = addGpSlashes(title)
+		gp('set title "%s"' % (title))
+	
+	# Loop over sapos and sfpos
+	box = 1
+	for _sa in xrange(len(sapos)):
+		_sapos = sapos[_sa]
+		# Draw subaperture boxes
+		gp('set obj %d rect from %d,%d to %d,%d lw 0.4' % \
+			(box, _sapos[0], _sapos[1], _sapos[0]+sasize[0], _sapos[1]+sasize[1]))
+		box += 1
+		
+		for _sf in xrange(len(sfpos)):
+			_sfpos = _sapos + sfpos[_sf]
+			# Draw subfield boxes
+			gp('set obj %d rect from %d,%d to %d,%d lw 0.2' % \
+				(box, _sfpos[0], _sfpos[1], _sfpos[0]+sfsize[0], _sfpos[1]+sfsize[1]))
+			box += 1
+			
+			shvec = shifts[:, _sa, _sf, :]
+			shvec_avg = N.mean(shvec, axis=0)
+	
+	
+	if (legend is True):
+		# Draw vector corresponding with the overall average shift
+		avgshift = N.mean((shvec[...,0]**2.0 + shvec[...,1]**2.0)**0.5)
+		if (avgshift < 1.0): avgshift = 1.0
+		avgshift = N.round(avgshift)
+		legsize = avgshift * mag
+		# Position at 5% of the plot
+		legpos = N.round(plsize * 0.05)
+		txtpos = N.round(plsize * [0.05, 0.02])
+		gp('set style line 1 lt 1 lw 1.0 lc rgb "red"')
+		gp('set arrow from %d,%d rto %d,%d ls 1' % \
+			(legpos[0], legpos[1], legsize, 0))
+		gp('set label "%d-pix shift" at %d,%d font "Palatino,4"' % \
+			(avgshift, txtpos[0], txtpos[1]))
+	
+	gp('plot "%s" using 1:2:3:4 with vectors nohead lw 0.5 title "WFWFS shifts"'%\
+		(datafile))
+	
+	waitForFile(plotfile)
+	convertPdf(plotfile)
+	
+	# Now print some useful info to a file
+	f = open(infofile,'w')
+	tmp = shifts.reshape(-1,2)
+	avgsh = N.mean(tmp, axis=0)
+	avgsh_var = N.std(tmp, axis=0)
+	minsh = N.min(tmp, axis=0)
+	maxsh = N.max(tmp, axis=0)
+	tmp = tmp.flatten()
+	clip = 100.0 * N.argwhere(abs(tmp) == tmp.max()).size / tmp.size
+	
+	print >> f, "frames: %d, subapertures: %d, subfields: %d" % \
+	 	shifts.shape[0:3]
+	print >> f, "avg shift: (%.5g, %.5g) +- (%.5g, %.5g)" % \
+	 	(avgsh[0], avgsh[1], avgsh_var[0], avgsh_var[1])
+	print >> f, "min: (%.5g, %.5g), max: (%.5g, %.5g)" % \
+	 	(minsh[0], minsh[1], maxsh[0], maxsh[1])
+	print >> f, "percentage at maximum (clipped): %-3.2f" % (clip)
+	f.close()
+	
+	# Remove datafiles
+	rmFiles([datafile])
+	# Done
 
 
 def procStatShift(plotfile, shvec, pos, sasize, plorigin=(0,0), plrange=(2048, 2048), mag=1.0, allsh=False, title=None, legend=True, avgshift=True):
@@ -110,6 +213,9 @@ def procStatShift(plotfile, shvec, pos, sasize, plorigin=(0,0), plrange=(2048, 2
 	n = shvec.shape[0]
 	nref = shvec.shape[1]
 	nsa = shvec.shape[2]
+	
+	# shvec.shape[3] should be 1, reshape this away
+	shvec = shvec.reshape(n, nref, nsa, 2)
 	
 	# Subtract average shift per frame from each frame:
 	shfravg = N.mean(shvec, axis=2) 	# this gives a N x NREF x 2 array
@@ -234,13 +340,9 @@ def _plotStatShift(plotfile, shnrm, cpos, llpos, sasize, plorigin, plrange, mag,
 		# Plot the actual vectors from file now
 		gp('plot "%s" using 1:2:3:4 with vectors ls 1 title "WFWFS shifts"' %\
 		 	(datafile))
-			
-	# Wait until the file is done
-	waitForFile(plotfile)
 	
-	# Convert to PDF files
-	ret = subprocess.call(["cd " + os.path.dirname(plotfile) + \
-		"; for i in `ls *eps`; do epstopdf $i; done; cd -"], shell=True)
+	waitForFile(plotfile)
+	convertPdf(plotfile)
 	# Remove datafiles
 	rmFiles([datafile, datafilea])
 	# Done
@@ -259,7 +361,7 @@ def overlayMask(img, saccdpos, saccdsize, filename, number=True, coord=True, nor
 	of the range of the data within the subapertures. [0.5]
 	"""
 	
-	prNot(VERB_INFO, "overlayMask(): rendering subap mask over image.")
+	prNot(VERB_DEBUG, "overlayMask(): rendering subap mask over image.")
 	
 	### Process data
 	### ============
@@ -376,7 +478,7 @@ def overlayMask(img, saccdpos, saccdsize, filename, number=True, coord=True, nor
 	# And as FITS file
 	pyfits.writeto(filename + '.fits', masked, clobber=True)
 	
-	prNot(VERB_INFO, "overlayMask(): done, wrote image as fits and png.")
+	prNot(VERB_ALL, "overlayMask(): done, wrote image as fits and png.")
 
 
 def visCorrMaps(maps, res, sapos, sasize, sfpos, sfsize, filename, shifts=None, mapscale=1.0, text=None, outpdf=False, outfits=False):
@@ -579,7 +681,7 @@ def showSaSfLayout(outfile, sapos, sasize, sfpos=[], sfsize=[], method='ccd', co
 		obj += 1
 		sanum += 1
 		# Set subimage box
-		gp('set obj %d rect from %f,%f to %f,%f' % \
+		gp('set obj %d rect from %f,%f to %f,%f lw 0.8' % \
 			(obj, sa[0], sa[1], sa[0]+sasize[0], sa[1]+sasize[1]))
 		
 		caption = ''
@@ -597,20 +699,28 @@ def showSaSfLayout(outfile, sapos, sasize, sfpos=[], sfsize=[], method='ccd', co
 		for sf in sfpos:
 			_sf = sa + sf
 			obj += 1
-			gp('set obj %d rect from %f,%f to %f,%f' % \
-				(obj, _sf[0], _sf[1], _sf[0]+sasize[0], sa[1]+sasize[1]))
+			gp('set obj %d rect from %f,%f to %f,%f lw 0.4' % \
+				(obj, _sf[0], _sf[1], _sf[0]+sfsize[0], _sf[1]+sfsize[1]))
 	
 	# Finish the plot (TODO: ugly hack, how to do this nicer?)
 	gp('plot -99999')
 	
 	waitForFile(outfile)
-	ret = subprocess.call(["cd " + os.path.dirname(outfile) + \
-		"; epstopdf %s; cd -" % (outfile)], shell=True)
+	convertPdf(outfile)
 
 
 #=============================================================================
 # Helper routines
 #=============================================================================
+
+def convertPdf(file):
+	"""
+	Convert a file to PDF, and possibly other formats. Works only with eps files 
+	now.
+	"""
+	pdffile = os.path.splitext(file)[0]+'.pdf'
+	ret = subprocess.call(["epstopdf %s -o=%s" % (file, pdffile)], shell=True)
+
 
 def mkPlName(runfiles, appendix, sep='_'):
 	"""
@@ -674,14 +784,12 @@ def gnuplotInit(gp, hardcopy=False, verb=False, rmfile=False):
 	'rmfile' is True, delete the hardcopy file.
 	"""
 	
-	prNot(VERB_INFO, "Initializing gnuplot settings")
-	
 	# First reset gnuplot completely
 	gp.reset()
 	
 	# If we want a hardcopy, do so
 	if (hardcopy is not False):
-		prNot(VERB_INFO, "Saving hardcopy to '%s'" % (hardcopy))
+		#prNot(VERB_DEBUG, "Saving hardcopy to '%s'" % (hardcopy))
 		# Make sure the directory exists
 		if (not os.path.exists(os.path.dirname(hardcopy))):
 			os.makedirs(os.path.dirname(hardcopy))

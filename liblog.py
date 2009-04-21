@@ -23,7 +23,7 @@ VERB_DEBUG = 2				# Print as debug (useful debug info)
 VERB_ALL = 3				# Print lots of debug (useless debug info)
 
 # Init setting for verbosity:
-VERBOSITY = VERB_DEBUG
+VERBOSITY = VERB_INFO
 
 #=============================================================================
 # Routines

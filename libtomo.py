@@ -257,10 +257,10 @@ class WfsData():
 					'rawfile-info', aspickle=True)
 				if (self.rawfiles is not False):
 					prNot(VERB_INFO, "watchDog(): Found pre-parsed cache.")
-					prNot(VERB_INFO, "watchDog(): %d runs:" % \
+					prNot(VERB_INFO, "watchDog(): %d runs in this directory:" % \
 						(len(self.rawfiles[root].keys())))
 					for runid in self.rawfiles[root]:
-						prNot(VERB_DEBUG, "watchDog(): %s: %d files." % \
+						prNot(VERB_INFO, "watchDog(): %s: %d files." % \
 							(runid, self.rawfiles[root][runid]['nfiles']))
 				else:
 					self.rawfiles = {}
@@ -745,7 +745,6 @@ class WfsData():
 		'resultCB' should be called to clear a part of the queue.
 		"""
 		
-		prNot(VERB_INFO, "parseRun(): parsing files from one run now.")
 		# Parse 'args', which should hold callbacks to submit a job, get 
 		# results from the job-queue and broadcast settings to the clients:
 		submitCB, resultCB, broadcastCB = args
@@ -757,6 +756,7 @@ class WfsData():
 		
 		# Phase 0, local initialisation
 		# =============================
+		prNot(VERB_INFO, "parseRun(): Phase 0 starting, configuration.")		
 		
 		# Make output directories
 		if (not os.path.isdir(runfiles['plotdir'])):
@@ -810,18 +810,16 @@ class WfsData():
 				self.ws.optDarkFlat(darkfield, flatfield)
 		
 		# Save the (optimized) subaperture positions and sizes
-		files = saveData(runfiles['cachedir'], 'subap-ccdpos', \
+		progress['saccdpos'] = saveData(runfiles['cachedir'], 'subap-ccdpos', \
 		 	self.ws.saccdpos, asnpy=True, ascsv=True, csvfmt='%d')
-		progress['saccdpos'] = files
-		files = saveData(runfiles['cachedir'], 'subap-ccdsize', \
+		progress['saccdsize'] = saveData(runfiles['cachedir'], 'subap-ccdsize', \
 		 	self.ws.saccdsize, asnpy=True, ascsv=True, csvfmt='%d')
-		progress['saccdsize'] = files
-		files = saveData(runfiles['cachedir'], 'subap-llpos', \
-		 	self.ws.sallpos, asnpy=True)
-		progress['sallpos'] = files
-		files = saveData(runfiles['cachedir'], 'subap-llsize', \
-		 	self.ws.sallsize, asnpy=True)
-		progress['sallsize'] = files
+		# Save subfield positions
+		progress['sfccdpos'] = saveData(runfiles['cachedir'], 'subfield-ccdpos', \
+		 	self.ws.sfccdpos, asnpy=True, ascsv=True, csvfmt='%d')
+		progress['sfccdsize'] = saveData(runfiles['cachedir'],'subfield-ccdsize',\
+		 	self.ws.sfccdsize, asnpy=True, ascsv=True, csvfmt='%d')
+		
 		# Plot subaperture mask over a regular image here
 		rawimg = WfwfsImg(os.path.join(runfiles['datadir'], \
 		 	runfiles['files'][0]), imgtype='raw', format=self.format)
@@ -843,11 +841,11 @@ class WfsData():
 		
 		# Phase 1, static correction
 		# ==========================
-				
+		prNot(VERB_INFO, "parseRun(): Phase 1 starting, static offsets.")
+		
 		# Shape of the data we'll receive.
 		NUM_SA_REFERENCE = 4
-		dshape = (len(runfiles['files']), ) + (NUM_SA_REFERENCE,) + \
-		 	self.ws.saccdpos.shape
+		dshape = (len(runfiles['files']), NUM_SA_REFERENCE, self.ws.nsa, 1, 2)
 		
 		# Check if there are already results available and check if the shape 
 		# matches what we expect it to be.
@@ -915,7 +913,7 @@ class WfsData():
 						(rawid, results) = resultCB()
 						prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
 						if (rawid is False): break
-						prNot(VERB_DEBUG, results[:8])
+						#prNot(VERB_DEBUG, results[:8])
 						saveData(runfiles['cachedir'], rawid + '-static', \
 					 		results, asnpy=True)
 						# Retry submit, this time it must work
@@ -928,16 +926,15 @@ class WfsData():
 					(rawid, results) = resultCB()
 					if (rawid is False): break
 					prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
-					prNot(VERB_DEBUG, results[:8])
+					#prNot(VERB_DEBUG, results[:8])
 					saveData(runfiles['cachedir'], rawid + '-static', \
 					 	results, asnpy=True)
 			# // if (statshift is False):
 			
 			# Process static measurements locally
 			prNot(VERB_INFO, "parseRun(): Phase 1 completed, saving data.")
-			files = saveData(runfiles['cachedir'], 'static-shifts', \
-			 	statshift, asnpy=True)
-			progress['statshift'] = files
+			progress['statshift'] = saveData(runfiles['cachedir'], 'static-shifts',\
+			 	statshift, asnpy=True, old=3)
 			#prNot(VERB_INFO, statshift.mean(0)[:10])
 			#prNot(VERB_INFO, statshift.std(0)[:10])
 		
@@ -951,45 +948,138 @@ class WfsData():
 				plrange=self.ws.ccdres, mag=15, allsh=True, title=pltit)
 			
 			# Analyze shifts and calculate r_0
-			statdimmr0 = calcWfsDimmR0(statshift, self.ws.sallpos, \
+			dimmsh = (statshift[:,:,:,0,:]).mean(1)
+			dshape = (len(runfiles['files']), NUM_SA_REFERENCE, self.ws.nsa, 1, 2)
+			statdimmr0 = calcWfsDimmR0(dimmsh, self.ws.sallpos, \
 			 	self.ws.salldiam, self.ws.ccdangscale, mind=2.0, \
 			 	wavelen=self.ws.wavelen)
-			files = saveData(runfiles['cachedir'], \
+			progress['statdimmr0'] = saveData(runfiles['cachedir'], \
 			 	'static-shifts-dimm-r0', statdimmr0, asnpy=True)
-			progress['statdimmr0'] = files
 			
 		
 		# Phase 2, subfield shift measurement
 		# ===================================
+		prNot(VERB_INFO, "parseRun(): Phase 2 starting, subfield offsets.")
 		
 		# Shape of the data we'll receive.
-		dshape = (len(runfiles['files']), ) + self.ws.nsa + self.ws.sfccdpos.shape
+		NUM_SA_REFERENCE = 1
+		dshape = (len(runfiles['files']), NUM_SA_REFERENCE, self.ws.nsa, + \
+		 	self.ws.nsf, 2)
 		
 		# Check if there are already results available and check if the shape 
 		# matches what we expect it to be.
-		subshifts = loadData(runfiles['cachedir'], 
+		sfshifts = loadData(runfiles['cachedir'], 
 			'subfield-shifts', shape=dshape, asnpy=True)
 		if (self.dosubfield):
 			prNot(VERB_DEBUG, "parseRun(): measuring subfield shifts.")
+						
+			# Take average over number of files and number of subap references
+			offs = statshift.reshape(-1, self.ws.nsa, 2)
+			offs = offs.mean(axis=0)
+			maxoffs = N.max(abs(offs), axis=0)
 			
-			# Optmize subfield positions using the static offsets
-			#optSubfPos()
+			if (offs.shape != self.ws.saccdpos.shape):
+				raise RuntimeError("Static offset correction not the same shape as subaperture position list.")
 			
-			# Still need to get data
-			if (subshifts is False):
-				prNot(VERB_INFO, "parseRun(): measuring static subimg shift.")
+			# Use offset to correct the ccd positions
+			saccdpos_c = self.ws.saccdpos + offs
+			# Use the maximum offset to decrease the size
+			saccdpos_c = N.round(saccdpos_c + maxoffs)
+			saccdsize_c = self.ws.saccdsize - 2*maxoffs
+			# Re-calculate subfield positions
+			(self.ws.nsf, tmp, sfccdpos_c, tmp, sfccdsize_c) = \
+			 	self.ws.calcSubfieldConf(self.ws.sftot, self.ws.sfsize, \
+			 	self.ws.sfpitch, self.ws.sfoff, saccdsize_c, self.ws.ccdscale)
+			# Save new configuration
+			progress['saccdpos_c'] = saveData(runfiles['cachedir'], \
+			 	'subap-ccdpos-c', saccdpos_c, asnpy=True)
+			progress['saccdsize_c'] = saveData(runfiles['cachedir'], \
+			 	'subap-ccdsize-c', saccdsize_c, asnpy=True)
+			progress['sfccdpos_c'] = saveData(runfiles['cachedir'], \
+			 	'subfield-ccdpos-c', sfccdpos_c, asnpy=True)
+			progress['sfccdsize_c'] = saveData(runfiles['cachedir'], \
+			 	'subfield-ccdsize-c', sfccdsize_c, asnpy=True)
+			# Save list of data files to disk
+			saveData(runfiles['resultdir'], runfiles['runid']+'-files', \
+				progress, aspickle=True)
+			
+			# Make new overlayplot with corrected positions
+			libplot.overlayMask(rawimg.data, saccdpos_c, saccdsize_c, \
+			 	libplot.mkPlName(runfiles, 'overlay-rawimg-statcorr'), norm=False)
+			# Plot subap _and_ subfield layout here
+			libplot.showSaSfLayout(libplot.mkPlName(runfiles, \
+		 		'sa-sf-layout-statcorr.eps'), saccdpos_c, saccdsize_c, sfccdpos_c, \
+		 		sfccdsize_c)
+			
+			if (sfshifts is False):
+				# Allocate buffer
+				sfshifts = N.zeros(dshape, dtype=N.float32)
 				
-			# Loop over files, measure (differential) subfield/subimage shifts
-			for raw in runfiles['raw']:
-				fileuri = os.path.join(runfiles['datadir'], raw)
-				img = WfwfsImg(fileuri, imgtype='raw', format=self.format)
+				# First broadcast subaperture positions to all workers
+				broadcastCB(saccdsize_c, self.TASK_SETSASIZE)
+				broadcastCB(saccdpos_c + N.round(offs), self.TASK_SETSAPOS)
+				broadcastCB(sfccdsize_c, self.TASK_SETSFSIZE)
+				broadcastCB(sfccdpos_c, self.TASK_SETSFPOS)
+				broadcastCB(N.array([NUM_SA_REFERENCE]), self.TASK_SETNSAREF)
+				
+				frame = -1
+				for raw in runfiles['files']:
+					frame += 1
+					# Print progress
+					prNot(VERB_INFO, "parseRun(): P: 2, R: %s, F: %d/%d, " % \
+					 	(runfiles['runid'], frame, runfiles['nfiles']))
+					prNot(VERB_INFO, "#"*70)
 			
-			# wait for all workers to finish
-			#waitFunc()
+					# See if data was already processed:
+					subfsh = loadData(runfiles['cachedir'], \
+						raw + '-subfield', shape=sfshifts[frame].shape, \
+						asnpy=True)
+					if (subfsh is not False):
+						prNot(VERB_INFO, "parseRun(): Found cache, skipping file")
+						sfshifts[frame] = subfsh
+						continue
+					
+					fileuri = os.path.join(runfiles['datadir'], raw)
+					img = WfwfsImg(fileuri, imgtype='raw', format=self.format)
+					
+					# Check if we need to do darks/flats
+					if (self.dodarkflat):
+						prNot(VERB_DEBUG, "parseRun(): doing dark-/flatfield.")
+						img.darkFlatField(dark=darkimg, gain=gainimg)
+				
+					# Recv buffer is a slice of the bigger buffer allocated before
+					rbuf = sfshifts[frame]
+					sub = submitCB(img.data, raw, self.TASK_SUBFIELD, rbuf)
+					# If the function did not return True, the job could not be 
+					# submitted to a worker and there is probably data to be read
+					if (sub != True):
+						prNot(VERB_DEBUG, \
+							"parseRun(): submit queue full, getting results.")
+						(rawid, results) = resultCB()
+						prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
+						if (rawid is False): break
+						saveData(runfiles['cachedir'], rawid + '-subfield', \
+					 		results, asnpy=True)
+						# Retry submit, this time it must work
+						sub = submitCB(img.data, raw, self.TASK_SUBFIELD, rbuf)
+				
+				# Wait for all workers to finish
+				prNot(VERB_INFO, "parseRun(): flushing result buffer.")
+				while (True):
+					(rawid, results) = resultCB()
+					if (rawid is False): break
+					prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
+					saveData(runfiles['cachedir'], rawid + '-subfield', \
+					 	results, asnpy=True)
+			# // if (sfshifts is False):
 			
-			# process data
-			# procSubfield()
-			
+			# Process measurements locally
+			prNot(VERB_INFO, "parseRun(): Phase 2 completed, saving data.")
+			files = saveData(runfiles['cachedir'], 'subfield-shifts', \
+			 	sfshifts, asnpy=True, old=3)
+			progress['sfshifts'] = files
+		
+		# // if (self.dosubfield)
 		
 		# Save list of data files to disk
 		saveData(runfiles['resultdir'], runfiles['runid']+'-files', \
@@ -1045,7 +1135,7 @@ class WfsData():
 					extremum=libshifts.EXTREMUM_2D9PTSQ, \
 					refmode=libshifts.REF_BESTRMS, \
 					refopt=self.ws.nref, \
-					shrange=N.array([7,7]), \
+					shrange=N.array([4,4]), \
 					subfields=None, \
 					corrmaps=None)
 				
@@ -1098,8 +1188,8 @@ class WfsSetup():
 			'apts' : 'circular',\
 			'fovx' : 50,\
 			'fovy' : 55,\
-			'sageomfile' : None,\
-			'sfgeomfile' : None,\
+			'safile' : './none',\
+			'sffile' : './none',\
 			'sapitchx' : 0.1,\
 			'sapitchx' : 0.091,\
 			'sapitchx' : 0.09,\
@@ -1293,8 +1383,7 @@ class WfsSetup():
 		# Now calculate the positions of the subfields on the CCD, relative to 
 		# the subaperture origin
 		sfccdpos = sfccdoff + \
-			N.indices(self.sftot, dtype=N.float32).reshape(2,-1).T * \
-			sfccdpitch
+			N.indices(tot, dtype=N.float32).reshape(2,-1).T * sfccdpitch
 		sfccdpos = N.round(sfccdpos).astype(N.int)
 		# Convert lower-left pixel coordinate to centroid lenslet coordinates
 		sfllpos = (sfccdpos - sfccdsize/2.0) * ccdscale
@@ -1984,6 +2073,8 @@ def saveOldFile(uri, postfix='.old', maxold=5):
 	we should keep.
 	"""
 	
+	if (maxold == 0): return
+	
 	if (os.path.exists(uri)):
 		app = 0
 		while (os.path.exists(uri + postfix + str(app))):
@@ -2038,7 +2129,8 @@ def loadData(path, id, asnpy=False, aspickle=False, shape=None):
 		# Check if file exists
 		if (not os.path.isfile(uri)):
 			prNot(VERB_WARN, \
-				"loadData(): numpy file does not exists, continuing.")
+				"loadData(): numpy file '%s' does not exists, continuing." % \
+					(os.path.split(uri)[1]))
 			return False
 			
 		# Load results
@@ -2049,7 +2141,8 @@ def loadData(path, id, asnpy=False, aspickle=False, shape=None):
 		# Check if file exists
 		if (not os.path.isfile(uri)):
 			prNot(VERB_WARN, \
-				"loadData(): pickle file does not exists, continuing.")
+				"loadData(): pickle file '%s' does not exists, continuing." % \
+					(os.path.split(uri)[1]))
 			return False
 			
 		# Load results
@@ -2063,7 +2156,7 @@ def loadData(path, id, asnpy=False, aspickle=False, shape=None):
 	return results
 
 
-def saveData(path, id, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%.18e'):
+def saveData(path, id, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%.18e', old=0):
 	"""
 	Save (intermediate) results to 'path' with file ID 'id'. Data can be 
 	stored as numpy array (if asnpy is True), csv file (if ascsv is True)		
@@ -2097,7 +2190,7 @@ def saveData(path, id, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%
 		# Save data in numpy format
 		uri = os.path.join(path, id) + '.npy'
 		# Save old file, if present
-		saveOldFile(uri, postfix='.old', maxold=3)
+		saveOldFile(uri, postfix='.old', maxold=old)
 		try:
 			N.save(uri, data)
 			flist['npy'] = uri
@@ -2107,7 +2200,7 @@ def saveData(path, id, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%
 		# Save data in numpy format
 		uri = os.path.join(path, id) + '.csv'
 		# Save old file, if present
-		saveOldFile(uri, postfix='.old', maxold=3)
+		saveOldFile(uri, postfix='.old', maxold=old)
 		try:
 			N.savetxt(uri, data, fmt=csvfmt)
 			flist['csv'] = uri
@@ -2116,7 +2209,7 @@ def saveData(path, id, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%
 	if (aspickle):
 		uri = os.path.join(path, id) + '.pickle'
 		# Save old file, if present
-		saveOldFile(uri, postfix='.old', maxold=3)
+		saveOldFile(uri, postfix='.old', maxold=old)
 		try:
 			cPickle.dump(data, file(uri, 'w'))
 			flist['pickle'] = uri
@@ -2214,15 +2307,18 @@ def calcWfsDimmR0(shifts, sapos, sadiam, angscl, mind=2.0, wavelen=550e-9):
 	return N.array(r0list)
 
 
-def restoreCache(path, metafile):
+def restoreCache(metafile):
 	"""
 	Load 'metafile', which should hold a dict. For all entries in the dict 
 	with a 'npy' key, load the value of that key.
 	"""
 	# This will hold the data
 	data = {}
+	# Split the path
+	metafile = os.path.splitext(metafile)[0]
+	path, filename = os.path.split(metafile)
 	# Load the metafile
-	filelist = loadData(path, metafile, aspickle=True)
+	filelist = loadData(path, filename, aspickle=True)
 	if (filelist is False):
 		prNot(VERB_WARN, "restoreCache(): Failed to load filelist.")
 		return False

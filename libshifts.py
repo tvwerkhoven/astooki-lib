@@ -839,7 +839,10 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	
 	# Reform the shift vectors to an numpy array and return it
 	# TODO: if N.float32 sensible?
-	return N.array(disps).astype(N.float32)
+	ret = N.array(disps).astype(N.float32)
+	prNot(VERB_INFO, "calcShifts(): Done, shape:")
+	prNot(VERB_INFO, ret.shape)
+	return ret
 
 
 #=============================================================================
@@ -857,7 +860,7 @@ class libshiftTests(unittest.TestCase):
 		
 		# Debug info or not
 		self.debug = 0
-
+		
 		# The resolution of the source image, after shifting and all
 		self.srcres = 32
 		# The edge of pixels to reserve for shifting around
@@ -979,7 +982,7 @@ class libshiftTests(unittest.TestCase):
 	def testCalcShifts(self):
 		# Test the whole calcShifts() function
 		pass
-		
+	
 	def testTiming(self):
 		# Time the various methods
 		img = self.shimgs[0]
@@ -1006,7 +1009,7 @@ class libshiftTests(unittest.TestCase):
 		end = time.time()
 		print "testTiming(): sqDiffWeave/quadInt2dWeave: %.3gs/it." % \
 			((end-beg)/self.nit)
-
+		
 		### crossCorrWeave/quadInt2dWeave
 		beg = time.time()
 		for i in xrange(self.nit):
@@ -1016,7 +1019,7 @@ class libshiftTests(unittest.TestCase):
 		end = time.time()
 		print "testTiming(): crossCorrWeave/quadInt2dWeave: %.3gs/it." % \
 			((end-beg)/self.nit)
-		
+	
 # Run tests if we call this library instead of importing it
 if __name__ == '__main__':
 	print "libshifts.py: Running selftests"
