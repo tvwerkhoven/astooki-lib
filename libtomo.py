@@ -2013,7 +2013,7 @@ class WfwfsImg():
 		scldat = (self.data - self.data.min())*255 / \
 			(self.data.max() - self.data.min())
 		surf = cairo.ImageSurface.create_for_data(scldat.astype(N.uint8), \
-		 	cairo.FORMAT_A8, self.res[0], self.res[0])
+		 	cairo.FORMAT_A8, self.res[0], self.res[1])
 		cairo.ImageSurface.write_to_png(surf, \
 			os.path.join(self.dir, filename))
 	
