@@ -86,8 +86,6 @@ Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
 This file is licensed under the Creative Commons Attribution-Share Alike
 license versions 3.0 or higher, see
 http://creativecommons.org/licenses/by-sa/3.0/
-
-$Id$
 """
 
 #=============================================================================
@@ -162,14 +160,14 @@ def crossCorrWeave(img, ref, pos, range):
 	# Init the map to store the quality of each measured shift in
 	diffmap = N.zeros(range*2+1)
 	
-	# Cross correlation needs some pre-processing
-	img = img - img.mean()
-	ref = ref - ref.mean()
+	# Pre-process data, mean should be the same
+	img = img/img.mean()
+	ref = ref/ref.mean()
 	
 	#raise RuntimeWarning("crossCorrWeave() is not really working at the moment, probably some gradient or bias issue.")
 	
 	code = """
-	#line 168 "libshifts.py" (debugging info for compilation)
+	#line 172 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -262,8 +260,12 @@ def sqDiffWeave(img, ref, pos, range):
 	# Init the map to store the quality of each measured shift in
 	diffmap = N.empty(range*2+1)
 	
+	# Pre-process data, mean should be the same
+	img = img/img.mean()
+	ref = ref/ref.mean()
+	
 	code = """
-	#line 251 "libshifts.py" (debugging info for compilation)
+	#line 270 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -360,8 +362,12 @@ def absDiffSqWeave(img, ref, pos, range):
 	# Init the map to store the quality of each measured shift in
 	diffmap = N.empty(range*2+1)
 	
+	# Pre-process data, mean should be the same
+	img = img/img.mean()
+	ref = ref/ref.mean()
+	
 	code = """
-	#line 349 "libshifts.py" (debugging info for compilation)
+	#line 372 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -448,6 +454,10 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 	"""
 	res = N.array(img.shape)
 	wind = 1			# Default 'window' if none specified
+	
+	# Pre-process data, mean should be the same
+	img = img/img.mean()
+	ref = ref/ref.mean()
 	
 	# Make the window
 	if (window == FFTWINDOW_HANN):
@@ -600,7 +610,7 @@ def quadInt2dWeave(data, range, limit=None):
 	# coordinate of the maximum.
 	submap = data[start[0]-1:start[0]+2, start[1]-1:start[1]+2]
 	code = """
-	#line 583 "libshifts.py" (debugging info)
+	#line 615 "libshifts.py" (debugging info)
 	double a2, a3, a4, a5, a6;
 	
 	a2 = 0.5 * (submap(2,1) -submap(0,1));
@@ -771,12 +781,14 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 		raise RuntimeError("'extremum' must be either one of the predefined extremum finding methods, or a function doing that.")
 	
 	# Find reference subaperture(s)
-	reflist = findRefIdx(img, saccdpos, saccdsize, \
-		refmode=refmode, refopt=refopt)
+	reflist = findRefIdx(img, saccdpos, saccdsize, refmode=refmode, \
+	 	refopt=refopt)
 	
 	# Init shift vectors (use a list so we can append())
 	# Shape will be: ((len(refopt), saccdpos.shape[0], sfccdpos.shape[0], 2))
 	disps = []
+	
+	shrange = N.array(shrange)
 	
 	#=========================
 	# Begin shift measurements
@@ -939,7 +951,7 @@ class libshiftTests(unittest.TestCase):
 	
 	def testCcQi(self):
 		print
-		# Test cross-correlation + quadratic interpolation
+		# crossCorrWeave + quadInt2dWeave
 		for (img, sh) in zip(self.shimgs, self.rshvecs):
 			diffmap = crossCorrWeave(img, self.refsame, N.array([0,0]), \
 		 		self.shrange)

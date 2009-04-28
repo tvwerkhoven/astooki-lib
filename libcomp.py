@@ -9,10 +9,12 @@
 This library provides functions to distribute computation over different 
 MPI threads.
 
-Created by Tim on 2009-03-20.
-Copyright (c) 2009 Tim van Werkhoven. All rights reserved.
+Created by Tim van Werkhoven on 2009-03-20.
+Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
 
-$Id$
+This file is licensed under the Creative Commons Attribution-Share Alike
+license versions 3.0 or higher, see
+http://creativecommons.org/licenses/by-sa/3.0/
 """
 
 #=============================================================================

@@ -5,10 +5,12 @@ libplot.py
 
 Some plotting routines, especially for WFWFS data plotting.
 
-Created by Tim on 2009-03-27.
-Copyright (c) 2009 Tim van Werkhoven. All rights reserved.
+Created by Tim van Werkhoven on 2009-03-27.
+Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
 
-$Id$
+This file is licensed under the Creative Commons Attribution-Share Alike
+license versions 3.0 or higher, see
+http://creativecommons.org/licenses/by-sa/3.0/
 """
 
 #=============================================================================
@@ -640,8 +642,12 @@ def showSaSfLayout(outfile, sapos, sasize, sfpos=[], sfsize=[], method='ccd', co
 	if (method != 'ccd'):
 		raise NotImplemented("Not implemented yet")
 	
+	prNot(VERB_DEBUG, "showSaSfLayout(): Saving plot to '%s'." % (outfile))
 	# Initiate Gnuplot
 	gp = Gnuplot.Gnuplot()
+	
+	# Make a nice path
+	outfile = os.path.realpath(outfile)
 	
 	# Set default settings
 	gnuplotInit(gp, hardcopy=outfile, rmfile=True)
@@ -789,12 +795,13 @@ def gnuplotInit(gp, hardcopy=False, verb=False, rmfile=False):
 	
 	# If we want a hardcopy, do so
 	if (hardcopy is not False):
-		#prNot(VERB_DEBUG, "Saving hardcopy to '%s'" % (hardcopy))
+		hc = os.path.realpath(hardcopy)
+		prNot(VERB_DEBUG, "Saving hardcopy to '%s'" % (hc))
 		# Make sure the directory exists
-		if (not os.path.exists(os.path.dirname(hardcopy))):
-			os.makedirs(os.path.dirname(hardcopy))
-		if (rmfile == True and os.path.isfile(hardcopy)):
-			os.remove(hardcopy)
+		if (not os.path.exists(os.path.dirname(hc))):
+			os.makedirs(os.path.dirname(hc))
+		if (rmfile == True and os.path.isfile(hc)):
+			os.remove(hc)
 		gp('set terminal postscript eps enhanced color size 8.8cm,5.44cm "Palatino-Roman" 10')
 		gp('set output "%s"' % (hardcopy))
 	

@@ -25,14 +25,12 @@ Some conventions used in these (and other) routines include:
  - Coordinates, lengths, sizes stored as (x,y), slicing in numpy must 
     therefore always be done with data[coord[1], coord[0]]
 
-Created by Tim van Werkhoven on 2008-02-18.
-Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
+Created by Tim van Werkhoven on 2009-02-18.
+Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
 
 This file is licensed under the Creative Commons Attribution-Share Alike
 license versions 3.0 or higher, see
 http://creativecommons.org/licenses/by-sa/3.0/
-
-$Id$
 """
 
 #=============================================================================
@@ -45,6 +43,7 @@ import scipy as S
 import libshifts			# To calculate image shifts
 import libplot				# To process and plot results
 from liblog import *		# To print & log messages
+from libfile import *		# File IO routines
 
 # File parsing/loading/IO
 import ConfigParser			# For parsing the config file
@@ -2065,159 +2064,6 @@ class WfwfsImg():
 # Helper routines, not associated with any class
 #=============================================================================
 
-def saveOldFile(uri, postfix='.old', maxold=5):
-	"""
-	If 'uri' is present, rename the file to prevent it being overwritten. 
-	The filename will be to 'uri' + postfix + the lowest integer that 
-	constitutes a non-existing file. 'maxold' specifies how many old files 
-	we should keep.
-	"""
-	
-	if (maxold == 0): return
-	
-	if (os.path.exists(uri)):
-		app = 0
-		while (os.path.exists(uri + postfix + str(app))):
-			app += 1
-			if (app >= maxold-1): break
-			
-		# Now rename uri+postfix+str(app-1) -> uri+postfix+str(app)
-		# NB: range(app-1, -1, -1) for app = 5 gives [4, 3, 2, 1, 0]
-		for i in range(app-1, -1, -1):
-			os.rename(uri+postfix+str(i), uri+postfix+str(i+1))
-			
-		# Now rename the original file to originalfile + '.old0':
-		os.rename(uri, uri+postfix+str(0))
-		
-		# the file 'uri' is now free
-		prNot(VERB_DEBUG, \
-			"saveOldFile(): renaming file to prevent overwriting")
-
-
-def loadData(path, id, asnpy=False, aspickle=False, shape=None):
-	"""
-	Reverse function of saveData(): load data stored on disk to prevent 
-	re-computation of the analysis. Formats supported are numpy arrays 
-	(enable with 'asnpy') and pickled files (enable with 'aspickle'). File
-	URI will be dirname + file + '.npy'/'.pickle'. If both 'asnpy' and 
-	'aspickle' are True, numpy will be preferred.
-	
-	If shape is set, it will be verified that the returned array is indeed 
-	that shape.
-	
-	Return value is a tuple of (flag, data), with the bool 'flag' 
-	indicating whether or not data has been found and 'data' carrying the 
-	data -- which can be of any type. If 'flag' is False, data is 
-	set to False.
-	
-	TODO: add ascsv
-	"""
-	
-	prNot(VERB_DEBUG, "loadData(): id '%s' asnpy: %d aspickle: %d" % \
-		(id, asnpy, aspickle))
-	
-	# Make sure there is only one setting true
-	if (asnpy and aspickle):
-		aspickle = False
-		prNot(VERB_WARNING, "loadData(): Cannot load more than one format at a time, disabling pickle")
-	elif (not asnpy and not aspickle):
-		asnpy = True
-		prNot(VERB_WARNING, "loadData(): No format selected, enabling npy")
-	
-	if (asnpy):
-		uri = os.path.join(path, id) + '.npy'
-		# Check if file exists
-		if (not os.path.isfile(uri)):
-			prNot(VERB_WARN, \
-				"loadData(): numpy file '%s' does not exists, continuing." % \
-					(os.path.split(uri)[1]))
-			return False
-			
-		# Load results
-		results = N.load(uri)
-	
-	if (aspickle):
-		uri = os.path.join(path, id) + '.pickle'
-		# Check if file exists
-		if (not os.path.isfile(uri)):
-			prNot(VERB_WARN, \
-				"loadData(): pickle file '%s' does not exists, continuing." % \
-					(os.path.split(uri)[1]))
-			return False
-			
-		# Load results
-		results = N.load(uri)
-	
-	# Check if shape matches
-	if (shape != None and results.shape != shape):
-		prNot(VERB_WARN, "loadData(): shapes do not match, continuing.")
-		return False
-		
-	return results
-
-
-def saveData(path, id, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%.18e', old=0):
-	"""
-	Save (intermediate) results to 'path' with file ID 'id'. Data can be 
-	stored as numpy array (if asnpy is True), csv file (if ascsv is True)		
-	and/or pickled format (if aspickle is True). The final path will be
-	os.path.join(path,id) + '.npy'/'.csv'/'.pickle', for the different
-	formats.
-	
-	Parameters:
-	'csvfmt': the format for storing data as CSV ['%.18e']
-	
-	Returns:
-	A dict of files the data was saved to when successful. The keys will 
-	be one or more of 'npy', 'pickle' or 'csv' and the values will be the 
-	full file paths. Returns False when something failed.
-	"""
-	# Init empty list
-	flist = {}
-	
-	prNot(VERB_DEBUG, "saveData(): id '%s' npy: %d pickle: %d, csv: %d" %\
-		(id, asnpy, aspickle, ascsv))
-	
-	# Make dir if necessary
-	if (not os.path.isdir(path)):
-		os.makedirs(path)
-	
-	# If everything is False, enable asnpy
-	if (not asnpy and not aspickle and not ascsv):
-		asnpy = True
-	
-	if (asnpy):
-		# Save data in numpy format
-		uri = os.path.join(path, id) + '.npy'
-		# Save old file, if present
-		saveOldFile(uri, postfix='.old', maxold=old)
-		try:
-			N.save(uri, data)
-			flist['npy'] = uri
-		except:
-			return False
-	if (ascsv):
-		# Save data in numpy format
-		uri = os.path.join(path, id) + '.csv'
-		# Save old file, if present
-		saveOldFile(uri, postfix='.old', maxold=old)
-		try:
-			N.savetxt(uri, data, fmt=csvfmt)
-			flist['csv'] = uri
-		except:
-			return False			
-	if (aspickle):
-		uri = os.path.join(path, id) + '.pickle'
-		# Save old file, if present
-		saveOldFile(uri, postfix='.old', maxold=old)
-		try:
-			cPickle.dump(data, file(uri, 'w'))
-			flist['pickle'] = uri
-		except:
-			return False
-	
-	return flist
-	# done
 
 
 #=============================================================================

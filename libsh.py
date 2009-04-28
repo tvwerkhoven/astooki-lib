@@ -10,13 +10,11 @@ This library provides some routines for analyzing/processing Shack-Hartmann
 wavefront sensor data.
 
 Created by Tim van Werkhoven on 2009-04-23.
-Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
+Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
 
 This file is licensed under the Creative Commons Attribution-Share Alike
 license versions 3.0 or higher, see
 http://creativecommons.org/licenses/by-sa/3.0/
-
-$Id$
 """
 
 #=============================================================================
@@ -26,6 +24,16 @@ $Id$
 import numpy as N				# Math & calculations
 import csv
 from liblog import *		# To print & log messages
+from libfile import *		# File storing, management and other things
+import os
+
+#=============================================================================
+# Some static defines
+#=============================================================================
+
+#=============================================================================
+# Routines 
+#=============================================================================
 
 def makeSubaptMask(pos, size, res):
 	"""
@@ -53,61 +61,109 @@ def makeSubaptMask(pos, size, res):
 	return (mask, maskborder)
 
 
-def loadSubaptConf(filename):
+def loadSaSfConf(safile):
 	"""
 	Try to load 'filename', if it exists. This should hold information on 
-	the subaperture positions and sizes on the CCD. Positions should be 
-	the lower-left corner of the subaperture. Syntax of the file should 
-	be:
-	line 1: <INT number of subapertures>
-	line 2: <FLOAT xsize [m]> <FLOAT ysize [m]> (unused ATM)
-	line 3: <INT xsize [pix]> <INT ysize [pix]>
-	line 4--n: <INT subap n xpos [pix]> <INT subap n ypos [pix]>
+	the subaperture or subfield positions and sizes on the CCD. Positions should 
+	be the absolute lower-left corner of the subaperture, or relative LL corner 
+	of the subfield. Syntax of the file should be:
+	1: <INT number of coordinates>
+	2: <FLOAT xsize [m]> <FLOAT ysize [m]> <FLOAT xoff [m]> <FLOAT yoff [m]>
+	3: <INT xsize [pix]> <INT ysize [pix]> <INT xoff [pix]> <INT yoff [pix]>
+	4--: <INT xpos n [pix]> <INT ypos n [pix]>
 	
-	@param filename file holding the subaperture configuration as CSV.
+	with 'xoff' and 'yoff' a global offsets for the positions, if necessary.
 	
-	@return (<# of subaps>, <subap pixelpos on CCD>, <subap pixelsize on CCD>)
+	N.B. Line 2 is currently not used, but provided for backwards compatibility.
+	
+	@param filename file holding the configuration as CSV.
+	
+	@return (<# of coords>, <pixelpos on CCD>, <pixelsize on CCD>)
 	
 	Raises IOError if file could not be found or RuntimeError if parsing did not 
 	go as expected.
 	"""
 	
 	if (not os.path.isfile(safile)):
-		raise IOError("loadSubaptConf(): File '%s' does not exist." % (filename))
+		raise IOError("loadSaSfConf(): File '%s' does not exist." % (filename))
 	
 	reader = csv.reader(open(safile), delimiter=',')
 	
 	try: 
-		# Number of subapertures [int]
+		# Number of coordinates [int]
 		nsa = int((reader.next())[0])
-		# Subaperture size at aperture [float, float]
+		# Box size at aperture [float, float]
 		line = reader.next()
 		sallsize = N.array([float(line[0]), float(line[1])])
-		# Subaperture pixel size [int, int]
+		# Try to read the lenslet offset, set to 0 if not present
+		try: salloff = N.array([int(line[2]), int(line[3])])
+		except: salloff = N.array([0, 0])
+		# Box pixel size [int, int] and offset [int, int]
 		line = reader.next()
-		saccdsize = N.array([int(line[0]), int(line[1])])
+		ccdsize = N.array([int(line[0]), int(line[1])])
+		# Try to read the ccd offset, set to 0 if not present
+		try: saccdoff = N.array([int(line[2]), int(line[3])])
+		except: saccdoff = N.array([0, 0])
 	except:
-		raise RuntimeError("loadSubaptConf(): Could not parse file header.")
+		raise RuntimeError("loadSaSfConf(): Could not parse file header.")
 	
-	saccdpos = []
+	ccdpos = []
 	for line in reader:
 		try:
 			_pos = [int(line[0]), int(line[1])]
-			saccdpos.append(_pos)
+			ccdpos.append(_pos)
 		except:
-			raise RuntimeError("loadSubaptConf(): Could not parse file.")
+			raise RuntimeError("loadSaSfConf(): Could not parse file.")
 	
-	prNot(VERB_DEBUG, "loadSubaptConf(): Found %d subaps, (expected %d)."% \
-		 (len(saccdpos), nsa))
+	prNot(VERB_DEBUG, "loadSaSfConf(): Found %d coordinates, (expected %d)."% \
+		 (len(ccdpos), nsa))
 	
-	if (len(saccdpos) != nsa):
-		prNot(VERB_WARN, "loadSubaptConf(): Found %d subaps, expected %d. Using all positions found (%d)." % (len(saccdpos), nsa, len(saccdpos)))
-		nsa = len(saccdpos)
+	if (len(ccdpos) != nsa):
+		prNot(VERB_WARN, "loadSaSfConf(): Found %d coordinates, expected %d. Using all positions found (%d)." % (len(ccdpos), nsa, len(ccdpos)))
+		nsa = len(ccdpos)
 	
-	return (nsa, N.array(saccdpos), N.array(saccdsize))
+	return (nsa, N.array(ccdpos)+saccdoff, N.array(ccdsize))
 
 
-def calcSubaptConf(rad, size, pitch, shape='circular', xoff=0, disp=(0,0), scl=1.0):
+def saveSaSfConf(sfile, n, llsize, ccdsize, ccdpos):
+	"""
+	Save the subaperture (sa) or subfield (sf) configuration to 'sfile'. The
+	syntax of the subaperture and subfield configuration is the same, so we can 
+	use the same function to save the data.
+	
+	@param sfile File to store configuration to
+	@param n Number of sa/sf coordinates to store
+	@param llsize The size in SI units of the sa/sf
+	@param ccdsize The sa/sf pixelsize on the CCD
+	@param ccdpos The sa/sf pixel positions on the CCD
+	
+	@return Nothing
+	"""
+	# Convert file to real path
+	sfile = os.path.realpath(sfile)
+	
+	# If it exists, save old files
+	if (os.path.isfile(sfile)):
+		saveOldFile(sfile, postfix='.old', maxold=5)
+	
+	# Now open the file for writing
+	writer = csv.writer(open(sfile, 'w'), delimiter=',')
+	
+	# Write 'n'
+	writer.writerow([n])
+	# Write llsize:
+	writer.writerow(list(llsize) + [0.0, 0.0])
+	# Write ccdsize
+	writer.writerow(list(ccdsize) + [0, 0])
+	# Write all ccd positions
+	for pos in ccdpos:
+		writer.writerow(pos)
+	
+	# Done
+	
+
+
+def calcSubaptConf(rad, size, pitch, shape='circular', xoff=[0,0.5], disp=(0,0), scl=1.0):
 	"""
 	Generate subaperture (sa) positions for a given configuration.
 	
@@ -173,7 +229,7 @@ def calcSubaptConf(rad, size, pitch, shape='circular', xoff=0, disp=(0,0), scl=1
 	nsa = len(saccdpos)
 	prNot(VERB_INFO, "calcSubaptConf(): found %d subapertures." % (nsa))
 	
-	return (nsa, sallpos, saccdpos)
+	return (nsa, saccdpos, size)
 
 
 def optSubapConf(img, sapos, sasize, saifac):
@@ -232,17 +288,18 @@ def optSubapConf(img, sapos, sasize, saifac):
 		# Find the first index where the intensity is lower than saifac 
 		# times the maximum intensity in the slices *in slice coordinates*.
 		slmax = N.max([xslice.max(), yslice.max()])
-		# TODO: this should work better, but doesn't. Why?
-		#slmin = N.min([xslice.min(), yslice.min()])
-		#cutoff = (slmax-slmin)*saifac
 		cutoff = slmax * saifac
+		cutoff = N.mean(img[pos[1]+0.4*sasize[1]:pos[1]+0.6*sasize[1], \
+			pos[0]+0.4*sasize[0]:pos[0]+0.6*sasize[0]]) * saifac
 		saxran = N.array([ \
 			N.argwhere(xslice[:slxran.ptp()/2.] < cutoff)[-1,0], \
 			N.argwhere(xslice[slxran.ptp()/2.:] < cutoff)[0,0] + slxran.ptp()/2. ])
 		sayran = N.array([ \
 			N.argwhere(yslice[:slyran.ptp()/2.] < cutoff)[-1,0], \
 			N.argwhere(yslice[slyran.ptp()/2.:] < cutoff)[0,0] + slyran.ptp()/2. ])
-		
+		prNot(VERB_ALL, "optSubapConf(): ranges: (%d,%d), (%d,%d) cutoff: %g" % \
+			(slxran[0], slxran[1], slyran[0], slyran[1], cutoff))
+			
 		# The size of the subaperture is sa[x|y]ran[1] - sa[x|y]ran[0]:
 		_sass = N.array([saxran.ptp(), sayran.ptp()])
 		
@@ -256,10 +313,9 @@ def optSubapConf(img, sapos, sasize, saifac):
 			sayran[0] + slyran[0]])
 		
 		prNot(VERB_DEBUG, \
-			"optSubapConf(): subap@(%d, %d), size: (%d, %d), pos: (%d, %d)" % \
-			(pos[0], pos[1], _sass[0], _sass[1], _sapos[0], _sapos[1]))
-		prNot(VERB_DEBUG, "optSubapConf(): ranges: (%d,%d) and (%d,%d)"% \
-			(slxran[0], slxran[1], slyran[0], slyran[1]))
+			"optSubapConf(): subap@(%d, %d), size: (%d, %d), pos: (%d, %d) end: (%d, %d)" % \
+			(pos[0], pos[1], _sass[0], _sass[1], _sapos[0], _sapos[1], \
+			_sapos[0] + _sass[0], _sapos[1] + _sass[1]))
 		
 		# The subimage size should be the same for all subimages. Store 
 		# all subaperture sizes found during looping and then take the
@@ -277,6 +333,10 @@ def optSubapConf(img, sapos, sasize, saifac):
 	prNot(VERB_INFO, "optSubapConf(): subimage size optimized to (%d,%d), stddev: (%.3g, %.3g) (was (%.3g, %.3g))" % \
 		(optsize[0], optsize[1], tmpstddev[0], tmpstddev[1], \
 		sasize[0], sasize[1]))
+	if (tmpstddev.mean() > 1.0):
+		prNot(VERB_WARN, \
+			"optSubapConf(): size standarddeviation rather high, check results!")
 	
-	return (len(optpos), optpos, optsize)
+	return (len(optsapos), optsapos, optsize)
+
 
