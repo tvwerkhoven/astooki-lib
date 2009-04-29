@@ -164,8 +164,8 @@ def crossCorrWeave(img, ref, pos, range):
 	diffmap = N.empty((range[1]*2+1, range[0]*2+1))
 	
 	# Pre-process data, mean should be the same
-	# img = img/N.float32(img.mean())
-	# ref = ref/N.float32(ref.mean())
+	img = img/N.float32(img.mean())
+	ref = ref/N.float32(ref.mean())
 	# print img.shape
 	# print ref.shape
 	
@@ -374,8 +374,8 @@ def absDiffSqWeave(img, ref, pos, range):
 	diffmap = N.empty((range[1]*2+1, range[0]*2+1))
 	
 	# Pre-process data, mean should be the same
-	img = img/N.float32(img.mean())
-	ref = ref/N.float32(ref.mean())
+	# img = img/N.float32(img.mean())
+	# ref = ref/N.float32(ref.mean())
 	# print img.shape
 	# print ref.shape
 	
@@ -847,15 +847,16 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 			if (corrmaps != None): corrmaps[-1].append([])
 			
 			# Cut out subimage
-			_subimg = img[_sapos[1]:saccdsize[1], _sapos[0]:saccdsize[0]]
+			_subimg = img[_sapos[1]:_sapos[1]+saccdsize[1], \
+			 	_sapos[0]:_sapos[0]+saccdsize[0]]
 			_subimg = (_subimg/_subimg.mean()).astype(N.float32)
 			
 			# Loop over the subfields
 			#------------------------
 			for _sfpos in sfccdpos:
 				# Current pixel coordinates
-				#_pos = _sapos + _sfpos
-				#_end = _pos + sfccdsize
+				# _pos = _sapos + _sfpos
+				# _end = _pos + sfccdsize
 				
 				# prNot(VERB_ALL, \
 				# 	"calcShifts(): --subfield @ (%d, %d), (%dx%d) [%d:%d, %d:%d]" % \
@@ -864,8 +865,18 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 				
 				# Get the current subfield (remember, the pixel at (x,y) is
 				# img[y,x])
-				_subfield = img[_sfpos[1]:sfccdsize[1], _sfpos[0]:sfccdsize[0]]
+				_subfield = _subimg[_sfpos[1]:_sfpos[1]+sfccdsize[1], \
+				 	_sfpos[0]:_sfpos[0]+sfccdsize[0]]
 				#_subfield = img[_pos[1]:_end[1], _pos[0]:_end[0]]
+				# if (_subfield.shape != _subfieldo.shape):
+				# 	print _sfpos, sfccdsize
+				# 	print _subfield.shape, _subfieldo.shape
+				# 	raise RuntimeError("Shapes wrong")
+				# if (not N.allclose(_subfield,_subfieldo)):
+				# 	print _sfpos, sfccdsize
+				# 	print _pos, _end
+				# 	raise RuntimeError("Not close, diff: %g" % \
+				# 	 	((_subfieldo-_subfield).sum()))
 				# Compare the image with the reference image
 				diffmap = mfunc(_subfield, ref, _sfpos, shrange)
 				#165, 139
@@ -878,8 +889,8 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 				# if (subfields != None): subfields[-1][-1].append(_subfield)
 				# if (corrmaps != None): corrmaps[-1][-1].append([diffmap])
 				# 			
-				# prNot(VERB_ALL, "calcShifts(): --Shift: (%.3g, %.3g)" % \
-				# 	 	(shift[1], shift[0]))
+				# prNot(VERB_ALL, "calcShifts(): --Shift @ (%d,%d): (%.3g, %.3g)" % \
+				# 	 	(_sfpos[0], _sfpos[1], shift[1], shift[0]))
 	
 	# Reform the shift vectors to an numpy array and return it
 	# TODO: is N.float32 sensible?
