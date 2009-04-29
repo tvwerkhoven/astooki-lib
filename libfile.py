@@ -121,17 +121,18 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, shape=None):
 	return results
 
 
-def saveData(path, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%.18e', csvhdr=None, old=0):
+def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False, csvfmt='%.18e', csvhdr=None, old=3):
 	"""
 	Save (intermediate) results to 'path'. Data can be 
-	stored as numpy array (if asnpy is True), csv file (if ascsv is True)		
-	and/or pickled format (if aspickle is True). The final path will be
-	path + '.npy'/'.csv'/'.pickle', for the different formats.
+	stored as numpy array (if asnpy is True), csv file (if ascsv is True), FITS 
+	file (asfits) and/or pickled format (if aspickle is True). The final path 
+	will be path + '.npy'/'.csv'/'.fits'/'.pickle', for the different formats.
 	
 	@param path Base path to store files to. Should be dir+filename
 	@param data Some numpy formatted data.
 	@param asnpy Store data in numpy format to path+'.npy' [False]
 	@param aspickle Store data in pickle format to path+'.pickle' [False]
+	@param asfits Store data in FITS format to path+'.fits' [False]
 	@param ascsv Store data in csv format to path+'.csv' [False]
 	@param csvfmt The format for storing data as CSV ['%.18e']
 	@param csvhdr A header to write to the head of the file. Header should nbe a 
@@ -145,6 +146,7 @@ def saveData(path, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%.18e
 	full file paths. Returns False when something failed.
 	"""
 	import numpy as N
+	import pyfits
 	
 	# Init empty list
 	flist = {}
@@ -188,6 +190,14 @@ def saveData(path, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%.18e
 		saveOldFile(uri, postfix='.old', maxold=old)
 		pickle.dump(data, file(uri, 'w'))
 		flist['pickle'] = os.path.basename(uri)
+	
+	if (asfits):
+		uri = path + '.fits'
+		# Save old file, if present
+		prNot(VERB_DEBUG, "saveData(): storing fits to '%s'" % (uri))
+		saveOldFile(uri, postfix='.old', maxold=old)
+		pyfits.writeto(uri, data)
+		flist['fits'] = os.path.basename(uri)
 	
 	return flist
 	# done
