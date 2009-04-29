@@ -651,7 +651,7 @@ def quadInt2dWeave(data, range, limit=None):
 		extra_compile_args= [__COMPILE_OPTS], \
 		type_converters=S.weave.converters.blitz)
 	
-	v extremum + start + offset
+	v = extremum + start + offset
 	
 	# Debug
 	# if (not N.isfinite(v).all()):
@@ -774,6 +774,8 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	# Initialisation
 	#===============
 	
+	beg = time.time()
+	
 	# Parse the 'method' argument
 	if (method == COMPARE_XCORR):
 		prNot(VERB_DEBUG, "calcShifts(): Using direct cross correlation")
@@ -881,6 +883,8 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	
 	# Reform the shift vectors to an numpy array and return it
 	# TODO: is N.float32 sensible?
+	dur = time.time() - beg
+	prNot(VERB_DEBUG, "calcShifts(): done, took %.3g seconds." % (dur))
 	ret = N.array(disps).astype(N.float32)
 	return ret
 
