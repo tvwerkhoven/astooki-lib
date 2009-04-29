@@ -15,6 +15,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 """
 import os
 from liblog import *
+import cPickle as pickle
 
 def saveOldFile(uri, postfix='.old', maxold=5):
 	"""
@@ -48,7 +49,7 @@ def saveOldFile(uri, postfix='.old', maxold=5):
 		prNot(VERB_DEBUG, "saveOldFile(): renaming file to prevent overwriting")
 
 
-def loadData(path, asnpy=False, aspickle=False, shape=None):
+def loadData(path, asnpy=False, aspickle=False, ascsv=False, shape=None):
 	"""
 	Reverse function of saveData(): load data stored on disk to prevent 
 	re-computation of the analysis. Formats supported are numpy arrays 
@@ -71,34 +72,46 @@ def loadData(path, asnpy=False, aspickle=False, shape=None):
 		(id, asnpy, aspickle))
 	
 	# Make sure there is only one setting true
-	if (asnpy and aspickle):
+	if (N.sum([asnpy, aspickle, ascsv]) > 1):
 		aspickle = False
+		ascsv = False
 		prNot(VERB_WARNING, "loadData(): Cannot load more than one format at a time, disabling pickle.")
-	elif (not asnpy and not aspickle):
+	elif (N.sum([asnpy, aspickle, ascsv]) < 1):
 		asnpy = True
 		prNot(VERB_WARNING, "loadData(): No format selected, enabling npy.")
 	
 	if (asnpy):
-		uri = path + '.npy'
+		#uri = path + '.npy'
 		# Check if file exists
-		if (not os.path.isfile(uri)):
+		if (not os.path.isfile(path)):
 			prNot(VERB_WARN, "loadData(): numpy file '%s' does not exists." % \
-					(os.path.split(uri)[1]))
+					(os.path.split(path)[1]))
 			return False
 			
 		# Load results
-		results = N.load(uri)
+		results = N.load(path)
 	
 	if (aspickle):
-		uri = path + '.pickle'
+		#uri = path + '.pickle'
 		# Check if file exists
-		if (not os.path.isfile(uri)):
+		if (not os.path.isfile(path)):
 			prNot(VERB_WARN, "loadData(): pickle file '%s' does not exists." % \
-					(os.path.split(uri)[1]))
+					(os.path.split(path)[1]))
 			return False
 			
 		# Load results
-		results = N.load(uri)
+		results = pickle.load(open(path))
+	
+	if (ascsv):
+		#uri = path + '.pickle'
+		# Check if file exists
+		if (not os.path.isfile(path)):
+			prNot(VERB_WARN, "loadData(): pickle file '%s' does not exists." % \
+					(os.path.split(path)[1]))
+			return False
+			
+		# Load results as csv
+		results = N.loadtxt(path, delimiter=',')
 	
 	# Check if shape matches
 	if (shape is not None and results.shape != shape):
@@ -156,23 +169,25 @@ def saveData(path, data, asnpy=False, aspickle=False, ascsv=False, csvfmt='%.18e
 		# Save old file, if present
 		saveOldFile(uri, postfix='.old', maxold=old)
 		N.save(uri, data)
-		flist['npy'] = uri
+		flist['npy'] = os.path.basename(uri)
+	
 	if (ascsv):
-		# Save data in numpy format
+		# Save data in csv format
 		uri = path + '.csv'
 		prNot(VERB_DEBUG, "saveData(): storing csv to '%s'" % (uri))
 		# Save old file, if present
 		saveOldFile(uri, postfix='.old', maxold=old)
 		if (csvhdr is not None): data = N.vstack((N.array(csvhdr), data))
 		N.savetxt(uri, data, fmt=csvfmt, delimiter=', ')
-		flist['csv'] = uri
+		flist['csv'] = os.path.basename(uri)
+	
 	if (aspickle):
 		uri = path + '.pickle'
 		# Save old file, if present
 		prNot(VERB_DEBUG, "saveData(): storing pickle to '%s'" % (uri))
 		saveOldFile(uri, postfix='.old', maxold=old)
-		cPickle.dump(data, file(uri, 'w'))
-		flist['pickle'] = uri
+		pickle.dump(data, file(uri, 'w'))
+		flist['pickle'] = os.path.basename(uri)
 	
 	return flist
 	# done
