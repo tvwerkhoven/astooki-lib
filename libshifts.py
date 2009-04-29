@@ -164,8 +164,8 @@ def crossCorrWeave(img, ref, pos, range):
 	diffmap = N.empty((range[1]*2+1, range[0]*2+1))
 	
 	# Pre-process data, mean should be the same
-	img = img/N.float32(img.mean())
-	ref = ref/N.float32(ref.mean())
+	# img = img/N.float32(img.mean())
+	# ref = ref/N.float32(ref.mean())
 	# print img.shape
 	# print ref.shape
 	
@@ -596,12 +596,12 @@ def quadInt2dPython(data, range, limit=None):
 		 	(2*a3*a4-a2*a6)/(a6*a6-4*a3*a5)]) + start + offset
 	
 	# Debug
-	if (not N.isfinite(v).all()):
-		raise RuntimeError("Not all finite")
+	# if (not N.isfinite(v).all()):
+	# 	raise RuntimeError("Not all finite")
 	
-	if (limit != None):
-		v[v > limit] = limit
-		v[v < -limit] = -limit
+	# if (limit != None):
+	# 	v[v > limit] = limit
+	# 	v[v < -limit] = -limit
 	
 	return v
 
@@ -651,15 +651,15 @@ def quadInt2dWeave(data, range, limit=None):
 		extra_compile_args= [__COMPILE_OPTS], \
 		type_converters=S.weave.converters.blitz)
 	
-	v = extremum + start + offset
+	v extremum + start + offset
 	
 	# Debug
 	# if (not N.isfinite(v).all()):
 	# 	raise RuntimeError("Not all finite")
 	
-	if (limit != None):
-		v[v > limit] = limit
-		v[v < -limit] = -limit
+	# if (limit != None):
+	# 	v[v > limit] = limit
+	# 	v[v < -limit] = -limit
 	
 	return v
 
@@ -826,6 +826,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 		# Cut out the reference subaperture
 		ref = img[saccdpos[_refsa][1]:saccdpos[_refsa][1]+saccdsize[1], \
 			saccdpos[_refsa][0]:saccdpos[_refsa][0]+saccdsize[0]]
+		ref = (ref/ref.mean()).astype(N.float32)
 		
 		# Expand lists to store measurements in
 		disps.append([])
@@ -843,23 +844,28 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 			if (subfields != None): subfields[-1].append([])
 			if (corrmaps != None): corrmaps[-1].append([])
 			
+			# Cut out subimage
+			_subimg = img[_sapos[1]:saccdsize[1], _sapos[0]:saccdsize[0]]
+			_subimg = (_subimg/_subimg.mean()).astype(N.float32)
+			
 			# Loop over the subfields
 			#------------------------
 			for _sfpos in sfccdpos:
 				# Current pixel coordinates
-				_pos = _sapos + _sfpos
-				_end = _pos + sfccdsize
+				#_pos = _sapos + _sfpos
+				#_end = _pos + sfccdsize
 				
-				prNot(VERB_ALL, \
-					"calcShifts(): --subfield @ (%d, %d), (%dx%d) [%d:%d, %d:%d]" % \
-					 	(_sfpos[0], _sfpos[1], sfccdsize[0], sfccdsize[1], \
-						_pos[1], _end[1], _pos[0], _end[0]))
+				# prNot(VERB_ALL, \
+				# 	"calcShifts(): --subfield @ (%d, %d), (%dx%d) [%d:%d, %d:%d]" % \
+				# 	 	(_sfpos[0], _sfpos[1], sfccdsize[0], sfccdsize[1], \
+				# 		_pos[1], _end[1], _pos[0], _end[0]))
 				
 				# Get the current subfield (remember, the pixel at (x,y) is
 				# img[y,x])
-				_subimg = img[_pos[1]:_end[1], _pos[0]:_end[0]]
+				_subfield = img[_sfpos[1]:sfccdsize[1], _sfpos[0]:sfccdsize[0]]
+				#_subfield = img[_pos[1]:_end[1], _pos[0]:_end[0]]
 				# Compare the image with the reference image
-				diffmap = mfunc(_subimg, ref, _sfpos, shrange)
+				diffmap = mfunc(_subfield, ref, _sfpos, shrange)
 				#165, 139
 				#prNot(VERB_ALL, "calcShifts(): got map, interpolating maximum")
 				# Find the extremum, store to list
@@ -867,11 +873,11 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 				disps[-1][-1].append(shift[::-1])
 				
 				# Store subfield and correlation map, if requested
-				if (subfields != None): subfields[-1][-1].append(_subimg)
-				if (corrmaps != None): corrmaps[-1][-1].append([diffmap])
-			
-				prNot(VERB_ALL, "calcShifts(): --Shift: (%.3g, %.3g)" % \
-					 	(shift[1], shift[0]))
+				# if (subfields != None): subfields[-1][-1].append(_subfield)
+				# if (corrmaps != None): corrmaps[-1][-1].append([diffmap])
+				# 			
+				# prNot(VERB_ALL, "calcShifts(): --Shift: (%.3g, %.3g)" % \
+				# 	 	(shift[1], shift[0]))
 	
 	# Reform the shift vectors to an numpy array and return it
 	# TODO: is N.float32 sensible?
