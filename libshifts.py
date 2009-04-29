@@ -140,6 +140,9 @@ FFTWINDOW_HAMM = 2				# Hamming window
 FFTWINDOW_HANN50 = 3			# Hann window with 50% flat surface
 FFTWINDOW_HAMM50 = 4			# Hamming window with 50% flat surface
 
+# Compilation flags
+__COMPILE_OPTS = "-O3 -ffast-math -msse -msse2"
+
 #=============================================================================
 # Helper routines -- image comparison
 #=============================================================================
@@ -158,16 +161,18 @@ def crossCorrWeave(img, ref, pos, range):
 	shift, using normalization to make the results comparable.
 	"""
 	# Init the map to store the quality of each measured shift in
-	diffmap = N.zeros(range*2+1)
+	diffmap = N.empty((range[1]*2+1, range[0]*2+1))
 	
 	# Pre-process data, mean should be the same
-	img = img/img.mean()
-	ref = ref/ref.mean()
+	img = img/N.float32(img.mean())
+	ref = ref/N.float32(ref.mean())
+	# print img.shape
+	# print ref.shape
 	
 	#raise RuntimeWarning("crossCorrWeave() is not really working at the moment, probably some gradient or bias issue.")
 	
 	code = """
-	#line 172 "libshifts.py" (debugging info for compilation)
+	#line 175 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -196,12 +201,12 @@ def crossCorrWeave(img, ref, pos, range):
 				tmpsum = 0.0;
 				for (int i=0; i<Nimg[0]; i++) {
 					for (int j=0; j<Nimg[1]; j++) {
-						tmpsum += img(i,j) * ref(i+sh0,j+sh1);	
+						tmpsum += img(i,j) * ref(i+sh1,j+sh0);	
 					}
 				}
 				// Store the current correlation value in the map.
 				//printf("diff @ %d,%d = %f\\n", (sh0-sh0min), (sh1-sh1min), tmpsum);
-				diffmap((sh0-sh0min), (sh1-sh1min)) = tmpsum;
+				diffmap((sh1-sh1min), (sh0-sh0min)) = tmpsum;
 			}
 		}
 	}
@@ -219,16 +224,16 @@ def crossCorrWeave(img, ref, pos, range):
 				// sh0.
 				// N<array>[<index>] gives the <index>th size of <array>, i.e. 
 				// Nimg[1] gives the second dimension of array 'img'
-				for (int i=0 - min(sh0, 0); i<Nimg[0] - max(sh0, 0); i++) {
-					for (int j=0 - min(sh1, 0); j<Nimg[1] - max(sh1, 0); j++){
-						tmpsum += img(i,j) * ref(i+sh0,j+sh1);
+				for (int i=0 - min(sh1, 0); i<Nimg[0] - max(sh1, 0); i++) {
+					for (int j=0 - min(sh0, 0); j<Nimg[1] - max(sh0, 0); j++){
+						tmpsum += img(i,j) * ref(i+sh1,j+sh0);
 					}
 				}
 				
 				// Scale the value found by dividing it by the number of 
 				// pixels we compared.
 				//printf("diff @ %d,%d = %f\\n", (sh0-sh0min), (sh1-sh1min), tmpsum / ((Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1))));
-				diffmap((sh0-sh0min), (sh1-sh1min)) = tmpsum / 
+				diffmap((sh1-sh1min), (sh0-sh0min)) = tmpsum / 
 					((Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1)));
 			}
 		}
@@ -239,6 +244,7 @@ def crossCorrWeave(img, ref, pos, range):
 	"""
 	one = S.weave.inline(code, \
 		['ref', 'img', 'pos', 'range', 'diffmap'], \
+		extra_compile_args= [__COMPILE_OPTS], \
 		type_converters=S.weave.converters.blitz)
 	
 	return diffmap
@@ -258,14 +264,16 @@ def sqDiffWeave(img, ref, pos, range):
 	shift, using normalization to make the results comparable.
 	"""
 	# Init the map to store the quality of each measured shift in
-	diffmap = N.empty(range*2+1)
+	diffmap = N.empty((range[1]*2+1, range[0]*2+1))
 	
 	# Pre-process data, mean should be the same
-	img = img/img.mean()
-	ref = ref/ref.mean()
+	img = img/N.float32(img.mean())
+	ref = ref/N.float32(ref.mean())
+	# print img.shape
+	# print ref.shape
 	
 	code = """
-	#line 270 "libshifts.py" (debugging info for compilation)
+	#line 276 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -294,7 +302,7 @@ def sqDiffWeave(img, ref, pos, range):
 				for (int i=0; i<Nimg[0]; i++) {
 					for (int j=0; j<Nimg[1]; j++) {
 						// First get the difference...
-						diff = img(i,j) - ref(i+sh0,j+sh1);
+						diff = img(i,j) - ref(i+sh1,j+sh0);
 						// ...then square this
 						tmpsum += diff*diff;
 					}
@@ -304,7 +312,8 @@ def sqDiffWeave(img, ref, pos, range):
 				// match in diffmap (this allows to use a more general 
 				// maximum-finding method, instead of splitting between maxima
 				// and minima)
-				diffmap((sh0-sh0min), (sh1-sh1min)) = -tmpsum;
+				printf("tmp: %.3f ", -tmpsum);
+				diffmap((sh1-sh1min), (sh0-sh0min)) = -tmpsum;
 			}
 		}
 	}
@@ -322,17 +331,18 @@ def sqDiffWeave(img, ref, pos, range):
 				// sh0.
 				// N<array>[<index>] gives the <index>th size of <array>, i.e. 
 				// Nimg[1] gives the second dimension of array 'img'
-				for (int i=0 - min(sh0, 0); i<Nimg[0] - max(sh0, 0); i++) {
-					for (int j=0 - min(sh1, 0); j<Nimg[1] - max(sh1, 0); j++){
+				for (int i=0 - min(sh1, 0); i<Nimg[0] - max(sh1, 0); i++) {
+					for (int j=0 - min(sh0, 0); j<Nimg[1] - max(sh0, 0); j++){
 						// First get the difference...
-						diff = img(i,j) - ref(i+sh0,j+sh1);
+						diff = img(i,j) - ref(i+sh1,j+sh0);
 						// ...then square this
 						tmpsum += diff*diff;
 					}
 				}
 				// Scale the value found by dividing it by the number of 
 				// pixels we compared.
-				diffmap((sh0-sh0min), (sh1-sh1min)) = -tmpsum / 
+				
+				diffmap((sh1-sh1min), (sh0-sh0min)) = -tmpsum / 
 					((Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1)));
 			}
 		}
@@ -341,6 +351,7 @@ def sqDiffWeave(img, ref, pos, range):
 	"""
 	one = S.weave.inline(code, \
 		['ref', 'img', 'pos', 'range', 'diffmap'], \
+		extra_compile_args= [__COMPILE_OPTS], \
 		type_converters=S.weave.converters.blitz)
 	
 	return diffmap
@@ -360,14 +371,16 @@ def absDiffSqWeave(img, ref, pos, range):
 	shift, using normalization to make the results comparable.
 	"""
 	# Init the map to store the quality of each measured shift in
-	diffmap = N.empty(range*2+1)
+	diffmap = N.empty((range[1]*2+1, range[0]*2+1))
 	
 	# Pre-process data, mean should be the same
-	img = img/img.mean()
-	ref = ref/ref.mean()
+	img = img/N.float32(img.mean())
+	ref = ref/N.float32(ref.mean())
+	# print img.shape
+	# print ref.shape
 	
 	code = """
-	#line 372 "libshifts.py" (debugging info for compilation)
+	#line 381 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -383,7 +396,6 @@ def absDiffSqWeave(img, ref, pos, range):
 	int sh0max = (int) range(0)+pos(0);
 	int sh1min = (int) -range(1)+pos(1);
 	int sh1max = (int) range(1)+pos(1);
-	
 	// If sum(pos) is not zero, we expect that ref is large enough to naively 
 	// shift img around.
 	if (pos(0)+pos(1) != 0) {
@@ -395,13 +407,16 @@ def absDiffSqWeave(img, ref, pos, range):
 				tmpsum = 0.0;
 				for (int i=0; i<Nimg[0]; i++) {
 					for (int j=0; j<Nimg[1]; j++) {
-						tmpsum += fabs(img(i,j) - ref(i+sh0,j+sh1));
+						// TvW @ 20090429: big bugfix! indices wrong! was:
+						//tmpsum += fabs(img(i,j) - ref(i+sh0,j+sh1));						
+						tmpsum += fabs(img(i,j) - ref(i+sh1,j+sh0));
 					}
 				}
 				// Store the current correlation value in the map. Use
 				// negative value to ensure that we get a maximum for best
 				// match in diffmap
-				diffmap((sh0-sh0min), (sh1-sh1min)) = -(tmpsum*tmpsum);
+				// TvW @ 20090429: swap this too
+				diffmap((sh1-sh1min), (sh0-sh0min)) = -(tmpsum*tmpsum);
 			}
 		}
 	}
@@ -419,14 +434,16 @@ def absDiffSqWeave(img, ref, pos, range):
 				// sh0.
 				// N<array>[<index>] gives the <index>th size of <array>, i.e. 
 				// Nimg[1] gives the second dimension of array 'img'
-				for (int i=0 - min(sh0, 0); i<Nimg[0] - max(sh0, 0); i++) {
-					for (int j=0 - min(sh1, 0); j<Nimg[1] - max(sh1, 0); j++){
-						tmpsum += fabs(img(i,j) - ref(i+sh0,j+sh1));
+				// TODO: CHECK THIS! are sh0, sh1 in the right index? are i and j 
+				// right?
+				for (int i=0 - min(sh1, 0); i<Nimg[0] - max(sh1, 0); i++) {
+					for (int j=0 - min(sh0, 0); j<Nimg[1] - max(sh0, 0); j++){
+						tmpsum += fabs(img(i,j) - ref(i+sh1,j+sh0));
 					}
 				}
 				// Scale the value found by dividing it by the number of 
 				// pixels we compared.
-				diffmap((sh0-sh0min), (sh1-sh1min)) = -(tmpsum*tmpsum) /
+				diffmap((sh1-sh1min), (sh0-sh0min)) = -(tmpsum*tmpsum) /
 					 ((Nimg[0]-abs(sh0)) * (Nimg[1]-abs(sh1)));
 			}
 		}
@@ -436,6 +453,8 @@ def absDiffSqWeave(img, ref, pos, range):
 	
 	one = S.weave.inline(code, \
 		['ref', 'img', 'pos', 'range', 'diffmap'], \
+#		compiler='gcc ', \
+		extra_compile_args = [__COMPILE_OPTS], \
 		type_converters=S.weave.converters.blitz)
 	
 	return diffmap
@@ -456,8 +475,8 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 	wind = 1			# Default 'window' if none specified
 	
 	# Pre-process data, mean should be the same
-	img = img/img.mean()
-	ref = ref/ref.mean()
+	img = img/N.float32(img.mean())
+	ref = ref/N.float32(ref.mean())
 	
 	# Make the window
 	if (window == FFTWINDOW_HANN):
@@ -529,9 +548,12 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 	
 	# If range is not the full image, we crop the result with the zero shift 
 	# at the center, otherwise we merely shift the zero shift to the center.
+	raise RuntimeWarning("Warning, FFT method possibly incorrect.")
+	# Problem: what does pixel diffmap[i,j] mean? is it the cross-correlation of 
+	# shift-vector (i,j) or (j,i)? How do we use range[] with this?
 	if (range < res/2).all():
 		diffmap = (timlib.shift(fftmap.real, range))\
-			[:range[0]*2+1,:range[0]*2+1]
+			[:range[0]*2+1,:range[1]*2+1]
 	else:
 		raise NotImplemented("range > res/2 is not implemented.")
 	
@@ -626,6 +648,7 @@ def quadInt2dWeave(data, range, limit=None):
 	"""
 	one = S.weave.inline(code, \
 		['submap', 'extremum'], \
+		extra_compile_args= [__COMPILE_OPTS], \
 		type_converters=S.weave.converters.blitz)
 	
 	v = extremum + start + offset
@@ -753,29 +776,29 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	
 	# Parse the 'method' argument
 	if (method == COMPARE_XCORR):
-		prNot(VERB_INFO, "calcShifts(): Using direct cross correlation")
+		prNot(VERB_DEBUG, "calcShifts(): Using direct cross correlation")
 		mfunc = crossCorrWeave
 	elif (method == COMPARE_SQDIFF):
-		prNot(VERB_INFO, "calcShifts(): Using square difference")
+		prNot(VERB_DEBUG, "calcShifts(): Using square difference")
 		mfunc = sqDiffWeave
 	elif (method == COMPARE_ABSDIFFSQ):
-		prNot(VERB_INFO, "calcShifts(): Using absolute difference squared")
+		prNot(VERB_DEBUG, "calcShifts(): Using absolute difference squared")
 		mfunc = absDiffSqWeave
 	elif (hasattr(method, '__call__')):
-		prNot(VERB_INFO, "calcShifts(): Using custom image comparison")
+		prNot(VERB_DEBUG, "calcShifts(): Using custom image comparison")
 		mfunc = method
 	else:
 		raise RuntimeError("'method' must be either one of the predefined image comparison methods, or a function doing that.")
 	
 	# Parse the 'extremum' argument
 	if (extremum == EXTREMUM_2D9PTSQ):
-		prNot(VERB_INFO, "calcShifts(): Using 2d parabola interpolation")
+		prNot(VERB_DEBUG, "calcShifts(): Using 2d parabola interpolation")
 		extfunc = quadInt2dWeave
 	elif (extremum == EXTREMUM_MAXVAL):
-		prNot(VERB_INFO, "calcShifts(): Using maximum value")
+		prNot(VERB_DEBUG, "calcShifts(): Using maximum value")
 		extfunc = maxValPython
 	elif (hasattr(extremum, '__call__')):
-		prNot(VERB_INFO, "calcShifts(): Using custom interpolation")
+		prNot(VERB_DEBUG, "calcShifts(): Using custom interpolation")
 		extfunc = extremum
 	else:
 		raise RuntimeError("'extremum' must be either one of the predefined extremum finding methods, or a function doing that.")
@@ -788,18 +811,18 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	# Shape will be: ((len(refopt), saccdpos.shape[0], sfccdpos.shape[0], 2))
 	disps = []
 	
-	shrange = N.array(shrange)
+	shrange = N.array(shrange).astype(N.int32)
 	
 	#=========================
 	# Begin shift measurements
 	#=========================
 	
-	prNot(VERB_INFO, "calcShifts(): Processing data")
-	
 	# Loop over the reference subapertures
 	#-------------------------------------
 	for _refsa in reflist:
-		prNot(VERB_DEBUG, "calcShifts(): Using subap #%d as reference" % (_refsa))
+		prNot(VERB_DEBUG, "calcShifts(): Using subap #%d as reference [%d:%d, %d:%d]" % \
+			(_refsa, saccdpos[_refsa][0], saccdpos[_refsa][0]+saccdsize[0], \
+			saccdpos[_refsa][1], saccdpos[_refsa][1]+saccdsize[1]))
 		# Cut out the reference subaperture
 		ref = img[saccdpos[_refsa][1]:saccdpos[_refsa][1]+saccdsize[1], \
 			saccdpos[_refsa][0]:saccdpos[_refsa][0]+saccdsize[0]]
@@ -828,16 +851,17 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 				_end = _pos + sfccdsize
 				
 				prNot(VERB_ALL, \
-					"calcShifts(): --subfield @ (%d, %d), (%dx%d)" % \
-					 	(_sfpos[0], _sfpos[1], sfccdsize[0], sfccdsize[1]))
+					"calcShifts(): --subfield @ (%d, %d), (%dx%d) [%d:%d, %d:%d]" % \
+					 	(_sfpos[0], _sfpos[1], sfccdsize[0], sfccdsize[1], \
+						_pos[1], _end[1], _pos[0], _end[0]))
 				
 				# Get the current subfield (remember, the pixel at (x,y) is
 				# img[y,x])
 				_subimg = img[_pos[1]:_end[1], _pos[0]:_end[0]]
-				
 				# Compare the image with the reference image
 				diffmap = mfunc(_subimg, ref, _sfpos, shrange)
-				
+				#165, 139
+				#prNot(VERB_ALL, "calcShifts(): got map, interpolating maximum")
 				# Find the extremum, store to list
 				shift = extfunc(diffmap, range=shrange, limit=shrange)
 				disps[-1][-1].append(shift[::-1])
@@ -850,10 +874,8 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 					 	(shift[1], shift[0]))
 	
 	# Reform the shift vectors to an numpy array and return it
-	# TODO: if N.float32 sensible?
+	# TODO: is N.float32 sensible?
 	ret = N.array(disps).astype(N.float32)
-	prNot(VERB_INFO, "calcShifts(): Done, shape:")
-	prNot(VERB_INFO, ret.shape)
 	return ret
 
 
@@ -871,24 +893,22 @@ class libshiftTests(unittest.TestCase):
 		# image around.
 		
 		# Debug info or not
-		self.debug = 0
+		self.debug = 1
+		if (self.debug): print "setUp(): setting up."
 		
 		# The resolution of the source image, after shifting and all
 		self.srcres = 32
 		# The edge of pixels to reserve for shifting around
-		self.edge = 4
+		self.edge = 5
 		# Scale factors
 		self.strscl = 4.
 		self.shscl = 8.
 		
 		# Shift vectors
-		self.shvecs = N.array([[0.5, 0.6], [1.2, 1.5], [0.2, 0.4], [2.1, 2.9], [3.2, 1.8]])
+		self.shvecs = N.array([[0.5, 0.2], [3.2, 0.0], [0.0, 3.4], [2.1, 2.9], [3.2, 1.8]])
 		# Maximum shift range to test
 		self.shrange = N.array([4, 4])
-		
-		# Test file to use for calcShifts()
-		self.testfile = "/Users/tim/workdocs/data/wfwfs/20090217_wfwfs_data/2009-02-17/ES4020_single_im17Feb2009.0000978"
-		
+			
 		# number of iterations to use for timing tests
 		self.nit = 1000
 		
@@ -912,9 +932,11 @@ class libshiftTests(unittest.TestCase):
 			self.edge*self.shscl:\
 			(self.srcres-self.edge)*self.shscl]
 		self.refsame = S.ndimage.zoom(self.refsame, 1.0/self.shscl)
+		if (self.debug): print "setUp(): refsame shape:", self.refsame.shape
 		# Get full reference (which is bigger)
 		self.refbigger = self.src
 		self.refbigger = S.ndimage.zoom(self.refbigger, 1.0/self.shscl)
+		if (self.debug): print "refbigger shape:", self.refbigger.shape
 		
 		# Get shifted image(s)
 		self.shimgs = []
@@ -926,9 +948,10 @@ class libshiftTests(unittest.TestCase):
 			_shvec = N.round(shvec*self.shscl)/self.shscl
 			shimg = self.src[\
 				(self.edge + _shvec[1])*self.shscl:\
-				(self.srcres - self.edge + shvec[1])*self.shscl,\
+				(self.srcres - self.edge + _shvec[1])*self.shscl,\
 				(self.edge + _shvec[0])*self.shscl:\
-				(self.srcres - self.edge + shvec[0])*self.shscl]
+				(self.srcres - self.edge + _shvec[0])*self.shscl]
+			#if (self.debug): print "setUp(): bigimg shape:", shimg.shape
 			shimg = S.ndimage.zoom(shimg, 1.0/self.shscl)
 			self.shimgs.append(shimg)
 			self.rshvecs.append(_shvec)
@@ -959,6 +982,9 @@ class libshiftTests(unittest.TestCase):
 				print "testCcQi(): map: %.3g +- %.3g. %.3g -- %.3g" % \
 			 		(N.mean(diffmap), N.std(diffmap), N.min(diffmap), \
 			 		N.max(diffmap))
+				print "testCcQi(): map: %dx%d, range: %dx%d" % \
+					(diffmap.shape[0], diffmap.shape[1], self.shrange[0], \
+					self.shrange[1])
 			shift = quadInt2dWeave(diffmap, self.shrange)
 			print "testCcQi(): shift: (%.3g, %.3g), diff: (%.3g, %.3g)"%\
 				(shift[1], shift[0], shift[1]-sh[0], shift[0]-sh[1])
