@@ -371,7 +371,7 @@ def absDiffSqWeave(img, ref, pos, range):
 	shift, using normalization to make the results comparable.
 	"""
 	# Init the map to store the quality of each measured shift in
-	diffmap = N.empty((range[1]*2+1, range[0]*2+1))
+	diffmap = N.empty((range[1]*2+1, range[0]*2+1), dtype=N.float32)
 	
 	# Pre-process data, mean should be the same
 	# img = img/N.float32(img.mean())
@@ -380,7 +380,7 @@ def absDiffSqWeave(img, ref, pos, range):
 	# print ref.shape
 	
 	code = """
-	#line 381 "libshifts.py" (debugging info for compilation)
+	#line 383 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -409,7 +409,7 @@ def absDiffSqWeave(img, ref, pos, range):
 					for (int j=0; j<Nimg[1]; j++) {
 						// TvW @ 20090429: big bugfix! indices wrong! was:
 						//tmpsum += fabs(img(i,j) - ref(i+sh0,j+sh1));						
-						tmpsum += fabs(img(i,j) - ref(i+sh1,j+sh0));
+						tmpsum += fabsf(img(i,j) - ref(i+sh1,j+sh0));
 					}
 				}
 				// Store the current correlation value in the map. Use
@@ -448,13 +448,16 @@ def absDiffSqWeave(img, ref, pos, range):
 			}
 		}
 	}
+	//
 	return_val = 1;
 	"""
 	
 	one = S.weave.inline(code, \
 		['ref', 'img', 'pos', 'range', 'diffmap'], \
 #		compiler='gcc ', \
-		extra_compile_args = [__COMPILE_OPTS], \
+		extra_compile_args = ["-O3"], \
+#		extra_link_args = ["--invalid"], \
+		auto_downcast=0, \
 		type_converters=S.weave.converters.blitz)
 	
 	return diffmap
@@ -828,8 +831,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 		# Cut out the reference subaperture
 		ref = img[saccdpos[_refsa][1]:saccdpos[_refsa][1]+saccdsize[1], \
 			saccdpos[_refsa][0]:saccdpos[_refsa][0]+saccdsize[0]]
-		ref = (ref/ref.mean()).astype(N.float32)
-		
+		ref = (ref/N.float32(ref.mean()))
 		# Expand lists to store measurements in
 		disps.append([])
 		if (subfields != None): subfields.append([])
@@ -849,7 +851,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 			# Cut out subimage
 			_subimg = img[_sapos[1]:_sapos[1]+saccdsize[1], \
 			 	_sapos[0]:_sapos[0]+saccdsize[0]]
-			_subimg = (_subimg/_subimg.mean()).astype(N.float32)
+			_subimg = (_subimg/N.float32(_subimg.mean()))
 			
 			# Loop over the subfields
 			#------------------------
