@@ -1,0 +1,36 @@
+Python / Weave:
+shifts -vvvv --ff *ff*1001 --fm=500 --df ../2009.04.22/*dd*1995 --dm=500 --safile proc/2009.04.22-mask-updated.csv --sffile proc/2009.04.27-subfieldmask.csv --range 6 --nref 1 wfwfs_test_im27Apr2009.0000200
+
+per subfield averaging: 41.5 seconds
+per subimage averaging: 18.9 - 19.8 seconds
+per subimage averaging, global diffmap: 18.3 seconds
+per subimage averaging, no interpolation: 14.6 seconds
+per subimage averaging, no diffmap, no interpolation: 0.651 seconds. 
+per subimage averaging, reverse inner loops: 20s
+per subimage averaging, reverse outer loops: 19.8s
+per subimage averaging, convert to float32: 19s
+
+so:
+
+interpolation: 4.3s
+diffmap 14s
+overhead: 0.7
+
+Pure C:
+
+gcc-4: 17s
+gcc-4 -O3  -ffast-math --std=gnu99 -Wall -msse3 -msse2 -march=core2: 5.7s
+gcc-4 -O3: 5.0s
+gcc-4 -O3 -g: 5.0s
+gcc-4 -O3, no fabsf: 4.5s
+gcc-4 -O3, tmpsum+=1: 3.5s
+gcc-4 -O3, w=res[0]: 4.8s
+gcc-4 -O3, w,sh0,sh1: 4.6s
+gcc-4 -O3, w,sh0,sh1,sw,sh: 5.4s
+gcc-4 -O3, w,sh0,sh1: 4.5s
+gcc-4 -O3, w,sh0,sh1, inline: 4.5s
+
+
+Pure C @ polar:
+
+gcc-4 -O3: 2.1s

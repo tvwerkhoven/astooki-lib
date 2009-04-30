@@ -51,7 +51,7 @@ PyObject *_calcshifts_float32(float32_t *image, int32_t saccdpos[][2], int nsapo
 
 // Methods table for this module
 static PyMethodDef LibshiftsMethods[] = {
-	{"calcshifts",  libshifts_calcshifts, METH_VARARGS, "Calculate image shifts."},
+	{"calcShifts",  libshifts_calcshifts, METH_VARARGS, "Calculate image shifts."},
 	{NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -119,32 +119,32 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 	// Convert options
 	int32_t sapos[nsa][2];
 	for (i=0; i<nsa; i++) {
-		sapos[i][0] = (uint32_t) PyArray_GETPTR2((PyObject *) saccdpos, i, 0);
-		sapos[i][1] = (uint32_t) PyArray_GETPTR2((PyObject *) saccdpos, i, 1);
+		sapos[i][0] = *((uint32_t *)PyArray_GETPTR2((PyObject *) saccdpos, i, 0));
+		sapos[i][1] = *((uint32_t *)PyArray_GETPTR2((PyObject *) saccdpos, i, 1));
 		if (debug > 0)
 			printf("libshifts_calcshifts(): sa %d: %d,%d.\n", i, sapos[i][0], sapos[i][1]);
 	}
 	int32_t sfpos[nsf][2];
 	for (i=0; i<nsf; i++) {
-		sfpos[i][0] = (uint32_t) PyArray_GETPTR2((PyObject *) sfccdpos, i, 0);
-		sfpos[i][1] = (uint32_t) PyArray_GETPTR2((PyObject *) sfccdpos, i, 1);
+		sfpos[i][0] = *((uint32_t *)PyArray_GETPTR2((PyObject *) sfccdpos, i, 0));
+		sfpos[i][1] = *((uint32_t *)PyArray_GETPTR2((PyObject *) sfccdpos, i, 1));
 		if (debug > 0)
 			printf("libshifts_calcshifts(): sa %d: %d,%d.\n", i, sfpos[i][0], sfpos[i][1]);
 	}
 	int32_t sasize[2];
-	sasize[0] = (uint32_t) PyArray_GETPTR1((PyObject *) saccdsize, 0);
-	sasize[1] = (uint32_t) PyArray_GETPTR1((PyObject *) saccdsize, 1);
+	sasize[0] = *((uint32_t *) PyArray_GETPTR1((PyObject *) saccdsize, 0));
+	sasize[1] = *((uint32_t *) PyArray_GETPTR1((PyObject *) saccdsize, 1));
 	if (debug > 0)
 		printf("libshifts_calcshifts(): sasize: %d,%d.\n", sasize[0], sasize[1]);
 	int32_t sfsize[2];
-	sfsize[0] = (uint32_t) PyArray_GETPTR1((PyObject *) sfccdsize, 0);
-	sfsize[1] = (uint32_t) PyArray_GETPTR1((PyObject *) sfccdsize, 1);
+	sfsize[0] = *((uint32_t *) PyArray_GETPTR1((PyObject *) sfccdsize, 0));
+	sfsize[1] = *((uint32_t *) PyArray_GETPTR1((PyObject *) sfccdsize, 1));
 	if (debug > 0)
 		printf("libshifts_calcshifts(): sfsize: %d,%d.\n", sfsize[0], sfsize[1]);
 	
 	int32_t shran[2];
-	shran[0] = (uint32_t) PyArray_GETPTR1((PyObject *) shrange, 0);
-	shran[1] = (uint32_t) PyArray_GETPTR1((PyObject *) shrange, 1);
+	shran[0] = *((uint32_t *) PyArray_GETPTR1((PyObject *) shrange, 0));
+	shran[1] = *((uint32_t *) PyArray_GETPTR1((PyObject *) shrange, 1));
 	if (debug > 0)
 		printf("libshifts_calcshifts(): shran: %d,%d.\n", shran[0], shran[1]);
 	
@@ -179,7 +179,9 @@ int _findrefidx_float32(float32_t *image, int32_t pos[][2], int npos, int32_t si
 	double rmslist[npos];
 	for (sa=0; sa < npos; sa++) {
 		// Calculate RMS for subaperture 'sa'
-		rmslist[sa] = sa*0.5;
+		for (i=0; i<size[0]; i++) {
+			rmslist[sa] = sa*0.5;
+		}
 	}
 	list[0] = 1;
 	
