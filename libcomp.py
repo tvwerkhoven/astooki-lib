@@ -1,4 +1,4 @@
-#!/usr/bin/env /sw/bin/python2.5
+#!/usr/bin/env python2.5
 # encoding: utf-8
 """
 @file libcomp.py
