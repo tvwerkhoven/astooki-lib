@@ -99,8 +99,8 @@ import scipy.weave				# For inlining C
 #import scipy.weave.converters	# For inlining C
 import scipy.fftpack			# For FFT functions in FFT cross-corr
 import scipy.signal				# For hanning/hamming windows
-import pyfits				
-import timlib					# Some miscellaneous functions
+import pyfits
+#import timlib					# Some miscellaneous functions
 from liblog import *			# Logging / printing functions
 
 import unittest
@@ -555,6 +555,7 @@ def fftPython(img, ref, pos, range, window=FFTWINDOW_HANN50):
 	# Problem: what does pixel diffmap[i,j] mean? is it the cross-correlation of 
 	# shift-vector (i,j) or (j,i)? How do we use range[] with this?
 	if (range < res/2).all():
+		import timlib
 		diffmap = (timlib.shift(fftmap.real, range))\
 			[:range[0]*2+1,:range[1]*2+1]
 	else:
@@ -602,9 +603,9 @@ def quadInt2dPython(data, range, limit=None):
 	# if (not N.isfinite(v).all()):
 	# 	raise RuntimeError("Not all finite")
 	
-	# if (limit != None):
-	# 	v[v > limit] = limit
-	# 	v[v < -limit] = -limit
+	if (limit != None):
+		v[v > limit] = limit
+		v[v < -limit] = -limit
 	
 	return v
 
@@ -660,9 +661,9 @@ def quadInt2dWeave(data, range, limit=None):
 	# if (not N.isfinite(v).all()):
 	# 	raise RuntimeError("Not all finite")
 	
-	# if (limit != None):
-	# 	v[v > limit] = limit
-	# 	v[v < -limit] = -limit
+	if (limit != None):
+		v[v > limit] = limit
+		v[v < -limit] = -limit
 	
 	return v
 
@@ -894,11 +895,12 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 				# prNot(VERB_ALL, "calcShifts(): --Shift @ (%d,%d): (%.3g, %.3g)" % \
 				# 	 	(_sfpos[0], _sfpos[1], shift[1], shift[0]))
 	
-	# Reform the shift vectors to an numpy array and return it
-	# TODO: is N.float32 sensible?
+	# Reform the shift vectors, crop to an numpy array and return it
+	ret = N.array(disps, dtype=N.float32)
+	# ret[ret > shrange] = shrange
+	# ret[ret < -shrange] = -shrange
 	dur = time.time() - beg
 	prNot(VERB_DEBUG, "calcShifts(): done, took %.3g seconds." % (dur))
-	ret = N.array(disps).astype(N.float32)
 	return ret
 
 
