@@ -817,7 +817,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	# Shape will be: ((len(refopt), saccdpos.shape[0], sfccdpos.shape[0], 2))
 	disps = []
 	
-	shrange = N.array(shrange).astype(N.int32)
+	shrange = N.array(shrange, dtype=N.int32)
 	
 	#=========================
 	# Begin shift measurements
