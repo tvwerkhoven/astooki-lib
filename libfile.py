@@ -13,9 +13,80 @@ This file is licensed under the Creative Commons Attribution-Share Alike
 license versions 3.0 or higher, see
 http://creativecommons.org/licenses/by-sa/3.0/
 """
+
+#=============================================================================
+# Import libraries here
+#=============================================================================
+
 import os
 from liblog import *
-import cPickle as pickle
+
+#=============================================================================
+# Local helper functions
+#=============================================================================
+
+def _anaload(path):
+	"""
+	Load ana file using pyana.
+	@param path File to load
+	@return Data if successful, False otherwise.
+	"""
+	import pyana
+	try: data = pyana.getdata(path)
+	except: return False
+	
+	return data
+
+def _fitsload(path):
+	"""
+	Load fits file using pyfits.
+	@param path File to load
+	@return Data if successful, False otherwise.
+	"""
+	import pyfits
+	try: data = pyfits.getdata(path)
+	except: return False
+	return data
+
+def _npyload(path):
+	"""
+	Load npy file.
+	@param path File to load
+	@return Data if successful, False otherwise.
+	"""
+	import numpy
+	try: data = numpy.load(path)
+	except: return False
+	return data
+
+def _pickleload(path):
+	"""
+	Load pickled file.
+	@param path File to load
+	@return Data if successful, False otherwise.
+	"""
+	import cPickle
+	try: data = cPickle.load(open(path))
+	except: return False
+	return data
+
+
+#=============================================================================
+# Definitions necessary for processing
+#=============================================================================
+
+_FORMAT_ANA = 'ana'
+_FORMAT_FITS = 'fits'
+_FORMAT_PNG = 'png'
+_FORMAT_NPY = 'npy'
+_FORMAT_CSV = 'csv'
+_FORMAT_PICKLE = 'pickle'
+_FORMATS_LOAD = [_FORMAT_PICKLE, _FORMAT_FITS, _FORMAT_ANA, _FORMAT_NPY]
+_FORMATS_LOAD_F = {_FORMAT_ANA: _anaload, _FORMAT_FITS: _fitsload, _FORMAT_PICKLE: _pickleload, _FORMAT_NPY: _npyload}
+
+#=============================================================================
+# Data storage functions
+#=============================================================================
 
 def saveOldFile(uri, postfix='.old', maxold=5):
 	"""
@@ -27,9 +98,11 @@ def saveOldFile(uri, postfix='.old', maxold=5):
 	@param uri Filepath to prevent overwriting to
 	@param postfix Suffix to add to the file before a counter
 	@param maxold Keep this many old files maximum
+	
+	@return Nothing
 	"""
 	
-	if (maxold == 0): return
+	if (maxold == 0): return 
 	
 	if (os.path.exists(uri)):
 		app = 0
@@ -46,41 +119,41 @@ def saveOldFile(uri, postfix='.old', maxold=5):
 		os.rename(uri, uri+postfix+str(0))
 		
 		# the file 'uri' is now free
-		prNot(VERB_DEBUG, "saveOldFile(): renaming file to prevent overwriting")
+		prNot(VERB_DEBUG, "saveOldFile(): renamed file to prevent overwriting")
 
-
-def loadData(path, asnpy=False, aspickle=False, ascsv=False, shape=None):
+	
+def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=None):
 	"""
-	Reverse function of saveData(): load data stored on disk to prevent 
-	re-computation of the analysis. Formats supported are numpy arrays 
-	(enable with 'asnpy') and pickled files (enable with 'aspickle'). File
-	URI will be path + '.npy'/'.pickle'. If both 'asnpy' and 'aspickle' are 
-	True, numpy will be preferred.
+	Reverse function of saveData(): load data stored on disk. Formats supported 
+	are numpy arrays, pickled files and csv files. If multiple formats are 
+	enabled, numpy will be preferred. If shape is set, it will be verified that
+	the returned array is indeed that shape. If not, it will return False.
 	
-	If shape is set, it will be verified that the returned array is indeed 
-	that shape.
+	@param path Path to the datafile
+	@param asnpy Load data as numpy format
+	@param aspickle Load data as pickle format
+	@param ascsv Load data as csv format
+	@param auto Try to guess the filetype from extension + contents (TODO)
+	@param shape Shape that the data stored in the file should have
 	
-	Return value is a tuple of (flag, data), with the bool 'flag' 
-	indicating whether or not data has been found and 'data' carrying the 
-	data -- which can be of any type. Returns False when loading failed.
-	
-	TODO: add 'ascsv' option
+	@return Data array, or False when loading failed.
 	"""
-	import numpy as N
-	
 	prNot(VERB_DEBUG, "loadData(): id '%s' asnpy: %d aspickle: %d" % \
 		(id, asnpy, aspickle))
 	
+	if (N.sum([asnpy, aspickle, ascsv]) > 0 and auto):
+		prNot(VERB_WARNING, "loadData(): auto-guessing set but .")
 	# Make sure there is only one setting true
 	if (N.sum([asnpy, aspickle, ascsv]) > 1):
 		aspickle = False
 		ascsv = False
 		prNot(VERB_WARNING, "loadData(): Cannot load more than one format at a time, disabling pickle.")
-	elif (N.sum([asnpy, aspickle, ascsv]) < 1):
+	elif (N.sum([asnpy, aspickle, ascsv]) < 1 and not auto):
 		asnpy = True
 		prNot(VERB_WARNING, "loadData(): No format selected, enabling npy.")
 	
 	if (asnpy):
+		import numpy as N
 		#uri = path + '.npy'
 		# Check if file exists
 		if (not os.path.isfile(path)):
@@ -92,6 +165,8 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, shape=None):
 		results = N.load(path)
 	
 	if (aspickle):
+		import cPickle as pickle
+		
 		#uri = path + '.pickle'
 		# Check if file exists
 		if (not os.path.isfile(path)):
@@ -139,7 +214,6 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 	              list with the same number of elements as elements in 'data' 
 	              [None]
 	@param old Backup this many pre-existing files at maximum
-	
 	
 	@return A dict of files the data was saved to when successful. The keys will 
 	be one or more of 'npy', 'pickle' or 'csv' and the values will be the 
@@ -201,3 +275,43 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 	
 	return flist
 	# done
+
+
+def restoreData(path):
+	"""
+	Restore files to memory. 'path' should be a pickled file holding a dict with 
+	data identifiers as keys. Each entry should again be a dict with data types 
+	as keys, and filenames as values. For example:
+	
+	meta = {'data': {'fits': 'data-in-fitsformat.fits', npy:
+	  'data-in-numpyformat.npy'}}
+	
+	This function will load the file, parse the contents, and return a dict with 
+	the data for each data id. If one data id has more datatypes, the first one
+	will be loaded.
+	
+	@param path Pickled file holding the metadata.
+	
+	@return A dict with dataid as keys, and the data as values.
+	"""
+	
+	import cPickle as pickle
+	
+	meta = pickle.load(open(path))
+	
+	ret = {}
+	# Loop over the data IDs
+	for (did, dtype) in meta.items():
+		# Loop over the data types for each dataid
+		for (dtype, dfile) in dtype.items():
+			# If the filetype is supported, load it
+			if (dtype in _FORMATS_LOAD): 
+				ret[did] = _FORMATS_LOAD_F[dtype](dfile)
+				# If we succesfully loaded the file using this datatype, skip the 
+				# other datatypes.
+				if (ret[did] is not False): continue
+			else:
+				ret[did] = None			
+	
+	return ret
+
