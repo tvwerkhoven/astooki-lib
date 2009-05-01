@@ -20,6 +20,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 
 import os
 from liblog import *
+import time
 
 #=============================================================================
 # Local helper functions
@@ -196,7 +197,7 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 	return results
 
 
-def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False, csvfmt='%.18e', csvhdr=None, old=3):
+def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False, explicit=False, csvfmt='%g', csvhdr=None, old=3):
 	"""
 	Save (intermediate) results to 'path'. Data can be 
 	stored as numpy array (if asnpy is True), csv file (if ascsv is True), FITS 
@@ -209,6 +210,7 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 	@param aspickle Store data in pickle format to path+'.pickle' [False]
 	@param asfits Store data in FITS format to path+'.fits' [False]
 	@param ascsv Store data in csv format to path+'.csv' [False]
+	@param explicit Store the data exactly to 'path', don't append suffix(es)
 	@param csvfmt The format for storing data as CSV ['%.18e']
 	@param csvhdr A header to write to the head of the file. Header should nbe a 
 	              list with the same number of elements as elements in 'data' 
@@ -219,11 +221,12 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 	be one or more of 'npy', 'pickle' or 'csv' and the values will be the 
 	full file paths. Returns False when something failed.
 	"""
-	import numpy as N
-	import pyfits
 	
 	# Init empty list
 	flist = {}
+	
+	# Expand path
+	path = os.path.realpath(path)
 	
 	prNot(VERB_DEBUG, "saveData(): file '%s', npy: %d pickle: %d, csv: %d" %\
 		(os.path.basename(path), asnpy, aspickle, ascsv))
@@ -239,8 +242,10 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 		asnpy = True
 	
 	if (asnpy):
+		import numpy as N
 		# Save data in numpy format
-		uri = path + '.npy'
+		if (explicit): uri = path
+		else: uri = path + '.npy'
 		prNot(VERB_DEBUG, "saveData(): storing numpy to '%s'" % (uri))
 		# Save old file, if present
 		saveOldFile(uri, postfix='.old', maxold=old)
@@ -248,8 +253,10 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 		flist['npy'] = os.path.basename(uri)
 	
 	if (ascsv):
+		import numpy as N
 		# Save data in csv format
-		uri = path + '.csv'
+		if (explicit): uri = path
+		else: uri = path + '.csv'
 		prNot(VERB_DEBUG, "saveData(): storing csv to '%s'" % (uri))
 		# Save old file, if present
 		saveOldFile(uri, postfix='.old', maxold=old)
@@ -258,7 +265,9 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 		flist['csv'] = os.path.basename(uri)
 	
 	if (aspickle):
-		uri = path + '.pickle'
+		import cPickle as pickle
+		if (explicit): uri = path
+		else: uri = path + '.pickle'
 		# Save old file, if present
 		prNot(VERB_DEBUG, "saveData(): storing pickle to '%s'" % (uri))
 		saveOldFile(uri, postfix='.old', maxold=old)
@@ -266,7 +275,9 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 		flist['pickle'] = os.path.basename(uri)
 	
 	if (asfits):
-		uri = path + '.fits'
+		import pyfits
+		if (explicit): uri = path
+		else: uri = path + '.fits'
 		# Save old file, if present
 		prNot(VERB_DEBUG, "saveData(): storing fits to '%s'" % (uri))
 		saveOldFile(uri, postfix='.old', maxold=old)
@@ -300,6 +311,7 @@ def restoreData(path):
 	meta = pickle.load(open(path))
 	
 	ret = {}
+	files_used = []
 	# Loop over the data IDs
 	for (did, dtype) in meta.items():
 		# Loop over the data types for each dataid
@@ -307,11 +319,21 @@ def restoreData(path):
 			# If the filetype is supported, load it
 			if (dtype in _FORMATS_LOAD): 
 				ret[did] = _FORMATS_LOAD_F[dtype](dfile)
+				files_used.append(dfile)
 				# If we succesfully loaded the file using this datatype, skip the 
 				# other datatypes.
 				if (ret[did] is not False): continue
 			else:
 				ret[did] = None			
 	
-	return ret
+	# Add some additional meta-info
+	if (meta.has_key('path')): ret['path'] = meta['path']
+	else: ret['path'] = os.path.dirname(os.path.realpath('.'))
+	if (meta.has_key('base')): ret['base'] = meta['base']
+	else: ret['base'] = os.path.commonprefix(files_used)[:-1]
+	if (len(ret['base']) < 4): 
+		prNot(VERB_WARNING, "restoreData(): Warning, base very short, adding timestamp.")
+		ret['base'] += str(int(time.time()))
+	
+	return (ret, meta)
 
