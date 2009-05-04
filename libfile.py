@@ -139,8 +139,9 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 	
 	@return Data array, or False when loading failed.
 	"""
-	prNot(VERB_DEBUG, "loadData(): id '%s' asnpy: %d aspickle: %d" % \
-		(id, asnpy, aspickle))
+	import numpy as N
+	prNot(VERB_DEBUG, "loadData(): asnpy: %d aspickle: %d, ascsv: %d" % \
+		(asnpy, aspickle, ascsv))
 	
 	if (N.sum([asnpy, aspickle, ascsv]) > 0 and auto):
 		prNot(VERB_WARNING, "loadData(): auto-guessing set but .")
@@ -312,9 +313,11 @@ def restoreData(path):
 	
 	ret = {}
 	files_used = []
+		
 	# Loop over the data IDs
 	for (did, dtype) in meta.items():
 		# Loop over the data types for each dataid
+		if (did in ['path', 'base']): continue
 		for (dtype, dfile) in dtype.items():
 			# If the filetype is supported, load it
 			if (dtype in _FORMATS_LOAD): 
@@ -326,14 +329,16 @@ def restoreData(path):
 			else:
 				ret[did] = None			
 	
-	# Add some additional meta-info
-	if (meta.has_key('path')): ret['path'] = meta['path']
-	else: ret['path'] = os.path.dirname(os.path.realpath('.'))
-	if (meta.has_key('base')): ret['base'] = meta['base']
-	else: ret['base'] = os.path.commonprefix(files_used)[:-1]
+	# Process meta-data first, remove from dict.
+	ret['path'] = meta.pop('path', os.path.dirname(os.path.realpath('.')))
+	ret['base'] = meta.pop('base', os.path.commonprefix(files_used)[:-1])
+	ret['base'] = os.path.basename(ret['base'])
 	if (len(ret['base']) < 4): 
 		prNot(VERB_WARNING, "restoreData(): Warning, base very short, adding timestamp.")
 		ret['base'] += str(int(time.time()))
+	# Re-insert in meta after sanitizing
+	meta['base'] = ret['base']
+	meta['path'] = ret['path']
 	
 	return (ret, meta)
 
