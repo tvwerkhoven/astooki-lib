@@ -42,7 +42,7 @@ import numpy as N
 import scipy as S
 import libshifts			# To calculate image shifts
 import libplot				# To process and plot results
-from liblog import *		# To print & log messages
+import liblog as log		# To print & log messages
 from libfile import *		# File IO routines
 
 # File parsing/loading/IO
@@ -110,7 +110,7 @@ class WfsData():
 			'dosubfield' : True \
 			}
 		
-		prNot(VERB_INFO, "Initializing WfsData()")
+		log.prNot(log.NOTICE, "Initializing WfsData()")
 		
 		# Tasks that can be performed on data (should be MPI.INT's!)
 		self.TASK_SUBIMG = 1				# Subimage shift measurement
@@ -222,7 +222,7 @@ class WfsData():
 		 	'darkfile-info', aspickle=True)
 		if (self.darkfiles is False): self.darkfiles = []
 		
-		prNot(VERB_INFO, "watchDog(): starting monitoring '%s'." % \
+		log.prNot(log.NOTICE, "watchDog(): starting monitoring '%s'." % \
 			(self.datadir))
 		
 		# Start watching forever
@@ -235,31 +235,31 @@ class WfsData():
 				if (subdir[0] == os.path.sep): subdir=subdir.replace('/','',1)
 				resultdir = os.path.normpath(os.path.join(self.outdir,subdir))
 				
-				prNot(VERB_INFO, "watchDog(): parsing directory '%s'." % \
+				log.prNot(log.NOTICE, "watchDog(): parsing directory '%s'." % \
 				 	(subdir))
 				
 				# If we already processed this dir, skip it
 				if (self.rawfiles.has_key(root)):
-					prNot(VERB_INFO, "watchDog(): Directory '%s' already parsed, skipping." % (subdir))
+					log.prNot(log.NOTICE, "watchDog(): Directory '%s' already parsed, skipping." % (subdir))
 					continue
 				# If the directory is not clean, skip it
 				if (not self.checkDataSanity(root, files)):
-					prNot(VERB_INFO, "watchDog(): Directory '%s' not clean, skipping." % (subdir))
+					log.prNot(log.NOTICE, "watchDog(): Directory '%s' not clean, skipping." % (subdir))
 					continue
 				# If the data is too new, skip it
 				if (self.getAge(root, files) < self.procdelay):
-					prNot(VERB_INFO, "watchDog(): Directory newer than %.3g days (age is: %.3g), skipping." % (self.procdelay, self.getAge(root, files)))
+					log.prNot(log.NOTICE, "watchDog(): Directory newer than %.3g days (age is: %.3g), skipping." % (self.procdelay, self.getAge(root, files)))
 					continue
 				
 				# Check previous progress made in this dir
 				self.rawfiles = loadData(resultdir, \
 					'rawfile-info', aspickle=True)
 				if (self.rawfiles is not False):
-					prNot(VERB_INFO, "watchDog(): Found pre-parsed cache.")
-					prNot(VERB_INFO, "watchDog(): %d runs in this directory:" % \
+					log.prNot(log.NOTICE, "watchDog(): Found pre-parsed cache.")
+					log.prNot(log.NOTICE, "watchDog(): %d runs in this directory:" % \
 						(len(self.rawfiles[root].keys())))
 					for runid in self.rawfiles[root]:
-						prNot(VERB_INFO, "watchDog(): %s: %d files." % \
+						log.prNot(log.NOTICE, "watchDog(): %s: %d files." % \
 							(runid, self.rawfiles[root][runid]['nfiles']))
 				else:
 					self.rawfiles = {}
@@ -318,26 +318,26 @@ class WfsData():
 				
 				# Distribute work
 				for runid in self.rawfiles[root]:
-					prNot(VERB_INFO, \
+					log.prNot(log.NOTICE, \
 						"watchDog(): Submitting run '%s' to queue." % (runid))
 					self.parseRun(self.rawfiles[root][runid], args)
 				
-				prNot(VERB_INFO, \
+				log.prNot(log.NOTICE, \
 					"watchDog(): Succesfully parsed files in '%s'." % (root))
 					
 			
 			# Give some info
-			prNot(VERB_INFO, "watchDog(): Directory parse run complete.")
+			log.prNot(log.NOTICE, "watchDog(): Directory parse run complete.")
 			for root in self.rawfiles:
-				prNot(VERB_INFO, "watchDog(): Found %d runs in '%s':" % \
+				log.prNot(log.NOTICE, "watchDog(): Found %d runs in '%s':" % \
 				 	(len(self.rawfiles[root]), root))
 				for runid in self.rawfiles[root]:
-					prNot(VERB_INFO, "watchDog(): Run %s has %d files." % \
+					log.prNot(log.NOTICE, "watchDog(): Run %s has %d files." % \
 						(runid, self.rawfiles[root][runid]['nfiles']))
 			
 			# Wait 60 seconds before next check
 			sys.exit(0)
-			prNot(VERB_INFO, "watchDog(): Sleeping %d seconds." % \
+			log.prNot(log.NOTICE, "watchDog(): Sleeping %d seconds." % \
 			 	(self.parsedelay))
 			time.sleep(self.parsedelay)
 	
@@ -356,7 +356,7 @@ class WfsData():
 			# Check logfiles
 			logfiles = fnmatch.filter(allfiles, self.logpat)
 			if (not len(logfiles) == 1):
-				prNot(VERB_DEBUG, "checkDataSanity(): Cannot process '%s': number of logfiles is not 1 (found %d)" % (rootdir, len(logfiles)))
+				log.prNot(log.INFO, "checkDataSanity(): Cannot process '%s': number of logfiles is not 1 (found %d)" % (rootdir, len(logfiles)))
 				return False
 			
 			# Get the last subdirectory
@@ -366,7 +366,7 @@ class WfsData():
 			try:
 				dirdate = time.strptime(subdir, "%Y-%m-%d")
 			except ValueError:
-				prNot(VERB_DEBUG, "checkDataSanity(): Cannot process '%s': directory not formatted as %%Y-%%m-%%d" % (subdir))
+				log.prNot(log.INFO, "checkDataSanity(): Cannot process '%s': directory not formatted as %%Y-%%m-%%d" % (subdir))
 				return False
 			
 			# Check the logfile date
@@ -375,13 +375,13 @@ class WfsData():
 			filedate = fnamere.match(logfiles[0])
 			logdate = time.strptime(filedate.group(1), "%d%b%Y")
 			if (logdate != dirdate):
-				prNot(VERB_DEBUG, "checkDataSanity(): Cannot process '%s': directory date and logfile date differ (%.5g)" % (dirdate-logdate))
+				log.prNot(log.INFO, "checkDataSanity(): Cannot process '%s': directory date and logfile date differ (%.5g)" % (dirdate-logdate))
 				return False
 			
 			# Check raw files
 			rawfiles = fnmatch.filter(allfiles, self.rawpat)
 			if (len(rawfiles) <= 0):
-				prNot(VERB_DEBUG, "checkDataSanity(): Cannot process '%s': no rawfiles found matching pattern '%s'." % (rootdir, self.rawpat))
+				log.prNot(log.INFO, "checkDataSanity(): Cannot process '%s': no rawfiles found matching pattern '%s'." % (rootdir, self.rawpat))
 				return False
 			
 			# If we got to here, we're ok
@@ -462,7 +462,7 @@ class WfsData():
 			datectime = time.strptime(datestr, "%d%b%Y")
 			datectime = time.mktime(datectime)
 			
-			prNot(VERB_DEBUG, "getMetaData(): logfile: '%s' -> date: '%s' -> ctime: '%f'" % (logfile, datestr, datectime))
+			log.prNot(log.INFO, "getMetaData(): logfile: '%s' -> date: '%s' -> ctime: '%f'" % (logfile, datestr, datectime))
 			
 			logdata = {}
 			
@@ -543,7 +543,7 @@ class WfsData():
 		run[runid]['end'] end time of the run (epoch)
 		"""
 		
-		prNot(VERB_INFO, "splitRuns(): Splitting %d rawfiles." % \
+		log.prNot(log.NOTICE, "splitRuns(): Splitting %d rawfiles." % \
 		 	(len(rawfiles)))
 		# Init empty dict for the various runs
 		runs = {}
@@ -558,12 +558,12 @@ class WfsData():
 				first = [fname, meta]
 				prev = meta[1]
 				tmprun.append(fname)
-				prNot(VERB_DEBUG, "splitRuns(): found first file '%s' date '%f'." % (fname, meta[1]))
+				log.prNot(log.INFO, "splitRuns(): found first file '%s' date '%f'." % (fname, meta[1]))
 			else:
 				# If the current frame is within self.runintval of the 
 				# previous frame, add it to the current run
 				if (meta[1] - prev < self.runintval):
-					#prNot(VERB_DEBUG, "splitRuns(): adding file '%s' to run." % (fname))
+					#log.prNot(log.INFO, "splitRuns(): adding file '%s' to run." % (fname))
 					last = [fname, meta]
 					prev = meta[1]
 					tmprun.append(fname)
@@ -582,7 +582,7 @@ class WfsData():
 							'files' : tmprun}
 						nrun += 1
 						totfile += nfile
-						prNot(VERB_INFO, "splitRuns(): Adding new run '%s' with %d frames, from %s to %s." % \
+						log.prNot(log.NOTICE, "splitRuns(): Adding new run '%s' with %d frames, from %s to %s." % \
 							(runid, \
 							len(tmprun), \
 							time.ctime(first[1][1]), \
@@ -591,7 +591,7 @@ class WfsData():
 						tmprun = []
 					else:
 						# Not enough frames, start over
-						prNot(VERB_DEBUG, "splitRuns(): Discarding run with only %d frames: too short." % (len(tmprun)))
+						log.prNot(log.INFO, "splitRuns(): Discarding run with only %d frames: too short." % (len(tmprun)))
 						first = [fname, meta]
 						prev = meta[1]
 						tmprun = []
@@ -610,17 +610,17 @@ class WfsData():
 				'files' : tmprun}
 			nrun += 1
 			totfile += nfile
-			prNot(VERB_INFO, "splitRuns(): Adding new run '%s' with %d frames, from %s to %s." % \
+			log.prNot(log.NOTICE, "splitRuns(): Adding new run '%s' with %d frames, from %s to %s." % \
 				(runid, \
 				len(tmprun), \
 				time.ctime(first[1][1]), \
 				time.ctime(last[1][1])))
 		else:
 			# Not enough frames, start over
-			prNot(VERB_DEBUG, "splitRuns(): Discarding run with only %d frames: too short." % (len(tmprun)))
+			log.prNot(log.INFO, "splitRuns(): Discarding run with only %d frames: too short." % (len(tmprun)))
 		
 		# Output stats
-		prNot(VERB_INFO, "splitRuns(): Found %d runs in total." % (nrun))
+		log.prNot(log.NOTICE, "splitRuns(): Found %d runs in total." % (nrun))
 		# Return result
 		return runs
 	
@@ -645,7 +645,7 @@ class WfsData():
 		
 		# Check if we need to do darkfielding at all
 		if (self.dodarkflat is False):
-			prNot(VERB_INFO, "matchDarkFlat(): Skipping dark-/flatfield matching, not required.")
+			log.prNot(log.NOTICE, "matchDarkFlat(): Skipping dark-/flatfield matching, not required.")
 			for runid in rawfiles:
 				rawfiles[runid]['flat'] = [[None]]
 				rawfiles[runid]['dark'] = [[None]]
@@ -687,7 +687,7 @@ class WfsData():
 				len(best_dfidx) == 0 or \
 				self.dfuse == self.DFUSE_CLOSEST):
 				if (len(best_ffidx) == 0 or len(best_dfidx) == 0):
-					prNot(VERB_SILENT, "matchDarkFlat(): could not find darks/flats for run '%s' using strategy '%s'. Falling back to '%s'." % \
+					log.prNot(log.WARNING, "matchDarkFlat(): could not find darks/flats for run '%s' using strategy '%s'. Falling back to '%s'." % \
 						(runid, self.dfuse, self.DFUSE_CLOSEST))
 				
 				# Find flat and dark around the run
@@ -719,10 +719,10 @@ class WfsData():
 			rawfiles[runid]['dark'] = best_df
 			
 			# Give info
-			prNot(VERB_DEBUG, "matchDarkFlat(): For runid '%s' found flats:" % (runid))
-			prNot(VERB_DEBUG, best_ff)
-			prNot(VERB_DEBUG, "matchDarkFlat(): For runid '%s' found darks:" % (runid))
-			prNot(VERB_DEBUG, best_df)
+			log.prNot(log.INFO, "matchDarkFlat(): For runid '%s' found flats:" % (runid))
+			log.prNot(log.INFO, best_ff)
+			log.prNot(log.INFO, "matchDarkFlat(): For runid '%s' found darks:" % (runid))
+			log.prNot(log.INFO, best_df)
 			
 		return rawfiles
 	
@@ -755,7 +755,7 @@ class WfsData():
 		
 		# Phase 0, local initialisation
 		# =============================
-		prNot(VERB_INFO, "parseRun(): Phase 0 starting, configuration.")		
+		log.prNot(log.NOTICE, "parseRun(): Phase 0 starting, configuration.")		
 		
 		# Make output directories
 		if (not os.path.isdir(runfiles['plotdir'])):
@@ -764,7 +764,7 @@ class WfsData():
 			os.makedirs(runfiles['cachedir'])
 		
 		if (self.dooptgrid or self.dodarkflat): 
-			prNot(VERB_INFO, "parseRun(): optimizing grid with flatfield.")
+			log.prNot(log.NOTICE, "parseRun(): optimizing grid with flatfield.")
 			flatfield = WfwfsImg(runfiles['flat'][0][0], imgtype='flat', \
 			 	format=self.format)
 			# TODO: is this clean enough? Maybe do this in WfwfsImg()?
@@ -784,7 +784,7 @@ class WfsData():
 				self.ws.saifac, self.ws.ccdscale, self.ws.aptr)
 			
 			# Plot subaperture mask over flatfield image here
-			prNot(VERB_INFO, "parseRun(): making flatfield overlaymask.")
+			log.prNot(log.NOTICE, "parseRun(): making flatfield overlaymask.")
 			libplot.overlayMask(flatfield.data, self.ws.saccdpos, \
 			 	self.ws.saccdsize, libplot.mkPlName(runfiles, \
 			 	'overlay-ff'), norm=False)
@@ -795,7 +795,7 @@ class WfsData():
 			# TODO: output some text file to the cache or result directory
 		
 		if (self.dodarkflat):
-			prNot(VERB_INFO, "parseRun(): loading dark- and flatfield.")
+			log.prNot(log.NOTICE, "parseRun(): loading dark- and flatfield.")
 			# We need darks and flats
 			# TODO: add a quality check for the darks and flats here			
 			darkfield = WfwfsImg(runfiles['dark'][0][0], imgtype='dark', \
@@ -840,7 +840,7 @@ class WfsData():
 		
 		# Phase 1, static correction
 		# ==========================
-		prNot(VERB_INFO, "parseRun(): Phase 1 starting, static offsets.")
+		log.prNot(log.NOTICE, "parseRun(): Phase 1 starting, static offsets.")
 		
 		# Shape of the data we'll receive.
 		NUM_SA_REFERENCE = 4
@@ -856,7 +856,7 @@ class WfsData():
 		if (self.dostatic):
 			# Still need to get data
 			if (statshift is False):
-				prNot(VERB_INFO, "parseRun(): measuring static subimg shift.")
+				log.prNot(log.NOTICE, "parseRun(): measuring static subimg shift.")
 			
 				# Allocate buffer
 				statshift = N.zeros(dshape, dtype=N.float32)
@@ -876,16 +876,16 @@ class WfsData():
 				for raw in runfiles['files']:
 					frame += 1
 					# Print progress
-					prNot(VERB_INFO, "parseRun(): P: 1, R: %s, F: %d/%d, " % \
+					log.prNot(log.NOTICE, "parseRun(): P: 1, R: %s, F: %d/%d, " % \
 					 	(runfiles['runid'], frame, runfiles['nfiles']))
-					prNot(VERB_INFO, "#"*70)
+					log.prNot(log.NOTICE, "#"*70)
 				
 					# See if data was already processed:
 					statsh = loadData(runfiles['cachedir'], \
 						raw + '-static', shape=statshift[frame].shape, \
 						asnpy=True)
 					if (statsh is not False):
-						prNot(VERB_INFO, "parseRun(): Found cache, skipping file")
+						log.prNot(log.NOTICE, "parseRun(): Found cache, skipping file")
 						statshift[frame] = statsh
 						continue
 				
@@ -895,11 +895,11 @@ class WfsData():
 				
 					# Check if we need to do darks/flats
 					if (self.dodarkflat):
-						prNot(VERB_DEBUG, "parseRun(): doing dark-/flatfield.")
+						log.prNot(log.INFO, "parseRun(): doing dark-/flatfield.")
 						img.darkFlatField(dark=darkimg, gain=gainimg)
 					
-					prNot(VERB_DEBUG, "parseRun() image stats:")
-					prNot(VERB_DEBUG, img.getStats())
+					log.prNot(log.INFO, "parseRun() image stats:")
+					log.prNot(log.INFO, img.getStats())
 				
 					# Recv buffer is a slice of the bigger buffer allocated before
 					rbuf = statshift[frame]
@@ -907,12 +907,12 @@ class WfsData():
 					# If the function did not return True, the job could not be 
 					# submitted to a worker and there is probably data to be read
 					if (sub != True):
-						prNot(VERB_DEBUG, \
+						log.prNot(log.INFO, \
 							"parseRun(): submit queue full, getting results.")
 						(rawid, results) = resultCB()
-						prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
+						log.prNot(log.NOTICE, "parseRun(): got results '%s'" % (rawid))
 						if (rawid is False): break
-						#prNot(VERB_DEBUG, results[:8])
+						#log.prNot(log.INFO, results[:8])
 						saveData(runfiles['cachedir'], rawid + '-static', \
 					 		results, asnpy=True)
 						# Retry submit, this time it must work
@@ -920,22 +920,22 @@ class WfsData():
 			
 			
 				# Wait for all workers to finish
-				prNot(VERB_INFO, "parseRun(): flushing result buffer.")
+				log.prNot(log.NOTICE, "parseRun(): flushing result buffer.")
 				while (True):
 					(rawid, results) = resultCB()
 					if (rawid is False): break
-					prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
-					#prNot(VERB_DEBUG, results[:8])
+					log.prNot(log.NOTICE, "parseRun(): got results '%s'" % (rawid))
+					#log.prNot(log.INFO, results[:8])
 					saveData(runfiles['cachedir'], rawid + '-static', \
 					 	results, asnpy=True)
 			# // if (statshift is False):
 			
 			# Process static measurements locally
-			prNot(VERB_INFO, "parseRun(): Phase 1 completed, saving data.")
+			log.prNot(log.NOTICE, "parseRun(): Phase 1 completed, saving data.")
 			progress['statshift'] = saveData(runfiles['cachedir'], 'static-shifts',\
 			 	statshift, asnpy=True, old=3)
-			#prNot(VERB_INFO, statshift.mean(0)[:10])
-			#prNot(VERB_INFO, statshift.std(0)[:10])
+			#log.prNot(log.NOTICE, statshift.mean(0)[:10])
+			#log.prNot(log.NOTICE, statshift.std(0)[:10])
 		
 			# Make a (nice) plot from the static shifts
 			pltit = 'Subimage-shifts for %s \@ %s (zoom: %.3g, #: %d).' % \
@@ -958,7 +958,7 @@ class WfsData():
 		
 		# Phase 2, subfield shift measurement
 		# ===================================
-		prNot(VERB_INFO, "parseRun(): Phase 2 starting, subfield offsets.")
+		log.prNot(log.NOTICE, "parseRun(): Phase 2 starting, subfield offsets.")
 		
 		# Shape of the data we'll receive.
 		NUM_SA_REFERENCE = 1
@@ -970,7 +970,7 @@ class WfsData():
 		sfshifts = loadData(runfiles['cachedir'], 
 			'subfield-shifts', shape=dshape, asnpy=True)
 		if (self.dosubfield):
-			prNot(VERB_DEBUG, "parseRun(): measuring subfield shifts.")
+			log.prNot(log.INFO, "parseRun(): measuring subfield shifts.")
 						
 			# Take average over number of files and number of subap references
 			offs = statshift.reshape(-1, self.ws.nsa, 2)
@@ -1025,16 +1025,16 @@ class WfsData():
 				for raw in runfiles['files']:
 					frame += 1
 					# Print progress
-					prNot(VERB_INFO, "parseRun(): P: 2, R: %s, F: %d/%d, " % \
+					log.prNot(log.NOTICE, "parseRun(): P: 2, R: %s, F: %d/%d, " % \
 					 	(runfiles['runid'], frame, runfiles['nfiles']))
-					prNot(VERB_INFO, "#"*70)
+					log.prNot(log.NOTICE, "#"*70)
 			
 					# See if data was already processed:
 					subfsh = loadData(runfiles['cachedir'], \
 						raw + '-subfield', shape=sfshifts[frame].shape, \
 						asnpy=True)
 					if (subfsh is not False):
-						prNot(VERB_INFO, "parseRun(): Found cache, skipping file")
+						log.prNot(log.NOTICE, "parseRun(): Found cache, skipping file")
 						sfshifts[frame] = subfsh
 						continue
 					
@@ -1043,7 +1043,7 @@ class WfsData():
 					
 					# Check if we need to do darks/flats
 					if (self.dodarkflat):
-						prNot(VERB_DEBUG, "parseRun(): doing dark-/flatfield.")
+						log.prNot(log.INFO, "parseRun(): doing dark-/flatfield.")
 						img.darkFlatField(dark=darkimg, gain=gainimg)
 				
 					# Recv buffer is a slice of the bigger buffer allocated before
@@ -1052,10 +1052,10 @@ class WfsData():
 					# If the function did not return True, the job could not be 
 					# submitted to a worker and there is probably data to be read
 					if (sub != True):
-						prNot(VERB_DEBUG, \
+						log.prNot(log.INFO, \
 							"parseRun(): submit queue full, getting results.")
 						(rawid, results) = resultCB()
-						prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
+						log.prNot(log.NOTICE, "parseRun(): got results '%s'" % (rawid))
 						if (rawid is False): break
 						saveData(runfiles['cachedir'], rawid + '-subfield', \
 					 		results, asnpy=True)
@@ -1063,17 +1063,17 @@ class WfsData():
 						sub = submitCB(img.data, raw, self.TASK_SUBFIELD, rbuf)
 				
 				# Wait for all workers to finish
-				prNot(VERB_INFO, "parseRun(): flushing result buffer.")
+				log.prNot(log.NOTICE, "parseRun(): flushing result buffer.")
 				while (True):
 					(rawid, results) = resultCB()
 					if (rawid is False): break
-					prNot(VERB_INFO, "parseRun(): got results '%s'" % (rawid))
+					log.prNot(log.NOTICE, "parseRun(): got results '%s'" % (rawid))
 					saveData(runfiles['cachedir'], rawid + '-subfield', \
 					 	results, asnpy=True)
 			# // if (sfshifts is False):
 			
 			# Process measurements locally
-			prNot(VERB_INFO, "parseRun(): Phase 2 completed, saving data.")
+			log.prNot(log.NOTICE, "parseRun(): Phase 2 completed, saving data.")
 			files = saveData(runfiles['cachedir'], 'subfield-shifts', \
 			 	sfshifts, asnpy=True, old=3)
 			progress['sfshifts'] = files
@@ -1101,7 +1101,7 @@ class WfsData():
 			### These are calculation tasks
 			### ===========================
 			if (task == self.TASK_SUBIMG):
-				prNot(VERB_INFO, "procFrame(): calculating subimage shifts.")
+				log.prNot(log.NOTICE, "procFrame(): calculating subimage shifts.")
 				shvec = libshifts.calcShifts(img=data, \
 				 	saccdpos=self.ws.saccdpos, \
 					saccdsize=self.ws.saccdsize, \
@@ -1116,15 +1116,15 @@ class WfsData():
 					corrmaps=None)
 				#shvec = N.arange(N.product(self.ws.saccdpos.shape), \
 				# 	dtype=N.float32)
-				prNot(VERB_DEBUG, "procFrame(): shvec shape before:", shvec.shape)
+				log.prNot(log.INFO, "procFrame(): shvec shape before:", shvec.shape)
 				#shvec.shape = self.ws.saccdpos.shape
-				#prNot(VERB_DEBUG, "procFrame(): shvec shape after:", shvec.shape)
+				#log.prNot(log.INFO, "procFrame(): shvec shape after:", shvec.shape)
 				
 				# Send out data back to master MPI thread
 				sendfunc(shvec)
 			
 			elif (task == self.TASK_SUBFIELD):
-				prNot(VERB_INFO, "procFrame(): calculating subfield shifts.")
+				log.prNot(log.NOTICE, "procFrame(): calculating subfield shifts.")
 				shvec = libshifts.calcShifts(img=data, \
 				 	saccdpos=self.ws.saccdpos, \
 					saccdsize=self.ws.saccdsize, \
@@ -1145,24 +1145,24 @@ class WfsData():
 			### =============================
 			
 			elif (task == self.TASK_SETSAPOS):
-				prNot(VERB_INFO, "procFrame(): setting saccdpos:")
-				prNot(VERB_DEBUG, data)
+				log.prNot(log.NOTICE, "procFrame(): setting saccdpos:")
+				log.prNot(log.INFO, data)
 				self.ws.saccdpos = data
 			elif (task == self.TASK_SETSASIZE):
-				prNot(VERB_INFO, "procFrame(): setting saccdsize:")
-				prNot(VERB_DEBUG, data)
+				log.prNot(log.NOTICE, "procFrame(): setting saccdsize:")
+				log.prNot(log.INFO, data)
 				self.ws.saccdsize = data
 			elif (task == self.TASK_SETNSAREF):
-				prNot(VERB_INFO, "procFrame(): setting # of references:")
-				prNot(VERB_DEBUG, data)
+				log.prNot(log.NOTICE, "procFrame(): setting # of references:")
+				log.prNot(log.INFO, data)
 				self.ws.nref = data
 			elif (task == self.TASK_SETSFPOS):
-				prNot(VERB_INFO, "procFrame(): setting sfccdpos:")
-				prNot(VERB_DEBUG, data)
+				log.prNot(log.NOTICE, "procFrame(): setting sfccdpos:")
+				log.prNot(log.INFO, data)
 				self.ws.sfccdpos = data
 			elif (task == self.TASK_SETSFSIZE):
-				prNot(VERB_INFO, "procFrame(): setting sfccdsize:")
-				prNot(VERB_DEBUG, data)
+				log.prNot(log.NOTICE, "procFrame(): setting sfccdsize:")
+				log.prNot(log.INFO, data)
 				self.ws.sfccdsize = data
 				
 	
@@ -1208,7 +1208,7 @@ class WfsSetup():
 			'saifac' : 0.9
 			}
 		
-		prNot(VERB_INFO, "Initializing WfsSetup()")
+		log.prNot(log.NOTICE, "Initializing WfsSetup()")
 		
 		# Load configuration from cfgfile
 		self.cfg = ConfigParser.SafeConfigParser(self.cfgdef)
@@ -1327,10 +1327,10 @@ class WfsSetup():
 			self.ccdscale)
 		
 		if (rettuple != False):
-			prNot(VERB_INFO, "initSubfieldConf(): Using subaperture configuration from file.")
+			log.prNot(log.NOTICE, "initSubfieldConf(): Using subaperture configuration from file.")
 			return rettuple
 		else:
-			prNot(VERB_INFO, "initSubfieldConf(): Calculating subaperture configuration.")
+			log.prNot(log.NOTICE, "initSubfieldConf(): Calculating subaperture configuration.")
 			rettuple = self.calcSubfieldConf(self.sftot, self.sfsize, \
 			 	self.sfpitch, self.sfoff, self.saccdsize, self.ccdscale)
 			return rettuple
@@ -1391,13 +1391,13 @@ class WfsSetup():
 		# Total number of subfields:
 		nsf = len(sfllpos)
 		
-		prNot(VERB_INFO, \
+		log.prNot(log.NOTICE, \
 			"calcSubfieldConf(): sfllsize: (%.3g,%.3g), sfccdsize: (%d,%d)"% \
 			(sfllsize[0], sfllsize[1], sfccdsize[0], sfccdsize[1]))
-		prNot(VERB_INFO, \
+		log.prNot(log.NOTICE, \
 			"calcSubfieldConf(): sfccdoff: (%d,%d)" % \
 			(sfccdoff[0], sfccdoff[1]))
-		prNot(VERB_INFO, \
+		log.prNot(log.NOTICE, \
 			"calcSubfieldConf(): sfccdpitch: (%d,%d)"% \
 			(sfccdpitch[0], sfccdpitch[1]))
 		
@@ -1428,7 +1428,7 @@ class WfsSetup():
 		
 		# See if the file exists
 		if (not os.path.isfile(sffile)):
-			prNot(VERB_WARN, \
+			log.prNot(log.WARNING, \
 				"loadSubfieldConf(): File '%s' does not exist." % (sffile))
 			return False
 		
@@ -1447,7 +1447,7 @@ class WfsSetup():
 			sfccdsize = N.array([int(line[0]), int(line[1])])
 		except: 
 			# If *something* went wrong, abort
-			prNot(VERB_WARN, \
+			log.prNot(log.WARNING, \
 				"loadSubfieldConf(): Could not parse file header.")
 			return False
 		
@@ -1459,15 +1459,15 @@ class WfsSetup():
 				sfpos = [int(line[0]), int(line[1])]
 				sfccdpos.append(sfpos)
 			except:
-				prNot(VERB_WARN, "loadSubfieldConf(): Could not parse file")
+				log.prNot(log.WARNING, "loadSubfieldConf(): Could not parse file")
 				return False
 		
-		prNot(VERB_DEBUG, \
+		log.prNot(log.INFO, \
 			"loadSubfieldConf(): Found %d subfields, (expected %d)."% \
 			 (len(sfccdpos), nsf))
 		
 		if (len(sfccdpos) != nsf):
-			prNot(VERB_WARN, "loadSubfieldConf(): Found %d subfields, expected %d. Using all positions found (%d)." % (len(sfccdpos), nsf, len(sfccdpos)))
+			log.prNot(log.WARNING, "loadSubfieldConf(): Found %d subfields, expected %d. Using all positions found (%d)." % (len(sfccdpos), nsf, len(sfccdpos)))
 			nsf = len(sfccdpos)
 		
 		# Convert to numpy array
@@ -1524,10 +1524,10 @@ class WfsSetup():
 		rettuple = self.loadSubaptConf(self.safile, self.ccdscale, self.aptr)
 		
 		if (rettuple is not False):
-			prNot(VERB_INFO, "initSubaptConf(): Using subaperture configuration from file.")
+			log.prNot(log.NOTICE, "initSubaptConf(): Using subaperture configuration from file.")
 			return rettuple
 		else:
-			prNot(VERB_INFO, "initSubaptConf(): Calculating subaperture configuration.")
+			log.prNot(log.NOTICE, "initSubaptConf(): Calculating subaperture configuration.")
 			(nsa, sallpos, saccdpos) = self.calcSubaptConf(\
 				self.ccdres[0]/2., self.apts, self.saccdsize, \
 				self.saccdpitch, self.saccdoff, self.saccddisp, \
@@ -1561,7 +1561,7 @@ class WfsSetup():
 		
 		# See if the file exists
 		if (not os.path.isfile(safile)):
-			prNot(VERB_WARN, "loadSubaptConf(): File '%s' does not exist." %\
+			log.prNot(log.WARNING, "loadSubaptConf(): File '%s' does not exist." %\
 				(safile))
 			return False
 		
@@ -1579,7 +1579,7 @@ class WfsSetup():
 			saccdsize = N.array([int(line[0]), int(line[1])])
 		except: 
 			# If *something* went wrong, abort
-			prNot(VERB_WARN, "loadSubaptConf(): Could not parse file header.")
+			log.prNot(log.WARNING, "loadSubaptConf(): Could not parse file header.")
 			return False
 		
 		# Init sapos list
@@ -1590,15 +1590,15 @@ class WfsSetup():
 				_pos = [int(line[0]), int(line[1])]
 				saccdpos.append(_pos)
 			except:
-				prNot(VERB_WARN, "loadSubaptConf(): Could not parse file.")
+				log.prNot(log.WARNING, "loadSubaptConf(): Could not parse file.")
 				return False
 		
-		prNot(VERB_DEBUG, \
+		log.prNot(log.INFO, \
 			"loadSubaptConf(): Found %d subaps, (expected %d)."% \
 			 (len(saccdpos), nsa))
 		
 		if (len(saccdpos) != nsa):
-			prNot(VERB_WARN, "loadSubaptConf(): Found %d subaps, expected %d. Using all positions found (%d)." % (len(saccdpos), nsa, len(saccdpos)))
+			log.prNot(log.WARNING, "loadSubaptConf(): Found %d subaps, expected %d. Using all positions found (%d)." % (len(saccdpos), nsa, len(saccdpos)))
 			nsa = len(saccdpos)
 		
 		# Convert to numpy array
@@ -1688,7 +1688,7 @@ class WfsSetup():
 		sallpos = pos * pixscl
 		
 		nsa = len(saccdpos)
-		prNot(VERB_INFO, "calcSubaptConf(): found %d subapertures." % (nsa))
+		log.prNot(log.NOTICE, "calcSubaptConf(): found %d subapertures." % (nsa))
 		
 		return (nsa, sallpos, saccdpos)
 	
@@ -1728,7 +1728,7 @@ class WfsSetup():
 		optsaccdpos = []		# Store the optimized subap position in pixels
 		allsaccdsize = []		# Stores all optimized subaperture sizes
 		
-		prNot(VERB_INFO, "optSubapConf(): Optimizing subap mask.")
+		log.prNot(log.NOTICE, "optSubapConf(): Optimizing subap mask.")
 		
 		# Check if the image is a flatfield
 		if (img.imgtype != 'flat'):
@@ -1793,10 +1793,10 @@ class WfsSetup():
 				sayran[0] + slyran[0]])
 			_sapos = (_saccdpos + _sass/2.) * ccdscale - aptr
 			
-			prNot(VERB_DEBUG, "optSubapConf(): subap@(%d, %d), size: (%d, %d), pos: (%d, %d)" % \
+			log.prNot(log.INFO, "optSubapConf(): subap@(%d, %d), size: (%d, %d), pos: (%d, %d)" % \
 				(pos[0], pos[1], _sass[0], _sass[1], _saccdpos[0], \
 				 _saccdpos[1]))
-			prNot(VERB_DEBUG, "optSubapConf(): ranges: (%d,%d) and (%d,%d)"% \
+			log.prNot(log.INFO, "optSubapConf(): ranges: (%d,%d) and (%d,%d)"% \
 				(slxran[0], slxran[1], slyran[0], slyran[1]))
 			
 			# Save positions as pixel and real coordinates
@@ -1821,7 +1821,7 @@ class WfsSetup():
 		optsaccdsize = N.round(optsaccdsize).astype(N.int)
 		optsaccdpos = N.round(optsaccdpos).astype(N.int)
 		
-		prNot(VERB_INFO, "optSubapConf(): subimage size optimized to (%d,%d), stddev: (%.3g, %.3g) (was (%.3g, %.3g))" % \
+		log.prNot(log.NOTICE, "optSubapConf(): subimage size optimized to (%d,%d), stddev: (%.3g, %.3g) (was (%.3g, %.3g))" % \
 			(optsaccdsize[0], optsaccdsize[1], tmpstddev[0], tmpstddev[1], \
 			self.saccdsize[0], self.saccdsize[1]))
 		
@@ -1909,7 +1909,7 @@ class WfwfsImg():
 		Load an image file from disk into memory.
 		"""
 		
-		prNot(VERB_DEBUG, "load(): Trying to load file '%s'" % (self.uri))
+		log.prNot(log.INFO, "load(): Trying to load file '%s'" % (self.uri))
 		
 		# Check if file exists
 		if (not os.path.isfile(self.uri)):
@@ -1984,7 +1984,7 @@ class WfwfsImg():
 		store the file in, will default to N.float32.
 		"""
 		
-		prNot(VERB_DEBUG, "fitsSave(): Trying to save image as FITS file")
+		log.prNot(log.INFO, "fitsSave(): Trying to save image as FITS file")
 		
 		# Init the header with basic metadata
 		hdu = pyfits.PrimaryHDU(self.data.astype(dtype))
@@ -2007,7 +2007,7 @@ class WfwfsImg():
 		Save image as PNG, always rescaling the data to 0--255 and saving it
 		as grayscale image.
 		"""
-		prNot(VERB_DEBUG, "pngSave(): Trying to save image as PNG file.")
+		log.prNot(log.INFO, "pngSave(): Trying to save image as PNG file.")
 		
 		scldat = (self.data - self.data.min())*255 / \
 			(self.data.max() - self.data.min())
@@ -2022,14 +2022,14 @@ class WfwfsImg():
 		Wrapper for loading ana f0/fz files.
 		"""
 		
-		prNot(VERB_DEBUG, "_anaload(): Trying to load ana file.")
-		if (VERBOSITY >= VERB_DEBUG): db=1
+		log.prNot(log.INFO, "_anaload(): Trying to load ana file.")
+		if (VERBOSITY >= log.INFO): db=1
 		else: db=0
 		self.data = pyana.getdata(filename, debug=db)
 		self.res = self.data.shape
 		self.bpp = self.data.nbytes / N.product(self.res)
 			
-		prNot(VERB_DEBUG, "_anaload(): %d bytes, %d-d, %d elem." % \
+		log.prNot(log.INFO, "_anaload(): %d bytes, %d-d, %d elem." % \
 			(self.data.nbytes, len(self.data.shape), N.product(self.res)))
 	
 	
@@ -2037,7 +2037,7 @@ class WfwfsImg():
 		"""
 		Wrapper for loading fits files
 		"""
-		prNot(VERB_DEBUG, "_fitsload(): Trying to load fits file")
+		log.prNot(log.INFO, "_fitsload(): Trying to load fits file")
 		
 		# Load data
 		self.data = pyfits.getdata(filename)
@@ -2047,7 +2047,7 @@ class WfwfsImg():
 		self.res = self.data.shape
 		self.bpp = self.data.nbytes / N.product(self.res)
 		
-		prNot(VERB_DEBUG, "_fitsload(): %d bytes, %d-d, %d elem." % \
+		log.prNot(log.INFO, "_fitsload(): %d bytes, %d-d, %d elem." % \
 			(self.data.nbytes, len(self.data.shape), N.product(self.res)))
 	
 	
@@ -2084,7 +2084,7 @@ def restoreCache(metafile):
 	# Load the metafile
 	filelist = loadData(path, filename, aspickle=True)
 	if (filelist is False):
-		prNot(VERB_WARN, "restoreCache(): Failed to load filelist.")
+		log.prNot(log.WARNING, "restoreCache(): Failed to load filelist.")
 		return False
 	
 	# Loop over all quantities in filelist

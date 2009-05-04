@@ -19,7 +19,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 #=============================================================================
 
 import os
-from liblog import *
+import liblog as log
 import time
 
 #=============================================================================
@@ -120,7 +120,7 @@ def saveOldFile(uri, postfix='.old', maxold=5):
 		os.rename(uri, uri+postfix+str(0))
 		
 		# the file 'uri' is now free
-		prNot(VERB_DEBUG, "saveOldFile(): renamed file to prevent overwriting")
+		log.prNot(log.INFO, "saveOldFile(): renamed file to prevent overwriting")
 
 	
 def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=None):
@@ -140,26 +140,26 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 	@return Data array, or False when loading failed.
 	"""
 	import numpy as N
-	prNot(VERB_DEBUG, "loadData(): asnpy: %d aspickle: %d, ascsv: %d" % \
+	log.prNot(log.INFO, "loadData(): asnpy: %d aspickle: %d, ascsv: %d" % \
 		(asnpy, aspickle, ascsv))
 	
 	if (N.sum([asnpy, aspickle, ascsv]) > 0 and auto):
-		prNot(VERB_WARNING, "loadData(): auto-guessing set but .")
+		log.prNot(log.WARNING, "loadData(): auto-guessing set but .")
 	# Make sure there is only one setting true
 	if (N.sum([asnpy, aspickle, ascsv]) > 1):
 		aspickle = False
 		ascsv = False
-		prNot(VERB_WARNING, "loadData(): Cannot load more than one format at a time, disabling pickle.")
+		log.prNot(log.WARNING, "loadData(): Cannot load more than one format at a time, disabling pickle.")
 	elif (N.sum([asnpy, aspickle, ascsv]) < 1 and not auto):
 		asnpy = True
-		prNot(VERB_WARNING, "loadData(): No format selected, enabling npy.")
+		log.prNot(log.WARNING, "loadData(): No format selected, enabling npy.")
 	
 	if (asnpy):
 		import numpy as N
 		#uri = path + '.npy'
 		# Check if file exists
 		if (not os.path.isfile(path)):
-			prNot(VERB_WARN, "loadData(): numpy file '%s' does not exists." % \
+			log.prNot(log.WARNING, "loadData(): numpy file '%s' does not exists."%\
 					(os.path.split(path)[1]))
 			return False
 			
@@ -172,7 +172,7 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 		#uri = path + '.pickle'
 		# Check if file exists
 		if (not os.path.isfile(path)):
-			prNot(VERB_WARN, "loadData(): pickle file '%s' does not exists." % \
+			log.prNot(log.WARNING, "loadData(): pickle file '%s' does not exists."%\
 					(os.path.split(path)[1]))
 			return False
 			
@@ -183,7 +183,7 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 		#uri = path + '.pickle'
 		# Check if file exists
 		if (not os.path.isfile(path)):
-			prNot(VERB_WARN, "loadData(): pickle file '%s' does not exists." % \
+			log.prNot(log.WARNING, "loadData(): pickle file '%s' does not exists."%\
 					(os.path.split(path)[1]))
 			return False
 			
@@ -192,7 +192,7 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 	
 	# Check if shape matches
 	if (shape is not None and results.shape != shape):
-		prNot(VERB_WARN, "loadData(): shapes do not match.")
+		log.prNot(log.WARNING, "loadData(): shapes do not match.")
 		return False
 		
 	return results
@@ -229,13 +229,13 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 	# Expand path
 	path = os.path.realpath(path)
 	
-	prNot(VERB_DEBUG, "saveData(): file '%s', npy: %d pickle: %d, csv: %d" %\
+	log.prNot(log.INFO, "saveData(): file '%s', npy: %d pickle: %d, csv: %d" %\
 		(os.path.basename(path), asnpy, aspickle, ascsv))
 	
 	# Make dir if necessary
 	outdir = os.path.dirname(path)
 	if (not os.path.isdir(outdir)):
-		prNot(VERB_DEBUG, "saveData(): making directory '%s'" % (outdir))
+		log.prNot(log.INFO, "saveData(): making directory '%s'" % (outdir))
 		os.makedirs(outdir)
 	
 	# If everything is False, enable asnpy
@@ -247,7 +247,7 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 		# Save data in numpy format
 		if (explicit): uri = path
 		else: uri = path + '.npy'
-		prNot(VERB_DEBUG, "saveData(): storing numpy to '%s'" % (uri))
+		log.prNot(log.INFO, "saveData(): storing numpy to '%s'" % (uri))
 		# Save old file, if present
 		saveOldFile(uri, postfix='.old', maxold=old)
 		N.save(uri, data)
@@ -258,7 +258,7 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 		# Save data in csv format
 		if (explicit): uri = path
 		else: uri = path + '.csv'
-		prNot(VERB_DEBUG, "saveData(): storing csv to '%s'" % (uri))
+		log.prNot(log.INFO, "saveData(): storing csv to '%s'" % (uri))
 		# Save old file, if present
 		saveOldFile(uri, postfix='.old', maxold=old)
 		if (csvhdr is not None): data = N.vstack((N.array(csvhdr), data))
@@ -270,7 +270,7 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 		if (explicit): uri = path
 		else: uri = path + '.pickle'
 		# Save old file, if present
-		prNot(VERB_DEBUG, "saveData(): storing pickle to '%s'" % (uri))
+		log.prNot(log.INFO, "saveData(): storing pickle to '%s'" % (uri))
 		saveOldFile(uri, postfix='.old', maxold=old)
 		pickle.dump(data, file(uri, 'w'))
 		flist['pickle'] = os.path.basename(uri)
@@ -280,7 +280,7 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 		if (explicit): uri = path
 		else: uri = path + '.fits'
 		# Save old file, if present
-		prNot(VERB_DEBUG, "saveData(): storing fits to '%s'" % (uri))
+		log.prNot(log.INFO, "saveData(): storing fits to '%s'" % (uri))
 		saveOldFile(uri, postfix='.old', maxold=old)
 		pyfits.writeto(uri, data)
 		flist['fits'] = os.path.basename(uri)
@@ -334,7 +334,7 @@ def restoreData(path):
 	ret['base'] = meta.pop('base', os.path.commonprefix(files_used)[:-1])
 	ret['base'] = os.path.basename(ret['base'])
 	if (len(ret['base']) < 4): 
-		prNot(VERB_WARNING, "restoreData(): Warning, base very short, adding timestamp.")
+		log.prNot(log.WARNING, "restoreData(): Warning, base very short, adding timestamp.")
 		ret['base'] += str(int(time.time()))
 	# Re-insert in meta after sanitizing
 	meta['base'] = ret['base']

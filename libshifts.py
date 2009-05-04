@@ -101,7 +101,7 @@ import scipy.fftpack			# For FFT functions in FFT cross-corr
 import scipy.signal				# For hanning/hamming windows
 import pyfits
 #import timlib					# Some miscellaneous functions
-from liblog import *			# Logging / printing functions
+import liblog as log			# Logging / printing functions
 
 import unittest
 import time						# For unittest
@@ -746,7 +746,7 @@ def findRefIdx(img, saccdpos, saccdsize, refmode=REF_BESTRMS, refopt=1, storeref
 #=============================================================================
 
 
-def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refopt=None, shrange=[3,3], subfields=None, corrmaps=None):
+def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refopt=None, shrange=[3,3], subfields=None, corrmaps=None, refaps=None):
 	"""
 	Calculate the image shifts for subapertures/subfields in 'img'. 
 	Subapertures must be located at pixel positions 'saccdpos' with sizes 
@@ -782,36 +782,41 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	
 	# Parse the 'method' argument
 	if (method == COMPARE_XCORR):
-		prNot(VERB_DEBUG, "calcShifts(): Using direct cross correlation")
+		log.prNot(log.INFO, "calcShifts(): Using direct cross correlation")
 		mfunc = crossCorrWeave
 	elif (method == COMPARE_SQDIFF):
-		prNot(VERB_DEBUG, "calcShifts(): Using square difference")
+		log.prNot(log.INFO, "calcShifts(): Using square difference")
 		mfunc = sqDiffWeave
 	elif (method == COMPARE_ABSDIFFSQ):
-		prNot(VERB_DEBUG, "calcShifts(): Using absolute difference squared")
+		log.prNot(log.INFO, "calcShifts(): Using absolute difference squared")
 		mfunc = absDiffSqWeave
 	elif (hasattr(method, '__call__')):
-		prNot(VERB_DEBUG, "calcShifts(): Using custom image comparison")
+		log.prNot(log.INFO, "calcShifts(): Using custom image comparison")
 		mfunc = method
 	else:
 		raise RuntimeError("'method' must be either one of the predefined image comparison methods, or a function doing that.")
 	
 	# Parse the 'extremum' argument
 	if (extremum == EXTREMUM_2D9PTSQ):
-		prNot(VERB_DEBUG, "calcShifts(): Using 2d parabola interpolation")
+		log.prNot(log.INFO, "calcShifts(): Using 2d parabola interpolation")
 		extfunc = quadInt2dWeave
 	elif (extremum == EXTREMUM_MAXVAL):
-		prNot(VERB_DEBUG, "calcShifts(): Using maximum value")
+		log.prNot(log.INFO, "calcShifts(): Using maximum value")
 		extfunc = maxValPython
 	elif (hasattr(extremum, '__call__')):
-		prNot(VERB_DEBUG, "calcShifts(): Using custom interpolation")
+		log.prNot(log.INFO, "calcShifts(): Using custom interpolation")
 		extfunc = extremum
 	else:
 		raise RuntimeError("'extremum' must be either one of the predefined extremum finding methods, or a function doing that.")
 	
+	# Convert image to float32 for easier processing
+	img = img.astype(N.float32)
+	
 	# Find reference subaperture(s)
 	reflist = findRefIdx(img, saccdpos, saccdsize, refmode=refmode, \
 	 	refopt=refopt)
+	
+	if (refaps): refaps.extend(reflist)
 	
 	# Init shift vectors (use a list so we can append())
 	# Shape will be: ((len(refopt), saccdpos.shape[0], sfccdpos.shape[0], 2))
@@ -826,7 +831,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	# Loop over the reference subapertures
 	#-------------------------------------
 	for _refsa in reflist:
-		prNot(VERB_DEBUG, "calcShifts(): Using subap #%d as reference [%d:%d, %d:%d]" % \
+		log.prNot(log.INFO, "calcShifts(): Using subap #%d as reference [%d:%d, %d:%d]" % \
 			(_refsa, saccdpos[_refsa][0], saccdpos[_refsa][0]+saccdsize[0], \
 			saccdpos[_refsa][1], saccdpos[_refsa][1]+saccdsize[1]))
 		# Cut out the reference subaperture
@@ -841,7 +846,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 		# Loop over the subapertures
 		#---------------------------
 		for _sapos in saccdpos:
-			prNot(VERB_ALL, "calcShifts(): -Subimage @ (%d, %d), (%dx%d)"% \
+			log.prNot(log.DEBUG, "calcShifts(): -Subimage @ (%d, %d), (%dx%d)"% \
 				 	(_sapos[0], _sapos[1], saccdsize[0], saccdsize[1]))
 			
 			# Expand lists to store measurements in
@@ -861,7 +866,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 				# _pos = _sapos + _sfpos
 				# _end = _pos + sfccdsize
 				
-				# prNot(VERB_ALL, \
+				# log.prNot(log.DEBUG, \
 				# 	"calcShifts(): --subfield @ (%d, %d), (%dx%d) [%d:%d, %d:%d]" % \
 				# 	 	(_sfpos[0], _sfpos[1], sfccdsize[0], sfccdsize[1], \
 				# 		_pos[1], _end[1], _pos[0], _end[0]))
@@ -883,7 +888,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 				# Compare the image with the reference image
 				diffmap = mfunc(_subfield, ref, _sfpos, shrange)
 				#165, 139
-				#prNot(VERB_ALL, "calcShifts(): got map, interpolating maximum")
+				#log.prNot(log.DEBUG, "calcShifts(): got map, interpolating maximum")
 				# Find the extremum, store to list
 				shift = extfunc(diffmap, range=shrange, limit=shrange)
 				disps[-1][-1].append(shift[::-1])
@@ -892,7 +897,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 				# if (subfields != None): subfields[-1][-1].append(_subfield)
 				# if (corrmaps != None): corrmaps[-1][-1].append([diffmap])
 				# 			
-				# prNot(VERB_ALL, "calcShifts(): --Shift @ (%d,%d): (%.3g, %.3g)" % \
+				# log.prNot(log.DEBUG, "calcShifts(): --Shift @ (%d,%d): (%.3g, %.3g)" % \
 				# 	 	(_sfpos[0], _sfpos[1], shift[1], shift[0]))
 	
 	# Reform the shift vectors, crop to an numpy array and return it
@@ -900,7 +905,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	# ret[ret > shrange] = shrange
 	# ret[ret < -shrange] = -shrange
 	dur = time.time() - beg
-	prNot(VERB_DEBUG, "calcShifts(): done, took %.3g seconds." % (dur))
+	log.prNot(log.INFO, "calcShifts(): done, took %.3g seconds." % (dur))
 	return ret
 
 

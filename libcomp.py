@@ -21,7 +21,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 # Import libraries here
 #=============================================================================
 
-from liblog import *		# To print & log messages
+import liblog as log		# To print & log messages
 from mpi4py import MPI
 import numpy as N			# for creating and modifying numpy buffers
 import array				# for creating python buffers
@@ -49,7 +49,7 @@ class CompGrid():
 			'masterhost' : 'dhcp-179.astro.su.se',\
 			}
 		
-		prNot(VERB_INFO, "Initializing CompGrid()")
+		log.prNot(log.NOTICE, "Initializing CompGrid()")
 		# Load configuration from cfgfile
 		self.cfg = ConfigParser.SafeConfigParser(self.cfgdef)
 		self.cfg.read(cfgfile)
@@ -126,7 +126,7 @@ class CompGrid():
 		"""
 		Divide the tasks over various MPI threads.
 		"""
-		prNot(VERB_INFO, "divideTasks(): dividing tasks over threads.")
+		log.prNot(log.NOTICE, "divideTasks(): dividing tasks over threads.")
 		
 		# Everyone sends their ip to the master thread
 		locip = socket.gethostbyname(socket.gethostname())
@@ -139,9 +139,9 @@ class CompGrid():
 		# All other threads besides rank 0 do not continue.
 		if (self.rank != 0):
 			# wait until we're sure the message was received
-			prNot(VERB_DEBUG, "divideTasks(): waiting for send")
+			log.prNot(log.INFO, "divideTasks(): waiting for send")
 			sreq.Wait()
-			prNot(VERB_DEBUG, "divideTasks(): success.")
+			log.prNot(log.INFO, "divideTasks(): success.")
 			return
 		
 		# Only MPI thread rank 0 remains here:
@@ -153,7 +153,7 @@ class CompGrid():
 			 	status=stat)
 			ip = buf.tostring()
 			self.procs.append([proc, ip])
-			prNot(VERB_DEBUG, "divideTasks(): received '%s' from %d." % \
+			log.prNot(log.INFO, "divideTasks(): received '%s' from %d." % \
 				(ip, proc))
 			
 			# Now make groups per IP
@@ -161,13 +161,13 @@ class CompGrid():
 				groups[ip] = []
 			groups[ip].append(proc)
 		
-		prNot(VERB_DEBUG, "divideTasks(): making task groups.")
+		log.prNot(log.INFO, "divideTasks(): making task groups.")
 		foundmaster = False
 		
 		# Loop over groups, divide tasks
 		for ip in groups:
 			if (ip == self.masterhost):
-				prNot(VERB_DEBUG, "divideTasks(): found master ip.")
+				log.prNot(log.INFO, "divideTasks(): found master ip.")
 				foundmaster = True
 				
 				# We need at least one MPI threads for the watchdog
@@ -183,16 +183,16 @@ class CompGrid():
 			else:
 				self.workers.extend(groups[ip])
 				self.iworkers.extend(groups[ip])
-			prNot(VERB_DEBUG, "divideTasks(): group %s has %d nodes." % \
+			log.prNot(log.INFO, "divideTasks(): group %s has %d nodes." % \
 				(ip, len(groups[ip])))
 		
 		if (not foundmaster):
 			raise RuntimeError("Master machine '%d' not found!" % \
 			 	self.masterhost)
 		
-		prNot(VERB_INFO, "divideTasks(): watchdog @ %d, workers:" % \
+		log.prNot(log.NOTICE, "divideTasks(): watchdog @ %d, workers:" % \
 		 	(self.watchdog))
-		prNot(VERB_INFO, self.workers)
+		log.prNot(log.NOTICE, self.workers)
 	
 	
 	def deploy(self, ack=None):
@@ -201,18 +201,18 @@ class CompGrid():
 		earlier.
 		"""
 		if (ack != None):
-			prNot(VERB_INFO, "deploy(): %s" % (ack))
+			log.prNot(log.NOTICE, "deploy(): %s" % (ack))
 		
 		if (self.rank == self.watchdog):
-			prNot(VERB_INFO, "deploy(): MPI thread %d running watchdog." %\
+			log.prNot(log.NOTICE, "deploy(): MPI thread %d running watchdog." %\
 				(self.rank))
 			self.watchdogfunc(self.watchdogargs)
 		else:
-			prNot(VERB_INFO, "deploy(): MPI thread %d running worker." %\
+			log.prNot(log.NOTICE, "deploy(): MPI thread %d running worker." %\
 				(self.rank))
 			self.workerfunc(self.workerargs)
 		
-		prNot(VERB_INFO, "deploy(): MPI thread %d done working." %\
+		log.prNot(log.NOTICE, "deploy(): MPI thread %d done working." %\
 			(self.rank))
 	
 	
@@ -317,7 +317,7 @@ class CompGrid():
 		received.
 		"""
 		
-		prNot(VERB_DEBUG, "broadcastWorkers(): Broadcasting data.")
+		log.prNot(log.INFO, "broadcastWorkers(): Broadcasting data.")
 		
 		# Send metadata first, don't track the req because we don't need to
 		meta = self.getMeta(data, task)
@@ -355,7 +355,7 @@ class CompGrid():
 		# If the send buffer is full, wait until a send operation has 
 		# completed before continuing
 		if (len(self.sendbuf) >= self.sbuflen):
-			prNot(VERB_DEBUG, "sendToWorker(): %d: sendbuf full (%d elems)" %\
+			log.prNot(log.INFO, "sendToWorker(): %d: sendbuf full (%d elems)" %\
 			 	(rank, len(self.sendbuf)))
 			sstat = MPI.Status()
 			wreq = MPI.Request.Waitany(self.sreqbuf.values(), status=sstat)
@@ -363,7 +363,7 @@ class CompGrid():
 			# requests that are
 			for sreq in self.sreqbuf:
 				if MPI.Request.Test(self.sreqbuf[sreq]):
-					prNot(VERB_DEBUG,  "sendToWorker(): %d: found '%d' is done, removing" % (rank, sreq))
+					log.prNot(log.INFO,  "sendToWorker(): %d: found '%d' is done, removing" % (rank, sreq))
 					del self.sreqbuf[sreq]
 					del self.sendbuf[sreq]
 					#del self.metabuf[sreq]
@@ -374,7 +374,7 @@ class CompGrid():
 		
 		# Send metadata first, don't track the req because we don't need to
 		meta = self.getMeta(data, task)
-		prNot(VERB_DEBUG, "sendToWorker(): Sending out data.")
+		log.prNot(log.INFO, "sendToWorker(): Sending out data.")
 		self.comm.Isend([meta, MPI.INT], dest=w, tag=self.COMM_WD_W)
 		# Request async send for data
 		sreq = self.comm.Isend([data, self.tnptompi(data.dtype.type)], \
@@ -393,7 +393,7 @@ class CompGrid():
 		self.idbuf[w] = dataid
 		
 		# Submit was successful, return True		
-		prNot(VERB_DEBUG, "sendToWorker(): Success.")
+		log.prNot(log.INFO, "sendToWorker(): Success.")
 		return True
 	
 	
@@ -403,7 +403,7 @@ class CompGrid():
 		"""
 		# TODO: Document
 		# TODO: fix ugly (False, False) return values
-		prNot(VERB_DEBUG, "getFromWorker(): Getting data from worker.")
+		log.prNot(log.INFO, "getFromWorker(): Getting data from worker.")
 		
 		# Check if there are requests left on the buffer:
 		if (len(self.rreqbuf) == 0):
@@ -413,7 +413,7 @@ class CompGrid():
 		# Wait for data
 		rstat = MPI.Status()
 		wreq = MPI.Request.Waitany(self.rreqbuf.values(), status=rstat)
-		prNot(VERB_DEBUG, "getFromWorker(): worker %d done crunching" % \
+		log.prNot(log.INFO, "getFromWorker(): worker %d done crunching" % \
 			(rstat.source))
 		
 		# Construct return value
@@ -435,7 +435,7 @@ class CompGrid():
 		"""
 		Receive data from the master to the worker MPI thread.
 		"""
-		prNot(VERB_DEBUG, "getFromMaster(): waiting for metadata.")
+		log.prNot(log.INFO, "getFromMaster(): waiting for metadata.")
 		
 		# First we receive some metadata on the data we're getting after this.
 		meta = N.empty((32), dtype=N.int32)
@@ -451,7 +451,7 @@ class CompGrid():
 		databuf = N.empty(tuple(meta[1:1+meta[0]]), \
 		 	dtype=self.tmetatonp(meta[10]))
 		
-		prNot(VERB_DEBUG, "getFromMaster(): got metadata.")
+		log.prNot(log.INFO, "getFromMaster(): got metadata.")
 		# And block to receive the data
 		self.comm.Recv([databuf, self.tnptompi(databuf.dtype.type)], \
 		 	source=0, tag=self.COMM_WD_W)

@@ -23,7 +23,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 
 import numpy as N				# Math & calculations
 import csv
-from liblog import *		# To print & log messages
+import liblog as log		# To print & log messages
 from libfile import *		# File storing, management and other things
 import os
 
@@ -115,11 +115,11 @@ def loadSaSfConf(safile):
 		except:
 			raise RuntimeError("loadSaSfConf(): Could not parse file.")
 	
-	prNot(VERB_DEBUG, "loadSaSfConf(): Found %d coordinates, (expected %d)."% \
+	log.prNot(log.INFO, "loadSaSfConf(): Found %d coordinates, (expected %d)."% \
 		 (len(ccdpos), nsa))
 	
 	if (len(ccdpos) != nsa):
-		prNot(VERB_WARN, "loadSaSfConf(): Found %d coordinates, expected %d. Using all positions found (%d)." % (len(ccdpos), nsa, len(ccdpos)))
+		log.prNot(log.WARNING, "loadSaSfConf(): Found %d coordinates, expected %d. Using all positions found (%d)." % (len(ccdpos), nsa, len(ccdpos)))
 		nsa = len(ccdpos)
 	
 	ccdsize = (N.array(ccdsize)).astype(N.int32)
@@ -208,12 +208,12 @@ def calcSubaptConf(rad, size, pitch, shape='circular', xoff=[0,0.5], disp=(0,0),
 			if (shape == 'circular'):
 				if (sum((abs(sac)+size/2.0)**2) < rad**2): 
 					pos.append(sac)
-					prNot(VERB_DEBUG, "calcSubaptConf(): adding sa @ (%.3g, %.3g)." % \
+					log.prNot(log.INFO, "calcSubaptConf(): adding sa @ (%.3g, %.3g)." % \
 					 	(sac[0], sac[1]))
 			elif shape == 'square':
 				if (abs(sac)+size/2.0 < rad).all:
 					pos.append(sac)
-					prNot(VERB_DEBUG, "calcSubaptConf(): adding sa @ (%.3g, %.3g)." % \
+					log.prNot(log.INFO, "calcSubaptConf(): adding sa @ (%.3g, %.3g)." % \
 					 	(sac[0], sac[1]))
 			else:
 				raise ValueError("Unknown aperture shape '%s'" % (apts))
@@ -229,7 +229,7 @@ def calcSubaptConf(rad, size, pitch, shape='circular', xoff=[0,0.5], disp=(0,0),
 	saccdpos = N.round(pos + rad - size/2.0).astype(N.int)
 	
 	nsa = len(saccdpos)
-	prNot(VERB_INFO, "calcSubaptConf(): found %d subapertures." % (nsa))
+	log.prNot(log.NOTICE, "calcSubaptConf(): found %d subapertures." % (nsa))
 	
 	return (nsa, saccdpos, size)
 
@@ -299,7 +299,7 @@ def optSubapConf(img, sapos, sasize, saifac):
 		sayran = N.array([ \
 			N.argwhere(yslice[:slyran.ptp()/2.] < cutoff)[-1,0], \
 			N.argwhere(yslice[slyran.ptp()/2.:] < cutoff)[0,0] + slyran.ptp()/2. ])
-		prNot(VERB_ALL, "optSubapConf(): ranges: (%d,%d), (%d,%d) cutoff: %g" % \
+		log.prNot(log.DEBUG, "optSubapConf(): ranges: (%d,%d), (%d,%d) cutoff: %g" % \
 			(slxran[0], slxran[1], slyran[0], slyran[1], cutoff))
 			
 		# The size of the subaperture is sa[x|y]ran[1] - sa[x|y]ran[0]:
@@ -314,7 +314,7 @@ def optSubapConf(img, sapos, sasize, saifac):
 		_sapos = N.array([saxran[0] + slxran[0], \
 			sayran[0] + slyran[0]])
 		
-		prNot(VERB_DEBUG, \
+		log.prNot(log.INFO, \
 			"optSubapConf(): subap@(%d, %d), size: (%d, %d), pos: (%d, %d) end: (%d, %d)" % \
 			(pos[0], pos[1], _sass[0], _sass[1], _sapos[0], _sapos[1], \
 			_sapos[0] + _sass[0], _sapos[1] + _sass[1]))
@@ -332,11 +332,11 @@ def optSubapConf(img, sapos, sasize, saifac):
 	optsapos = N.round(optsapos).astype(N.int)
 	optsize = N.round(optsize).astype(N.int)
 	
-	prNot(VERB_INFO, "optSubapConf(): subimage size optimized to (%d,%d), stddev: (%.3g, %.3g) (was (%.3g, %.3g))" % \
+	log.prNot(log.NOTICE, "optSubapConf(): subimage size optimized to (%d,%d), stddev: (%.3g, %.3g) (was (%.3g, %.3g))" % \
 		(optsize[0], optsize[1], tmpstddev[0], tmpstddev[1], \
 		sasize[0], sasize[1]))
 	if (tmpstddev.mean() > 1.0):
-		prNot(VERB_WARN, \
+		log.prNot(log.WARNING, \
 			"optSubapConf(): size standarddeviation rather high, check results!")
 	
 	return (len(optsapos), optsapos, optsize)
@@ -403,10 +403,10 @@ def calcWfsDimmR0(shifts, sapos, sadiam, angscl, mind=2.0, wavelen=550e-9):
 	
 	# Check data sanity
 	if (shifts.ndim != 3):
-		prNot(VERB_WARN, "calcWfsDimmR0(): shifts incorrect shape, should be 3D")
+		log.prNot(log.WARNING, "calcWfsDimmR0(): shifts incorrect shape, should be 3D")
 		return False
 	if (shifts.shape[1] != sapos.shape[0]):
-		prNot(VERB_WARN, "calcWfsDimmR0(): shifts and sapos shapes do not match")
+		log.prNot(log.WARNING, "calcWfsDimmR0(): shifts and sapos shapes do not match")
 		return
 	
 	r0list = []

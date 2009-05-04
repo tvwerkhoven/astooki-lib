@@ -18,7 +18,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 #=============================================================================
 
 import numpy as N			# Processing numerical data
-from liblog import *		# Logging stuff
+import liblog as log		# Logging stuff
 import Gnuplot				# For making nice plots
 import cairo				# For making nice PNG stuff
 import time
@@ -312,7 +312,7 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plorigin=(0,0), p
 # 	if (sasize != None):
 # 		sasize = N.array(sasize)
 # 		if (sasize.shape[0] != 2 or sasize.ndim != 1):
-# 			prNot(VERB_WARN, "plotVecMap(): Cannot add boxes around vectors, is not a valid 2-element list")
+# 			log.prNot(log.WARNING, "plotVecMap(): Cannot add boxes around vectors, is not a valid 2-element list")
 # 		
 # 		box = 1
 # 		for p in llpos:
@@ -381,7 +381,7 @@ def overlayMask(img, saccdpos, saccdsize, filename, number=True, coord=True, nor
 	of the range of the data within the subapertures. [0.5]
 	"""
 	
-	prNot(VERB_DEBUG, "overlayMask(): rendering subap mask over image.")
+	log.prNot(log.INFO, "overlayMask(): rendering subap mask over image.")
 	
 	### Process data
 	### ============
@@ -498,7 +498,7 @@ def overlayMask(img, saccdpos, saccdsize, filename, number=True, coord=True, nor
 	# And as FITS file
 	pyfits.writeto(filename + '.fits', masked, clobber=True)
 	
-	prNot(VERB_ALL, "overlayMask(): done, wrote image as fits and png.")
+	log.prNot(log.INFO, "overlayMask(): done, wrote image as fits and png.")
 
 
 def visCorrMaps(maps, res, sapos, sasize, sfpos, sfsize, filename, shifts=None, mapscale=1.0, text=None, outpdf=False, outfits=False):
@@ -660,7 +660,7 @@ def showSaSfLayout(outfile, sapos, sasize, sfpos=[], sfsize=[], method='ccd', co
 	if (method != 'ccd'):
 		raise NotImplemented("Not implemented yet")
 	
-	prNot(VERB_DEBUG, "showSaSfLayout(): Saving plot to '%s'." % (outfile))
+	log.prNot(log.INFO, "showSaSfLayout(): Saving plot to '%s'." % (outfile))
 	# Initiate Gnuplot
 	gp = Gnuplot.Gnuplot()
 	
@@ -769,7 +769,7 @@ def waitForFile(fname, delay=0.3, maxw=5):
 	"""
 	
 	while (not os.path.exists(fname) and maxw >= 0 ):
-		prNot(VERB_DEBUG, "waitForFile(): Waiting for '%s'" % (fname))
+		log.prNot(log.INFO, "waitForFile(): Waiting for '%s'" % (fname))
 		maxw -= delay
 		time.sleep(delay)
 	
@@ -795,7 +795,7 @@ def rmFiles(filelist):
 	"""
 	for _f in filelist:
 		if os.path.exists(_f):
-			prNot(VERB_DEBUG, "rmFiles(): Removing %s" % (_f))
+			log.prNot(log.INFO, "rmFiles(): Removing %s" % (_f))
 			os.remove(_f)
 	
 
@@ -814,7 +814,7 @@ def gnuplotInit(gp, hardcopy=False, verb=False, rmfile=False):
 	# If we want a hardcopy, do so
 	if (hardcopy is not False):
 		hc = os.path.realpath(hardcopy)
-		prNot(VERB_DEBUG, "Saving hardcopy to '%s'" % (hc))
+		log.prNot(log.INFO, "Saving hardcopy to '%s'" % (hc))
 		# Make sure the directory exists
 		if (not os.path.exists(os.path.dirname(hc))):
 			os.makedirs(os.path.dirname(hc))
