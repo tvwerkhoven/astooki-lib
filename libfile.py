@@ -120,7 +120,7 @@ def saveOldFile(uri, postfix='.old', maxold=5):
 		os.rename(uri, uri+postfix+str(0))
 		
 		# the file 'uri' is now free
-		log.prNot(log.INFO, "saveOldFile(): renamed file to prevent overwriting")
+		log.prNot(log.INFO, "saveOldFile(): renamed file (%s) to prevent overwriting" % (uri))
 
 	
 def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=None):
