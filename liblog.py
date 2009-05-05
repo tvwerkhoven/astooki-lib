@@ -63,6 +63,20 @@ ERRORCL = "\033[37;41m"
 # Routines
 #=============================================================================
 
+def initLogFile(logfile):
+	"""
+	(Re-)initialize logfile.
+	"""
+	import libfile
+	libfile.saveOldFile(logfile)
+	global LOGFD
+	if (not LOGFD):
+		LOGFD = open(logfile, "a+")
+	else:
+		LOGFD.close()
+		LOGFD = open(logfile, "a+")
+
+	
 def prNot(verb, msg, err=EXIT):
 	"""
 	Print a message to the screen, depending on how 'verb' and the global 
@@ -82,14 +96,12 @@ def prNot(verb, msg, err=EXIT):
 			sys.exit(err)
 		else:
 			print msg
-	if (LOGFILE):
+	if (verb < DEBUG and LOGFD):
 		tm = time.localtime()
-		global LOGFD
-		if (not LOGFD):
-			LOGFD = open(LOGFILE, "a+")
 		global LOGLASTDAY
 		if (LOGLASTDAY != tm[2]):
 			print >> LOGFD, "-"*20, time.asctime(tm), "-"*20
 			LOGLASTDAY = tm[2]
 		print >> LOGFD, time.strftime("%H:%M:%S", tm), verb, msg
+		LOGFD.flush()
 		
