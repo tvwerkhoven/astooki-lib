@@ -4,6 +4,9 @@
 @author Tim van Werkhoven (tim@astrou.su.se)
 @date 20090429
 
+Compile with
+gcc -shared -O3 -Wall -I/sw/include/python2.5/ -I/sw/lib/python2.5/site-packages/numpy/core/include-c libshifts-c.c
+
 Created by Tim van Werkhoven on 2009-04-29.
 Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
 
@@ -15,6 +18,8 @@ http://creativecommons.org/licenses/by-sa/3.0/
 // Headers
 #include <Python.h>				// For python extension
 #include <numpy/arrayobject.h> 	// For numpy
+//#include <Numeric/arrayobject.h> 	// For numpy
+//#include <numarray/arrayobject.h> 	// For numpy
 #include <sys/time.h>			// For timestamps
 #include <time.h>				// For timestamps
 
@@ -25,7 +30,7 @@ typedef double float64_t;
 // Prototypes
 static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args);
 // def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refopt=None, shrange=[3,3], subfields=None, corrmaps=None):
-int _findrefidx_float32(float32_t *image, int32_t pos[][2], int npos, int32_t size[2], int refmode, int refopt, int list[]);
+int _findrefidx_float32(float32_t *image, int32_t stride, int32_t pos[][2], int npos, int32_t size[2], int refmode, int refopt, int list[]);
 //findRefIdx(img, saccdpos, saccdsize, refmode=REF_BESTRMS, refopt=1, storeref=False):
 PyObject *_calcshifts_float32(float32_t *image, int32_t saccdpos[][2], int nsapos, int32_t saccdsize[2], int32_t sfccdpos[][2], int nsfpos, int32_t sfccdsize[2], int32_t shran[2], int compmeth, int extmeth, int refmode, int refopt, int debug);
 // Defines
@@ -68,7 +73,7 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 	PyArrayObject *image, *saccdpos, *saccdsize, *sfccdpos, *sfccdsize, *shrange;
 	int compmeth = COMPARE_SQDIFF, extmeth = EXTREMUM_2D9PTSQ;
 	int refmode = REF_BESTRMS, refopt = 0;
-	int debug=0;
+	int debug=1;
 	PyObject *shifts;
 	// Generic variables
 	int i, j;
@@ -91,22 +96,22 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 	if (debug > 0) printf("libshifts_calcshifts(): img: 0x%p, sapos: 0x%p, sasize: 0x%p, sfpos: 0x%p, sfsize: 0x%p, shran: 0x%p.", image, saccdpos, saccdsize, sfccdpos, sfccdsize, shrange);
 	
 	// Verify that saccdpos, saccdsize, sfccdpos, sfccdsize, shran are all int32
-	if (PyArray_TYPE((PyObject *) saccdpos) != PyArray_INT32 ||
-		PyArray_TYPE((PyObject *) saccdsize) != PyArray_INT32 ||
-		PyArray_TYPE((PyObject *) sfccdpos) != PyArray_INT32 ||
-		PyArray_TYPE((PyObject *) sfccdsize) != PyArray_INT32 ||
-		PyArray_TYPE((PyObject *) shrange) != PyArray_INT32) {
+	if (PyArray_TYPE((PyObject *) saccdpos) != NPY_INT32 ||
+		PyArray_TYPE((PyObject *) saccdsize) != NPY_INT32 ||
+		PyArray_TYPE((PyObject *) sfccdpos) != NPY_INT32 ||
+		PyArray_TYPE((PyObject *) sfccdsize) != NPY_INT32 ||
+		PyArray_TYPE((PyObject *) shrange) != NPY_INT32) {
 			if (debug > 0) 
-				printf("libshifts_calcshifts(): coordinates and ranges are not int32.\n");
-			PyErr_SetString(PyExc_ValueError, "In libshifts_calcshifts: coordinates and ranges should be int32.");
+				printf("...: coordinates and ranges are not int32.\n");
+			PyErr_SetString(PyExc_ValueError, "In calcshifts: coordinates and ranges should be int32.");
 			return NULL;
 		}
 	
 	// Refopt should be somewhere between 0 and 100
 	if (refopt < 0 || refopt > 100) {
 		if (debug > 0) 
-			printf("libshifts_calcshifts(): refopt value invalid.\n");
-		PyErr_SetString(PyExc_ValueError, "In libshifts_calcshifts: refopt value invalid.");
+			printf("...: refopt value invalid.\n");
+		PyErr_SetString(PyExc_ValueError, "In calcshifts: refopt value invalid.");
 		return NULL;	
 	}
 	
@@ -114,7 +119,7 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 	int nsa = (int) PyArray_DIM((PyObject*) saccdpos, 0);
 	int nsf = (int) PyArray_DIM((PyObject*) sfccdpos, 0);
 	if (debug > 0)
-		printf("libshifts_calcshifts(): nsa: %d, nsf: %d.\n", nsa, nsf);
+		printf("...: nsa: %d, nsf: %d.\n", nsa, nsf);
 	
 	// Convert options
 	int32_t sapos[nsa][2];
@@ -122,73 +127,80 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 		sapos[i][0] = *((uint32_t *)PyArray_GETPTR2((PyObject *) saccdpos, i, 0));
 		sapos[i][1] = *((uint32_t *)PyArray_GETPTR2((PyObject *) saccdpos, i, 1));
 		if (debug > 0)
-			printf("libshifts_calcshifts(): sa %d: %d,%d.\n", i, sapos[i][0], sapos[i][1]);
+			printf("...: sa %d: %d,%d.\n", i, sapos[i][0], sapos[i][1]);
 	}
 	int32_t sfpos[nsf][2];
 	for (i=0; i<nsf; i++) {
 		sfpos[i][0] = *((uint32_t *)PyArray_GETPTR2((PyObject *) sfccdpos, i, 0));
 		sfpos[i][1] = *((uint32_t *)PyArray_GETPTR2((PyObject *) sfccdpos, i, 1));
 		if (debug > 0)
-			printf("libshifts_calcshifts(): sa %d: %d,%d.\n", i, sfpos[i][0], sfpos[i][1]);
+			printf("...: sf %d: %d,%d.\n", i, sfpos[i][0], sfpos[i][1]);
 	}
 	int32_t sasize[2];
 	sasize[0] = *((uint32_t *) PyArray_GETPTR1((PyObject *) saccdsize, 0));
 	sasize[1] = *((uint32_t *) PyArray_GETPTR1((PyObject *) saccdsize, 1));
 	if (debug > 0)
-		printf("libshifts_calcshifts(): sasize: %d,%d.\n", sasize[0], sasize[1]);
+		printf("...: sasize: %d,%d.\n", sasize[0], sasize[1]);
 	int32_t sfsize[2];
 	sfsize[0] = *((uint32_t *) PyArray_GETPTR1((PyObject *) sfccdsize, 0));
 	sfsize[1] = *((uint32_t *) PyArray_GETPTR1((PyObject *) sfccdsize, 1));
 	if (debug > 0)
-		printf("libshifts_calcshifts(): sfsize: %d,%d.\n", sfsize[0], sfsize[1]);
+		printf("...: sfsize: %d,%d.\n", sfsize[0], sfsize[1]);
 	
 	int32_t shran[2];
 	shran[0] = *((uint32_t *) PyArray_GETPTR1((PyObject *) shrange, 0));
 	shran[1] = *((uint32_t *) PyArray_GETPTR1((PyObject *) shrange, 1));
 	if (debug > 0)
-		printf("libshifts_calcshifts(): shran: %d,%d.\n", shran[0], shran[1]);
+		printf("...: shran: %d,%d.\n", shran[0], shran[1]);
 	
 	// Check image datatype
 	switch (PyArray_TYPE((PyObject *) image)) {
-		case (PyArray_FLOAT32): 
+		case (NPY_FLOAT32): 
 			if (debug > 0) 
-				printf("libshifts_calcshifts(): Found type PyArray_FLOAT32\n");
+				printf("...: Found type NPY_FLOAT32\n");
 			// Convert options
 			float32_t *im32 = (float32_t *) PyArray_DATA((PyObject *) image);
-			_calcshifts_float32(im32, sapos, nsa, sasize, sfpos, nsf, sfsize, shran, compmeth, extmeth, refmode, refopt, debug);
+			int32_t *shifts = _calcshifts_float32(im32, sapos, nsa, sasize, sfpos, nsf, sfsize, shran, compmeth, extmeth, refmode, refopt, debug);
 			break;
-		// case (PyArray_FLOAT64): 
+		// case (NPY_FLOAT64): 
 		// 	if (debug > 0) 
-		// 		printf("libshifts_calcshifts(): Found type PyArray_FLOAT64\n");
+		// 		printf("libshifts_calcshifts(): Found type NPY_FLOAT64\n");
 		// 	break;
 		default:
 			if (debug > 0) 
-				printf("libshifts_calcshifts(): unsupported type.\n");
-			PyErr_SetString(PyExc_ValueError, "In libshifts_calcshifts: datatype not supported.");
+				printf("...: unsupported type.\n");
+			PyErr_SetString(PyExc_ValueError, "In calcshifts: datatype not supported.");
 			return NULL;
 	}
 	
 		
-	return NULL;
+	return Py_BuildValue("i", 1);
 }
 
 
-int _findrefidx_float32(float32_t *image, int32_t pos[][2], int npos, int32_t size[2], int refmode, int refopt, int list[]) {
+int _findrefidx_float32(float32_t *image, int32_t stride, int32_t pos[][2], int npos, int32_t size[2], int refmode, int refopt, int list[]) {
+	if (debug > 0)
+		printf("_findrefidx_float32() im: 0x%p, pos: 0x%p, size: 0x%p.\n", image, pos, size);
 	// Find a reference subaperture in 'image'
 	int sa, i, j;
 	double rmslist[npos];
 	for (sa=0; sa < npos; sa++) {
 		// Calculate RMS for subaperture 'sa'
 		for (i=0; i<size[0]; i++) {
-			rmslist[sa] = sa*0.5;
+			rmslist[sa] = image*0.5;
 		}
+		if (debug >0)
+			printf("...: rms for sa %d = %.3g\n", sa, rmslist[sa]);
 	}
 	list[0] = 1;
 	
 	return 1;
 }
 
-PyObject *_calcshifts_float32(float32_t *image, int32_t saccdpos[][2], int nsapos, int32_t saccdsize[2], int32_t sfccdpos[][2], int nsfpos, int32_t sfccdsize[2], int32_t shran[2], int compmeth, int extmeth, int refmode, int refopt, int debug) {
+int32_t *_calcshifts_float32(float32_t *image, int32_t saccdpos[][2], int nsapos, int32_t saccdsize[2], int32_t sfccdpos[][2], int nsfpos, int32_t sfccdsize[2], int32_t shran[2], int compmeth, int extmeth, int refmode, int refopt, int debug) {
+	if (debug > 0) 
+		printf("_calcshifts_float32().\n");
+
 	
 	// First get the reference subapertures
 	int reflist[refopt], ret;
