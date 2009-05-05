@@ -816,7 +816,7 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	reflist = findRefIdx(img, saccdpos, saccdsize, refmode=refmode, \
 	 	refopt=refopt)
 	
-	if (refaps): refaps.extend(reflist)
+	if (refaps is not None): refaps.extend(reflist)
 	
 	# Init shift vectors (use a list so we can append())
 	# Shape will be: ((len(refopt), saccdpos.shape[0], sfccdpos.shape[0], 2))
@@ -840,8 +840,8 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 		ref = (ref/N.float32(ref.mean()))
 		# Expand lists to store measurements in
 		disps.append([])
-		if (subfields != None): subfields.append([])
-		if (corrmaps != None): corrmaps.append([])
+		if (subfields is not None): subfields.append([])
+		if (corrmaps is not None): corrmaps.append([])
 		
 		# Loop over the subapertures
 		#---------------------------
@@ -851,8 +851,8 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 			
 			# Expand lists to store measurements in
 			disps[-1].append([])
-			if (subfields != None): subfields[-1].append([])
-			if (corrmaps != None): corrmaps[-1].append([])
+			if (subfields is not None): subfields[-1].append([])
+			if (corrmaps is not None): corrmaps[-1].append([])
 			
 			# Cut out subimage
 			_subimg = img[_sapos[1]:_sapos[1]+saccdsize[1], \
