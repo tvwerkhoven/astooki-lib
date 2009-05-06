@@ -267,8 +267,8 @@ def sqDiffWeave(img, ref, pos, range):
 	diffmap = N.empty((range[1]*2+1, range[0]*2+1))
 	
 	# Pre-process data, mean should be the same
-	img = img/N.float32(img.mean())
-	ref = ref/N.float32(ref.mean())
+	# img = img/N.float32(img.mean())
+	# ref = ref/N.float32(ref.mean())
 	# print img.shape
 	# print ref.shape
 	
@@ -312,7 +312,7 @@ def sqDiffWeave(img, ref, pos, range):
 				// match in diffmap (this allows to use a more general 
 				// maximum-finding method, instead of splitting between maxima
 				// and minima)
-				printf("tmp: %.3f ", -tmpsum);
+				//printf("tmp: %.3f ", -tmpsum);
 				diffmap((sh1-sh1min), (sh0-sh0min)) = -tmpsum;
 			}
 		}
@@ -372,12 +372,6 @@ def absDiffSqWeave(img, ref, pos, range):
 	"""
 	# Init the map to store the quality of each measured shift in
 	diffmap = N.empty((range[1]*2+1, range[0]*2+1), dtype=N.float32)
-	
-	# Pre-process data, mean should be the same
-	# img = img/N.float32(img.mean())
-	# ref = ref/N.float32(ref.mean())
-	# print img.shape
-	# print ref.shape
 	
 	code = """
 	#line 383 "libshifts.py" (debugging info for compilation)
@@ -585,7 +579,7 @@ def quadInt2dPython(data, range, limit=None):
 	start = N.argwhere(data == data.max())[0]
 	# Use the shift range measured to get the origin (i.e. what pixel 
 	# corresponds to a (0,0) shift?)
-	offset = -range[0]
+	offset = -range
 	# Crop from the full map to interpolate for
 	submap = data[start[0]-1:start[0]+2, start[1]-1:start[1]+2]
 	
@@ -599,6 +593,7 @@ def quadInt2dPython(data, range, limit=None):
 	v = N.array([(2*a2*a5-a4*a6)/(a6*a6-4*a3*a5), \
 		 	(2*a3*a4-a2*a6)/(a6*a6-4*a3*a5)]) + start + offset
 	
+	#print a2,a3,a4,a5,a6
 	# Debug
 	# if (not N.isfinite(v).all()):
 	# 	raise RuntimeError("Not all finite")
@@ -630,7 +625,7 @@ def quadInt2dWeave(data, range, limit=None):
 	start = N.argwhere(data == data.max())[0]
 	# Use the shift range measured to get the origin (i.e. what pixel 
 	# corresponds to a (0,0) shift?)
-	offset = -range[0]
+	offset = -range
 	# Crop from the full map to interpolate for. We don't change indices here 
 	# because otherwise we would need to change them again when returning the 
 	# coordinate of the maximum.
