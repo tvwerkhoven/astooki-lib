@@ -85,7 +85,7 @@ def loadSaSfConf(safile):
 	"""
 	
 	if (not os.path.isfile(safile)):
-		raise IOError("loadSaSfConf(): File '%s' does not exist." % (filename))
+		raise IOError("loadSaSfConf(): File '%s' does not exist." % (safile))
 	
 	reader = csv.reader(open(safile), delimiter=',')
 	
