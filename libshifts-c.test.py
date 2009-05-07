@@ -4,15 +4,17 @@
 ### Test libshifts-c library
 import sys
 import pyana
+import pyfits
 import libsh
 import numpy as N
-import scipy
-import _libshifts			# C version of libshifts
+import scipy as S
+import clibshifts			# C version of libshifts
+import clibshifts as cs
 import libshifts			# Python version of libshifts
 import time						# For timing
 
-def main(realdata=True):
-	if (realdata):
+def main(realdata='real'):
+	if (realdata == 'wfwfs'):
 		ddir = '../data/2009.04.28-run01/'
 		pdir = ddir + 'proc/'
 		imfile = 'wfwfs_test_im28Apr2009.0000100'
@@ -25,7 +27,7 @@ def main(realdata=True):
 		nsa = len(saccdpos)
 		img = pyana.getdata(ddir+imfile)
 		img = img.astype(N.float32)
-	else:
+	elif (realdata == 'fake'):
 		# Make fake image with gaussian
 		im1 = mk2dgauss((512,512), (153.5, 150.6))
 		im2 = mk2dgauss((512,512), (300, 150.))
@@ -38,13 +40,101 @@ def main(realdata=True):
 		sfccdsize = N.array([12, 12], dtype=N.int32)
 		#saccdpos = saccdpos[:2]
 		nsa = len(saccdpos)
-	
+	elif (realdata == 'real'):
+		# Use a big image as source
+		imfile = '../poster-crisp-intensity.fits'
+		img = pyfits.getdata(imfile)
+		# Crop about 400 by 400 pixels
+		crop = img[400:600,0:200]
+		# Blow up the crop by a factor of 2
+		crop = S.ndimage.zoom(crop, 2)
+		# Take whole image as reference
+		ref = crop.copy()
+		# List of shift vectors
+		#shvec = N.array([[0,0.5], [1,1], [0,0], [0.5,0.5], [3.5, 1.2]])
+		shx = N.arange(20.)/10.
+		shy = N.arange(10.)/3.0
+		shvec = N.array([ [i, y] for y in shx for i in shy ])
+		imlist = []
+		# Shift images around, and downscale by a factor of 10
+		for sh in shvec:
+			#print "Shvec: (%g,%g)." % (sh[0], sh[1])
+			sh *= 10.
+			im = crop[40+sh[1]:-40+sh[1],40+sh[0]:-40+sh[0]].copy()
+			im = S.ndimage.zoom(im, 1.0/10.)
+			imlist.append(im)
+			sh /= 10.
+		refsm = S.ndimage.zoom(ref, 1.0/10.)
+		# print refsm.shape
+		# print im.shape
+		
+		# Put data in big image:
+		nx = N.ceil(N.sqrt(len(shvec)+1))
+		bigimg = N.empty((nx*40, nx*40))
+		# Put reference frame in
+		bigimg[0:40, 0:40] = refsm
+		# Put other images in the big image
+		x=1
+		y=0
+		saccdpos = [[4,4]]
+		saccdsize = N.array([32,32])
+		for im in imlist:
+			saccdpos.append([x*40+4,y*40+4])
+			bigimg[y*40+4:y*40+4+32, x*40+4:x*40+4+32] = im
+			x+=1
+			if (x >= nx):
+				x=0
+				y+=1
+			if (y >= nx):
+				print "Oops, shouldnt happen :P"
+				break
+		saccdpos = N.array(saccdpos)
+		# Static 'subfield' positions
+		sfccdpos = N.array([4,4])
+		sfccdsize = N.array([24,24])
+		
+		# Now process the data!
+		diff = {}
+		for meth in [cs.COMPARE_ABSDIFFSQ, cs.COMPARE_SQDIFF, cs.COMPARE_XCORR]:
+			for intpl in [cs.EXTREMUM_2D9PTSQ, cs.EXTREMUM_2D5PTSQ]:
+				cshift = cs.calcShifts(bigimg.astype(N.float32), saccdpos, saccdsize, sfccdpos, sfccdsize, shrange=[4,4], method=meth, extremum=intpl, refmode=cs.REF_STATIC, refopt=[0])
+				print shvec[12], cshift[0,1:,0][12]
+				diff['meth:%d-int:%d' % (meth, intpl)] = shvec - cshift[0,1:,0]
+		
+		print "Meth ADSQ: %d, SQD: %d, XCORR: %d" % (cs.COMPARE_ABSDIFFSQ, cs.COMPARE_SQDIFF, cs.COMPARE_XCORR)
+		print "Int 9p: %d, 5p: %d" % (cs.EXTREMUM_2D9PTSQ, cs.EXTREMUM_2D5PTSQ)
+		
+		for key, val in diff.items():
+			print "%s:" % (key),
+			print "%g, %g, %g, %g" % (N.sum(N.abs(val)), N.max(N.abs(val)), N.mean(N.abs(val)), N.var(N.abs(val))**0.5)
+		
+		# for (sh, recsh) in zip(shvec, cshift[0,1:,0]):
+		# 	print "shift was: %g,%g, found: %g,%g" % \
+		# 		(sh[0]/10., sh[1]/10., recsh[0], recsh[1])
+		return -1
+		
+	else:
+		print "Data '%s' not supported" % (realdata)
+		return -1
+		
+			
+		
+
+		src = N.random.random((8,8))
+		src = S.ndimage.zoom(src, 8)
+		#img = src[]
 	#
 	# C libshift code
 	#
 	
+	# beg1 = time.time()
+	# datr = _libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, N.array([7,7]), 2, 0, 0, 2)
+	# # comp, int, refmode, refopt
+	# end1 = time.time()
 	beg1 = time.time()
-	datr = _libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, N.array([7,7]), )
+	creflist = []
+	cshift = clibshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, shrange=[7,7], method=clibshifts.COMPARE_ABSDIFFSQ, extremum=clibshifts.EXTREMUM_2D9PTSQ, refmode=clibshifts.REF_BESTRMS, refopt=2, refaps=creflist)
+	# comp, int, refmode, refopt
 	end1 = time.time()
 	
 	# 
@@ -53,8 +143,8 @@ def main(realdata=True):
 	
 	beg2 = time.time()
 	
-	reflist = []
-	pyshift = libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=libshifts.COMPARE_ABSDIFFSQ, extremum=libshifts.EXTREMUM_2D9PTSQ, refmode=libshifts.REF_BESTRMS, refopt=3, shrange=[7,7], refaps = reflist)
+	pyreflist = []
+	pyshift = libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=libshifts.COMPARE_ABSDIFFSQ, extremum=libshifts.EXTREMUM_2D9PTSQ, refmode=libshifts.REF_BESTRMS, refopt=2, shrange=[7,7], refaps = pyreflist)
 	end2 = time.time()
 	
 	
@@ -80,12 +170,12 @@ def main(realdata=True):
 	# end2 = time.time()
 	
 	for sa in xrange(nsa):
-		print "diff @ sa %d:" % (sa), datr['shifts'][0][sa] - pyshift[0][sa], datr['shifts'][0][sa], pyshift[0][sa]
+		print "diff @ sa %d:" % (sa), cshift[0][sa] - pyshift[0][sa], cshift[0][sa], pyshift[0][sa]
 	
-	print reflist
-	print datr['refapts']
+	print creflist
+	print pyreflist
 	
-	print datr['shifts'].shape, datr['shifts'][0,:,0,:].mean(axis=0).reshape(1,2)
+	print cshift.shape, cshift[0,:,0,:].mean(axis=0).reshape(1,2)
 	print pyshift.shape, pyshift[0,:,0,:].mean(axis=0).reshape(1,2)
 
 	print "C took: %g sec, Python took %g." % (end1-beg1, end2-beg2)
@@ -107,4 +197,4 @@ def mk2dgauss(size, orig):
 
 
 if __name__ == "__main__":
-	sys.exit(main(realdata=True))
+	sys.exit(main(realdata='real'))
