@@ -39,8 +39,6 @@ http://creativecommons.org/licenses/by-sa/3.0/
 #include <pthread.h>
 #include "libshifts-c.h" 	// For this file
 
-//#define DEBUG
-
 //
 // Methods table for this module
 //
@@ -224,12 +222,13 @@ static PyObject *libshifts_calcshifts(PyObject *self, PyObject *args) {
 		NPY_FLOAT32, (void *) shifts);
 	PyArray_FLAGS(retshifts) |= NPY_OWNDATA;
 	
-	if (!PyArray_CHKFLAGS(retreflist, NPY_OWNDATA) || !PyArray_CHKFLAGS(retshifts, NPY_OWNDATA)) {
+	if (!PyArray_CHKFLAGS(retreflist, NPY_OWNDATA) ||
+	 	!PyArray_CHKFLAGS(retshifts, NPY_OWNDATA)) {
 		PyErr_SetString(PyExc_RuntimeError, "In calcshifts: unable to own 'reflist' or 'retshifts' data, aborting");
 		free(reflist);
 		free(shifts);
 		return NULL;
-	}
+		}
 	
 	return Py_BuildValue("{s:N,s:N}", "shifts", retshifts, "refapts", retreflist);
 }
@@ -332,7 +331,7 @@ void *_procsubaps_float32(void* args) {
 	int sa, sf, i, j, ret=0;
 	int nsa = dat->nsa, nsf = dat->nsf;
 	float32_t pix, mean;
-	
+	int _refoff = dat->refsa * (nsa*nsf*2);
 	float32_t _subimg[dat->sasize[0]*dat->sasize[1]];		// Subap to test
 	float32_t *_subfield;											// Pointer to subfield
 	int32_t diffsize[] = {(dat->shran[0]*2+1), (dat->shran[1]*2+1)};
@@ -422,9 +421,10 @@ void *_procsubaps_float32(void* args) {
 					break;
 				}
 			}
+			
 			// Store shift, we flip them here to get the right order.
-			dat->shifts[dat->refsa * (nsa*nsf*2) + sa * (nsf * 2) + sf * (2) + 0] = (float32_t) shvec[1]-dat->shran[1];
-			dat->shifts[dat->refsa * (nsa*nsf*2) + sa * (nsf * 2) + sf * (2) + 1] = (float32_t) shvec[0]-dat->shran[0];
+			dat->shifts[_aptoff + sa * (nsf * 2) + sf * (2) + 0] = (float32_t) shvec[1]-dat->shran[1];
+			dat->shifts[_aptoff + sa * (nsf * 2) + sf * (2) + 1] = (float32_t) shvec[0]-dat->shran[0];
 #ifdef DEBUG
 			printf("sh: (%.3g, %.3g) ", shvec[0]-dat->shran[0], shvec[1]-dat->shran[1]);
 #endif

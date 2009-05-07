@@ -61,6 +61,8 @@ http://creativecommons.org/licenses/by-sa/3.0/
 
 #define NTHREADS 2            // Number of threads to work with
 
+//#define DEBUG               // Enable debug output
+
 //
 // Types
 //
