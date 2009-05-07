@@ -63,7 +63,7 @@ PyMODINIT_FUNC init_libshifts(void) {
 //
 // Main python function
 //
-static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
+static PyObject *libshifts_calcshifts(PyObject *self, PyObject *args) {
 	// Python function arguments
 	PyArrayObject *image, *saccdpos, *saccdsize, *sfccdpos, *sfccdsize, *shrange;
 	// Optional arguments with default settings
@@ -91,8 +91,8 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 		&refmode,															// Subap reference mode
 		&refopt)) {
 		PyErr_SetString(PyExc_SyntaxError, "In calcshifts: failed to parse arguments.");
-		return NULL;
-	}
+		return NULL; 
+		}
 	
 #ifdef DEBUG
 	printf("libshifts_calcshifts(): img: 0x%p, sapos: 0x%p, sasize: 0x%p, sfpos: 0x%p, sfsize: 0x%p, shran: 0x%p.", image, saccdpos, saccdsize, sfccdpos, sfccdsize, shrange);
@@ -103,8 +103,8 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 	//
 	
 	if (PyArray_TYPE((PyObject *) saccdpos) != NPY_INT32 ||
-		PyArray_TYPE((PyObject *) saccdsize) != NPY_INT32 ||
-		PyArray_TYPE((PyObject *) sfccdpos) != NPY_INT32 ||
+	 	PyArray_TYPE((PyObject *) saccdsize) != NPY_INT32 ||
+	 	PyArray_TYPE((PyObject *) sfccdpos) != NPY_INT32 || 
 		PyArray_TYPE((PyObject *) sfccdsize) != NPY_INT32 ||
 		PyArray_TYPE((PyObject *) shrange) != NPY_INT32) {
 #ifdef DEBUG
@@ -112,7 +112,7 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 #endif
 		PyErr_SetString(PyExc_ValueError, "In calcshifts: coordinates and ranges should be int32.");
 		return NULL;
-	}
+		}
 	
 	// Refopt should be somewhere between 0 and 100
 	if (refopt < 0 || refopt > 100) {
@@ -212,9 +212,6 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 	// Reformat results to NumPy arrays
 	//
 		
-	// PyErr_SetString(PyExc_RuntimeError, "In calcshifts: aborting.");
-	// return NULL;
-
 	// Build numpy vector from 'reflist', a 1-d array
 	npy_intp rr_dims[] = {nref};
 	retreflist = (PyArrayObject*) PyArray_SimpleNewFromData(1, rr_dims,
@@ -280,6 +277,8 @@ int _calcshifts_float32(float32_t *image, int32_t stride, int32_t sapos[][2], in
 		thr_dat[thr].shran = shran;
 		thr_dat[thr].dosa[0] = thr*nsa/NTHREADS;
 		thr_dat[thr].dosa[1] = (thr+1)*nsa/NTHREADS;
+		thr_dat[thr].compmeth = compmeth;
+		thr_dat[thr].extmeth = extmeth;
 	}
 	
 	//
@@ -350,9 +349,9 @@ void *_procsubaps_float32(void* args) {
 	// Loop over subapertures
 	//
 	for (sa=dat->dosa[0]; sa<dat->dosa[1]; sa++) {
-	#ifdef DEBUG
+#ifdef DEBUG
 		printf("...: parsing sa %d at (%d,%d).. ", sa, dat->sapos[sa][0], dat->sapos[sa][1]);
-	#endif
+#endif
 		// Cut out subaperture, calculate mean
 		mean = 0;
 		for (j=0; j<dat->sasize[1]; j++) {
@@ -363,9 +362,9 @@ void *_procsubaps_float32(void* args) {
 			}
 		}
 		mean = mean/(dat->sasize[1]*dat->sasize[0]);
-	#ifdef DEBUG
+#ifdef DEBUG
 		printf("mean: %g... ", mean);
-	#endif
+#endif
 		// Divide subap by mean
 		for (j=0; j<dat->sasize[1]; j++)
 			for (i=0; i<dat->sasize[0]; i++)
@@ -375,32 +374,60 @@ void *_procsubaps_float32(void* args) {
 		// Loop over subfields
 		//
 		for (sf=0; sf<dat->nsf; sf++) {
-	#ifdef DEBUG
+#ifdef DEBUG
 			printf("sf %d... ", sf);
-	#endif
+#endif
 			// Cut out subfield
 			_subfield = _subimg + (dat->sfpos[sf][1] * dat->sasize[0]) + dat->sfpos[sf][0];
 			mean = 0.0;
 			for (j=0; j<dat->sfsize[1]; j++)
 				for (i=0; i<dat->sfsize[0]; i++)
 					mean += _subfield[dat->sasize[0] * j + i];
-	#ifdef DEBUG					
+#ifdef DEBUG					
 			printf("sf mean: %g... ", mean/(dat->sfsize[1] * dat->sfsize[0]));
-	#endif
+#endif
+	
 			// Calculate correlation map
-			ret += _absdiffsq(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
+			switch (dat->compmeth) {
+				case (COMPARE_ABSDIFFSQ): {
+					ret += _absdiffsq(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
+					break;
+				}
+				case (COMPARE_SQDIFF): {
+					ret += _sqdiff(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
+					break;
+				}
+				default: {
+					return NULL;
+					break;
+				}
+			}
+			
 			// Find subpixel maximum
-			ret += _9pquadint(diffmap, diffsize, shvec, dat->shran);
-			// Store shift
-			dat->shifts[dat->refsa * (nsa*nsf*2) + sa * (nsf * 2) + sf * (2) + 0] = (float32_t) shvec[0]-dat->shran[0];
-			dat->shifts[dat->refsa * (nsa*nsf*2) + sa * (nsf * 2) + sf * (2) + 1] = (float32_t) shvec[1]-dat->shran[1];
-	#ifdef DEBUG
+			switch (dat->extmeth) {
+				case (EXTREMUM_2D9PTSQ): {
+					ret += _9pquadint(diffmap, diffsize, shvec, dat->shran);
+					break;
+				}
+				case (EXTREMUM_2D5PTSQ): {
+					ret += _5pquadint(diffmap, diffsize, shvec, dat->shran);					
+					break;
+				}
+				default: {
+					return NULL;
+					break;
+				}
+			}
+			// Store shift, we flip them here to get the right order.
+			dat->shifts[dat->refsa * (nsa*nsf*2) + sa * (nsf * 2) + sf * (2) + 0] = (float32_t) shvec[1]-dat->shran[1];
+			dat->shifts[dat->refsa * (nsa*nsf*2) + sa * (nsf * 2) + sf * (2) + 1] = (float32_t) shvec[0]-dat->shran[0];
+#ifdef DEBUG
 			printf("sh: (%.3g, %.3g) ", shvec[0]-dat->shran[0], shvec[1]-dat->shran[1]);
-	#endif
+#endif
 		}
-	#ifdef DEBUG
+#ifdef DEBUG
 		printf("\n");
-	#endif
+#endif
 	}
 	return NULL;
 }
@@ -408,14 +435,15 @@ void *_procsubaps_float32(void* args) {
 int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], int npos, int32_t sasize[2], int refmode, int refopt, int32_t **list, int32_t *nref) {
 #ifdef DEBUG
 	printf("_findrefidx_float32() im: 0x%p, pos: 0x%p, size: 0x%p.\n", image, sapos, sasize);
+	printf("_findrefidx_float32() refmode: %d, refopt: %d.\n", refmode, refopt);
 #endif
 	// Find a reference subaperture in 'image'
 	int sa, ssa, i, j;
 	
 	if (refmode == REF_STATIC) {
 		// Only return a static reference subaperture
-		*list = malloc(1 * sizeof(int32_t));
-		*list[0] = refopt;
+		*list = (int32_t*) malloc(1 * sizeof(int32_t));
+		(*list)[0] = refopt;
 		*nref = 1;
 		return 0;
 	} // refmode == REF_STATIC
@@ -455,6 +483,12 @@ int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], in
 #endif
 		qsort((void*) rmslists, npos, sizeof(double), _comp_dbls);
 
+		for (sa=0; sa < npos; sa++) {
+#ifdef DEBUG
+			printf("...: sa %d rms: %g.\n", sa, rmslists[sa]);
+#endif
+		}
+
 		for (ssa=0; ssa < refopt; ssa++) {
 #ifdef DEBUG
 			printf("...: Searching #%d rms: %g... ", ssa, rmslists[ssa]);
@@ -464,7 +498,7 @@ int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], in
 #ifdef DEBUG
 					printf("found at sa %d, %g == %g\n", sa, rmslists[ssa], rmslist[sa]);
 #endif
-					*list[ssa] = sa;
+					(*list)[ssa] = sa;
 					break;
 				}
 			}
@@ -532,7 +566,48 @@ int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int3
 	
 	shvec[0] = maxidx[0] + (2.0*a2*a5-a4*a6)/(a6*a6-4.0*a3*a5);
 	shvec[1] = maxidx[1] + (2.0*a3*a4-a2*a6)/(a6*a6-4.0*a3*a5);
-	//printf("_quadint(): a2 %g a3 %g a4 %g a5 %g a6 %g\n", a2, a3, a4, a5, a6);
+	return 0;
+}
+
+int _5pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int32_t shran[2]) {
+	// Find maximum
+	float32_t max = diffmap[0], pix;
+	int32_t maxidx[] = {0,0};
+	int i, j;
+	for (j=0; j<diffsize[1]; j++) {
+		for (i=0; i<diffsize[0]; i++) {
+			pix = diffmap[j * diffsize[0] + i];
+			if (pix > max) {
+				max = pix;
+				maxidx[0] = i;
+				maxidx[1] = j;
+			}
+		}
+	}
+#ifdef DEBUG
+	printf("max: %g (%d,%d) ", max, maxidx[0], maxidx[1]);
+#endif
+	if (maxidx[0] == 0 || maxidx[0] == diffsize[0]-1 ||
+		maxidx[1] == 0 || maxidx[1] == diffsize[1]-1) {
+			// Out of bound, interpolation failed
+			shvec[0] = maxidx[0];
+			shvec[1] = maxidx[1];
+			return 1;
+	}
+	// Now interpolate around the maximum	
+	float32_t a2 = 0.5 * (diffmap[(maxidx[1]) * diffsize[0] + maxidx[0] + 1] - \
+		diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]-1]);
+	float32_t a3 = 0.5 * diffmap[(maxidx[1]) * diffsize[0] + maxidx[0] + 1] - \
+		diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]] + \
+		0.5 * diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]-1];
+	float32_t a4 = 0.5 * (diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]] -
+		diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]]);
+	float32_t a5 = 0.5 * diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]] -
+		diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]] + \
+		0.5 * diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]];
+	
+	shvec[0] = maxidx[0] + (2.0*a2*a5)/(-4.0*a3*a5);
+	shvec[1] = maxidx[1] + (2.0*a3*a4)/(-4.0*a3*a5);
 	return 0;
 }
 
@@ -606,7 +681,7 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 }
 
 int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]) {
-	double tmpsum, diff;
+	double tmpsum;
 	// Loop ranges
 	int sh0min = -range[0] + pos[0];
 	int sh0max =  range[0] + pos[0];
@@ -620,21 +695,13 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 		// Loop over all shifts to be tested
 		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
-				// Loop over all pixels within the img and refimg, and compute
-				// the cross correlation between the two.
 				tmpsum = 0.0;
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
-						// First get the difference...
 						tmpsum += \
 							fabsf(img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1]);
 					}
 				}
-				// Store the current correlation value in the map. Use
-				// negative value to ensure that we get a maximum for best
-				// match in diffmap (this allows to use a more general 
-				// maximum-finding method, instead of splitting between maxima
-				// and minima)
 				diffmap[(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min)] = \
 				 	-(tmpsum*tmpsum);
 			}
@@ -647,16 +714,8 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
 				tmpsum = 0.0;
-				// If the shift to compare is negative, we must make sure 
-				// i+sh0 in 'ref' will not be negative, so we start i at -sh0.
-				// If the shift is positive, we must make sure that i+sh0 in 
-				// 'ref' will not go out of bound, so we stop i at Nimg[0] - 
-				// sh0.
-				// N<array>[<index>] gives the <index>th size of <array>, i.e. 
-				// Nimg[1] gives the second dimension of array 'img'
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
-						// First get the difference...
 						tmpsum += \
 							fabsf(img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1]);
 					}
