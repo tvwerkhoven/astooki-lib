@@ -29,7 +29,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 #include <time.h>					// For timestamps
 #include <math.h>					// For pow()
 
-#define NTHREADS 1
+#define NTHREADS 2
 //
 // Types
 //
@@ -64,13 +64,20 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args);
 // Helper routines
 int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], int npos, int32_t sasize[2], int refmode, int refopt, int32_t **list, int32_t *nref);
 
+// Main 'glueing' routine
 int _calcshifts_float32(float32_t *image, int32_t stride, int32_t sapos[][2], int nsa, int32_t sasize[2], int32_t sfpos[][2], int nsf, int32_t sfsize[2], int32_t shran[2], int compmeth, int extmeth, int32_t *reflist, int32_t nref, float32_t **shifts);
 
 void *_procsubaps_float32(void* args);
 
+// Square difference image comparison
 int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]);
 
-int _quadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int32_t shran[2]);
+// Absolute difference squared image comparison
+int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]);
+
+
+// 9-point quadratic interpolation
+int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int32_t shran[2]);
 
 // One-liner help functions
 int _comp_dbls(const double *a, const double *b) {

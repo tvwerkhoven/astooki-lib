@@ -61,7 +61,7 @@ PyMODINIT_FUNC init_libshifts(void) {
 }
 
 //
-// Init module methods
+// Main python function
 //
 static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 	// Python function arguments
@@ -237,75 +237,9 @@ static PyObject * libshifts_calcshifts(PyObject *self, PyObject *args) {
 	return Py_BuildValue("{s:N,s:N}", "shifts", retshifts, "refapts", retreflist);
 }
 
-int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], int npos, int32_t sasize[2], int refmode, int refopt, int32_t **list, int32_t *nref) {
-#ifdef DEBUG
-	printf("_findrefidx_float32() im: 0x%p, pos: 0x%p, size: 0x%p.\n", image, sapos, sasize);
-#endif
-	// Find a reference subaperture in 'image'
-	int sa, ssa, i, j;
-	
-	if (refmode == REF_STATIC) {
-		// Only return a static reference subaperture
-		*list = malloc(1 * sizeof(int32_t));
-		*list[0] = refopt;
-		*nref = 1;
-		return 0;
-	} // refmode == REF_STATIC
-	else if (refmode == REF_BESTRMS){
-		if (refopt < 1) refopt = 1;
-		*list = malloc(refopt * sizeof(int32_t));
-		*nref = refopt;
-		double rmslist[npos], rmslists[npos];
-
-		// Calculate RMS values
-		for (sa=0; sa < npos; sa++) {
-#ifdef DEBUG
-			printf("...: checking subaperture %d...", sa);
-#endif
-			rmslist[sa] = 0;
-			double mean=0;
-			// Calculate mean
-			for (j=0; j<sasize[1]; j++)
-				for (i=0; i<sasize[0]; i++)
-					mean += image[(sapos[sa][1] + j) * stride + sapos[sa][0] + i];
-			mean /= (sasize[0] * sasize[1]);
-			for (j=0; j<sasize[1]; j++) {
-				for (i=0; i<sasize[0]; i++) {
-					rmslist[sa] += pow(image[(sapos[sa][1] + j) * stride + sapos[sa][0] + i] - mean, 2.0);
-				}
-			}
-			rmslist[sa] = 100.0*pow(rmslist[sa]/(sasize[0]*sasize[1]), 0.5)/mean;
-			rmslists[sa] = rmslist[sa];
-#ifdef DEBUG
-			printf(" rms is: %g\n", rmslist[sa]);
-#endif
-		}
-
-		// Get first refopt best values
-#ifdef DEBUG
-		printf("...: sorting RMS values\n");
-#endif
-		qsort((void*) rmslists, npos, sizeof(double), _comp_dbls);
-
-		for (ssa=0; ssa < refopt; ssa++) {
-#ifdef DEBUG
-			printf("...: Searching #%d rms: %g... ", ssa, rmslists[ssa]);
-#endif
-			for (sa=0; sa < npos; sa++) {
-				if (rmslist[sa] == rmslists[ssa]) {
-#ifdef DEBUG
-					printf("found at sa %d, %g == %g\n", sa, rmslists[ssa], rmslist[sa]);
-#endif
-					*list[ssa] = sa;
-					break;
-				}
-			}
-		}
-		return 0;
-	} // refmode == REF_BESTRMS
-	// We only arrive here when things go wrong
-	return -1;
-}
+//
+// Helper functions
+//
 
 int _calcshifts_float32(float32_t *image, int32_t stride, int32_t sapos[][2], int nsa, int32_t sasize[2], int32_t sfpos[][2], int nsf, int32_t sfsize[2], int32_t shran[2], int compmeth, int extmeth, int32_t *reflist, int32_t nref, float32_t **shifts) {
 #ifdef DEBUG
@@ -454,9 +388,9 @@ void *_procsubaps_float32(void* args) {
 			printf("sf mean: %g... ", mean/(dat->sfsize[1] * dat->sfsize[0]));
 	#endif
 			// Calculate correlation map
-			ret += _sqdiff(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
+			ret += _absdiffsq(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
 			// Find subpixel maximum
-			ret += _quadint(diffmap, diffsize, shvec, dat->shran);
+			ret += _9pquadint(diffmap, diffsize, shvec, dat->shran);
 			// Store shift
 			dat->shifts[dat->refsa * (nsa*nsf*2) + sa * (nsf * 2) + sf * (2) + 0] = (float32_t) shvec[0]-dat->shran[0];
 			dat->shifts[dat->refsa * (nsa*nsf*2) + sa * (nsf * 2) + sf * (2) + 1] = (float32_t) shvec[1]-dat->shran[1];
@@ -471,7 +405,77 @@ void *_procsubaps_float32(void* args) {
 	return NULL;
 }
 
-int _quadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int32_t shran[2]) {
+int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], int npos, int32_t sasize[2], int refmode, int refopt, int32_t **list, int32_t *nref) {
+#ifdef DEBUG
+	printf("_findrefidx_float32() im: 0x%p, pos: 0x%p, size: 0x%p.\n", image, sapos, sasize);
+#endif
+	// Find a reference subaperture in 'image'
+	int sa, ssa, i, j;
+	
+	if (refmode == REF_STATIC) {
+		// Only return a static reference subaperture
+		*list = malloc(1 * sizeof(int32_t));
+		*list[0] = refopt;
+		*nref = 1;
+		return 0;
+	} // refmode == REF_STATIC
+	else if (refmode == REF_BESTRMS){
+		if (refopt < 1) refopt = 1;
+		*list = malloc(refopt * sizeof(int32_t));
+		*nref = refopt;
+		double rmslist[npos], rmslists[npos];
+
+		// Calculate RMS values
+		for (sa=0; sa < npos; sa++) {
+#ifdef DEBUG
+			printf("...: checking subaperture %d...", sa);
+#endif
+			rmslist[sa] = 0;
+			double mean=0;
+			// Calculate mean
+			for (j=0; j<sasize[1]; j++)
+				for (i=0; i<sasize[0]; i++)
+					mean += image[(sapos[sa][1] + j) * stride + sapos[sa][0] + i];
+			mean /= (sasize[0] * sasize[1]);
+			for (j=0; j<sasize[1]; j++) {
+				for (i=0; i<sasize[0]; i++) {
+					rmslist[sa] += pow(image[(sapos[sa][1] + j) * stride + sapos[sa][0] + i] - mean, 2.0);
+				}
+			}
+			rmslist[sa] = 100.0*pow(rmslist[sa]/(sasize[0]*sasize[1]), 0.5)/mean;
+			rmslists[sa] = rmslist[sa];
+#ifdef DEBUG
+			printf(" rms is: %g\n", rmslist[sa]);
+#endif
+		}
+
+		// Get first refopt best values
+#ifdef DEBUG
+		printf("...: sorting RMS values\n");
+#endif
+		qsort((void*) rmslists, npos, sizeof(double), _comp_dbls);
+
+		for (ssa=0; ssa < refopt; ssa++) {
+#ifdef DEBUG
+			printf("...: Searching #%d rms: %g... ", ssa, rmslists[ssa]);
+#endif
+			for (sa=0; sa < npos; sa++) {
+				if (rmslist[sa] == rmslists[ssa]) {
+#ifdef DEBUG
+					printf("found at sa %d, %g == %g\n", sa, rmslists[ssa], rmslist[sa]);
+#endif
+					*list[ssa] = sa;
+					break;
+				}
+			}
+		}
+		return 0;
+	} // refmode == REF_BESTRMS
+	// We only arrive here when things go wrong
+	return -1;
+}
+
+int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int32_t shran[2]) {
 	// Find maximum
 	float32_t max = diffmap[0], pix;
 	int32_t maxidx[] = {0,0};
@@ -594,6 +598,73 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 				// pixels we compared.
 				diffmap[(sh1-sh1min) * (range[0]*2+1) +(sh0-sh0min)] = -tmpsum /
 					((imgsize[0]-abs(sh0)) * (imgsize[1]-abs(sh1)));
+			}
+		}
+	}
+	
+	return 0;
+}
+
+int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]) {
+	double tmpsum, diff;
+	// Loop ranges
+	int sh0min = -range[0] + pos[0];
+	int sh0max =  range[0] + pos[0];
+	int sh1min = -range[1] + pos[1];
+	int sh1max =  range[1] + pos[1];
+	
+	// If sum(pos) is not zero, we expect that ref is large enough to naively 
+	// shift img around.
+	int sh0, sh1, i, j;
+	if (pos[0]+pos[1] != 0) {
+		// Loop over all shifts to be tested
+		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
+			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
+				// Loop over all pixels within the img and refimg, and compute
+				// the cross correlation between the two.
+				tmpsum = 0.0;
+				for (j=0; j<imgsize[1]; j++) {
+					for (i=0; i<imgsize[0]; i++) {
+						// First get the difference...
+						tmpsum += \
+							fabsf(img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1]);
+					}
+				}
+				// Store the current correlation value in the map. Use
+				// negative value to ensure that we get a maximum for best
+				// match in diffmap (this allows to use a more general 
+				// maximum-finding method, instead of splitting between maxima
+				// and minima)
+				diffmap[(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min)] = \
+				 	-(tmpsum*tmpsum);
+			}
+		}
+	}
+	// If sum(pos) is zero, we use clipping of ref and img to only use the 
+	// intersection of the two datasets for comparison, using normalisation to 
+	// make the results consistent.
+	else {
+		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
+			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
+				tmpsum = 0.0;
+				// If the shift to compare is negative, we must make sure 
+				// i+sh0 in 'ref' will not be negative, so we start i at -sh0.
+				// If the shift is positive, we must make sure that i+sh0 in 
+				// 'ref' will not go out of bound, so we stop i at Nimg[0] - 
+				// sh0.
+				// N<array>[<index>] gives the <index>th size of <array>, i.e. 
+				// Nimg[1] gives the second dimension of array 'img'
+				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
+					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
+						// First get the difference...
+						tmpsum += \
+							fabsf(img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1]);
+					}
+				}
+				// Scale the value found by dividing it by the number of 
+				// pixels we compared.
+				diffmap[(sh1-sh1min) * (range[0]*2+1) +(sh0-sh0min)] = \
+				 	-(tmpsum*tmpsum) / ((imgsize[0]-abs(sh0)) * (imgsize[1]-abs(sh1)));
 			}
 		}
 	}
