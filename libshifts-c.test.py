@@ -44,45 +44,55 @@ def main(realdata=True):
 	#
 	
 	beg1 = time.time()
-	datr = _libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, N.array([7,7]))
+	datr = _libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, N.array([7,7]), )
 	end1 = time.time()
 	
 	# 
 	# Python libshift code
 	#
 	
-	# beg2 = time.time()
-	# pyshift = libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=libshifts.COMPARE_SQDIFF, extremum=libshifts.EXTREMUM_2D9PTSQ, refmode=libshifts.REF_BESTRMS, refopt=1, shrange=[7,7])
+	beg2 = time.time()
+	
+	reflist = []
+	pyshift = libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=libshifts.COMPARE_ABSDIFFSQ, extremum=libshifts.EXTREMUM_2D9PTSQ, refmode=libshifts.REF_BESTRMS, refopt=3, shrange=[7,7], refaps = reflist)
+	end2 = time.time()
+	
+	
+	# refsa = datr['refapts'][0]
+	# ref = img[saccdpos[refsa][1]:saccdpos[refsa][1]+saccdsize[1], saccdpos[refsa][0]:saccdpos[refsa][0]+saccdsize[0]].astype(N.float32)
+	# ref = ref/N.float32(ref.mean())
+	# pyshift = []
+	# for sa in xrange(nsa):
+	# 	pos = saccdpos[sa]
+	# 	c = img[pos[1]:pos[1]+saccdsize[1], pos[0]:pos[0]+saccdsize[0]]
+	# 	print "py: sa %d @ (%d,%d), mean: %g... " % (sa, pos[0], pos[1], c.mean()),
+	# 	c = c / c.mean()
+	# 	_subfield = c[sfccdpos[0][1]:sfccdpos[0][1]+sfccdsize[1], \
+	# 		sfccdpos[0][0]:sfccdpos[0][0]+sfccdsize[0]].astype(N.float32)
+	# 	#diffmap = libshifts.sqDiffWeave(_subfield, ref, sfccdpos[0], N.array([7,7]))
+	# 	diffmap = libshifts.absDiffSqWeave(_subfield, ref, sfccdpos[0], N.array([7,7]))
+	# 	print "sf 0 @ mean: %g... " % (_subfield.mean()),	
+	# 	diffmap = diffmap.astype(N.float32)
+	# 	print "max:  %g..." % (diffmap.max()),
+	# 	pyshift.append(libshifts.quadInt2dWeave(diffmap, range=N.array([7,7]), limit=N.array([7,7])))
+	# 	print "sh: (%g, %g)." % (pyshift[-1][0], pyshift[-1][1])
+	# pyshift = N.array(pyshift)
 	# end2 = time.time()
 	
-	refsa = datr['refapts'][0]
-	ref = img[saccdpos[refsa][1]:saccdpos[refsa][1]+saccdsize[1], saccdpos[refsa][0]:saccdpos[refsa][0]+saccdsize[0]].astype(N.float32)
-	ref = ref/N.float32(ref.mean())
-	pyshift = []
-	for sa in xrange(nsa):
-		pos = saccdpos[sa]
-		c = img[pos[1]:pos[1]+saccdsize[1], pos[0]:pos[0]+saccdsize[0]]
-		print "py: sa %d @ (%d,%d), mean: %g... " % (sa, pos[0], pos[1], c.mean()),
-		c = c / c.mean()
-		_subfield = c[sfccdpos[0][1]:sfccdpos[0][1]+sfccdsize[1], \
-			sfccdpos[0][0]:sfccdpos[0][0]+sfccdsize[0]].astype(N.float32)
-		diffmap = libshifts.sqDiffWeave(_subfield, ref, sfccdpos[0], N.array([7,7]))
-		print "sf 0 @ mean: %g... " % (_subfield.mean()),	
-		diffmap = diffmap.astype(N.float32)
-		print "max:  %g..." % (diffmap.max()),
-		pyshift.append(libshifts.quadInt2dWeave(diffmap, range=N.array([7,7]), limit=N.array([7,7])))
-		print "sh: (%g, %g)." % (pyshift[-1][0], pyshift[-1][1])
-	pyshift = N.array(pyshift)
-	end2 = time.time()
-	return
-	print datr['shifts'].shape, datr['shifts'][0,:,0,:].mean(axis=0).reshape(1,2)
-	print pyshift.shape, pyshift[0,:,0,:].mean(axis=0).reshape(1,2)
-	datr['shifts'][0,:,0,:] -= datr['shifts'][0,:,0,:].mean(axis=0).reshape(1,2)
-	pyshift[0,:,0,:] -= pyshift[0,:,0,:].mean(axis=0).reshape(1,2)
 	for sa in xrange(nsa):
 		print "diff @ sa %d:" % (sa), datr['shifts'][0][sa] - pyshift[0][sa], datr['shifts'][0][sa], pyshift[0][sa]
 	
+	print reflist
+	print datr['refapts']
+	
+	print datr['shifts'].shape, datr['shifts'][0,:,0,:].mean(axis=0).reshape(1,2)
+	print pyshift.shape, pyshift[0,:,0,:].mean(axis=0).reshape(1,2)
+
 	print "C took: %g sec, Python took %g." % (end1-beg1, end2-beg2)
+	
+	# datr['shifts'][0,:,0,:] -= datr['shifts'][0,:,0,:].mean(axis=0).reshape(1,2)
+	# pyshift[0,:,0,:] -= pyshift[0,:,0,:].mean(axis=0).reshape(1,2)
+	
 	# tdiff = N.sum(abs((datr['shifts'][0][:][0] - pyshift[:])))
 	# maxdiff = N.max(abs((datr['shifts'][0][:][0] - pyshift[:])))
 	# print "Total difference: %g. Max: %g" % (tdiff, maxdiff)
