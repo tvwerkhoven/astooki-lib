@@ -423,8 +423,8 @@ void *_procsubaps_float32(void* args) {
 			}
 			
 			// Store shift, we flip them here to get the right order.
-			dat->shifts[_aptoff + sa * (nsf * 2) + sf * (2) + 0] = (float32_t) shvec[1]-dat->shran[1];
-			dat->shifts[_aptoff + sa * (nsf * 2) + sf * (2) + 1] = (float32_t) shvec[0]-dat->shran[0];
+			dat->shifts[_refoff + sa * (nsf * 2) + sf * (2) + 0] = (float32_t) shvec[1]-dat->shran[1];
+			dat->shifts[_refoff + sa * (nsf * 2) + sf * (2) + 1] = (float32_t) shvec[0]-dat->shran[0];
 #ifdef DEBUG
 			printf("sh: (%.3g, %.3g) ", shvec[0]-dat->shran[0], shvec[1]-dat->shran[1]);
 #endif
