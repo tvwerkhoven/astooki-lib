@@ -705,7 +705,9 @@ def findRefIdx(img, saccdpos, saccdsize, refmode=REF_BESTRMS, refopt=1, storeref
 			_subimg = img[_sapos[1]:_sapos[1] + saccdsize[1], \
 				_sapos[0]:_sapos[0] + saccdsize[0]]
 			# Calculate RMS
-			rms = (((_subimg)**2.0).sum()/(saccdsize[0]*saccdsize[1]))**(0.5)
+			avg = _subimg.mean()
+			rms = 100.*(((_subimg-avg)**2.0).sum()/ \
+			 	(saccdsize[0]*saccdsize[1]))**(0.5)/avg
 			# Store in list, store RMS first, index second such that sorting 
 			# will be done on the RMS and not the index
 			rmslist.append([rms, saidx])
