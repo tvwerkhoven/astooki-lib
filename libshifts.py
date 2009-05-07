@@ -100,38 +100,35 @@ import scipy.weave				# For inlining C
 import scipy.fftpack			# For FFT functions in FFT cross-corr
 import scipy.signal				# For hanning/hamming windows
 import pyfits
-#import timlib					# Some miscellaneous functions
+#import timlib						# Some miscellaneous functions
 import liblog as log			# Logging / printing functions
 
 import unittest
-import time						# For unittest
+import time								# For unittest
 
 #=============================================================================
 # Some static defines
 #=============================================================================
 
-# Defines for comparison algorithms
-COMPARE_XCORR = 0				# Direct cross correlation
+# Defines for comparison algor#ithms
+COMPARE_XCORR = 0					# Direct cross correlation
 COMPARE_SQDIFF = 1				# Square difference
 COMPARE_ABSDIFFSQ = 2			# Absolute difference squared
-COMPARE_FFT = 3					# Fourier method
+COMPARE_FFT = 3						# Fourier method
 
 # Defines for extremum finding algorithms
-EXTREMUM_2D9PTSQ = 0			# 2d 9 point parabola interpolation
-#EXTREMUM_1D3PTSQ = 1			# double 1d 3 point parabola interpolation
-EXTREMUM_MAXVAL = 1				# maximum value (no interpolation)
+EXTREMUM_MAXVAL = 0		 		# maximum value (no interpolation)
+EXTREMUM_2D9PTSQ = 1			# 2d 9 point parabola interpolation
+EXTREMUM_2D5PTSQ = 2			# 2d 5 point parabola interpolation
 
 # Defines for reference usage
-REF_BESTRMS = 0					# Use subimages with best RMS as reference, 
-								# 'refopt' should be an integer indicating how 
-								# many references should be used.
-#REF_NOREF = 2					# Don't use a reference, cross-compare 
-								# everything with eachother. This will greatly 
-								# increase CPU load to about N*N instead of N 
-								# comparisons.
-REF_STATIC = 4					# Use static reference subapertures, pass a 
-								# list to the 'refopt' parameter to specify
-								# which subaps should be used.
+REF_BESTRMS = 0         	# Use subimages with best RMS as reference, 
+								 					# 'refopt' should be an integer indicating how 
+								 					# many references should be used.
+REF_STATIC = 1						# Use static reference subapertures, pass a 
+													# list to the 'refopt' parameter to specify
+													# which subaps should be used.
+
 
 # Fourier windowing method constants
 FFTWINDOW_NONE = 0				# No window
