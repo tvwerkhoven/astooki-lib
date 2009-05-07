@@ -47,19 +47,19 @@ http://creativecommons.org/licenses/by-sa/3.0/
 #define COMPARE_FFT 3					// Fourier method
 
 // Defines for extremum finding algorithms
-#define EXTREMUM_2D9PTSQ 0		// 2d 9 point parabola interpolation
-#define EXTREMUM_2D5PTSQ 1		// 2d 5 point parabola interpolation
-#define EXTREMUM_MAXVAL 2		 	// maximum value (no interpolation)
+#define EXTREMUM_MAXVAL 0		 	// maximum value (no interpolation)
+#define EXTREMUM_2D9PTSQ 1		// 2d 9 point parabola interpolation
+#define EXTREMUM_2D5PTSQ 2		// 2d 5 point parabola interpolation
 
 // Defines for reference usage
 #define REF_BESTRMS 0         // Use subimages with best RMS as reference, 
 								 							// 'refopt' should be an integer indicating how 
 								 							// many references should be used.
-#define REF_STATIC 4					// Use static reference subapertures, pass a 
+#define REF_STATIC 1					// Use static reference subapertures, pass a 
 															// list to the 'refopt' parameter to specify
 															// which subaps should be used.
 
-#define NTHREADS 8            // Number of threads to work with
+#define NTHREADS 2            // Number of threads to work with
 
 //
 // Types
@@ -107,6 +107,9 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 
 // Absolute difference squared image comparison
 int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]);
+
+// Direct cross-correlation image comparison
+int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]);
 
 // 9-point quadratic interpolation
 int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int32_t shran[2]);

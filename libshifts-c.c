@@ -39,7 +39,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 #include <pthread.h>
 #include "libshifts-c.h" 	// For this file
 
-#define DEBUG
+//#define DEBUG
 
 //
 // Methods table for this module
@@ -397,6 +397,10 @@ void *_procsubaps_float32(void* args) {
 					ret += _sqdiff(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
 					break;
 				}
+				case (COMPARE_XCORR): {
+					ret += _crosscorr(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
+					break;
+				}
 				default: {
 					return NULL;
 					break;
@@ -724,6 +728,54 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				// pixels we compared.
 				diffmap[(sh1-sh1min) * (range[0]*2+1) +(sh0-sh0min)] = \
 				 	-(tmpsum*tmpsum) / ((imgsize[0]-abs(sh0)) * (imgsize[1]-abs(sh1)));
+			}
+		}
+	}
+	
+	return 0;
+}
+
+int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]) {
+	double tmpsum;
+	// Loop ranges
+	int sh0min = -range[0] + pos[0];
+	int sh0max =  range[0] + pos[0];
+	int sh1min = -range[1] + pos[1];
+	int sh1max =  range[1] + pos[1];
+	
+	// If sum(pos) is not zero, we expect that ref is large enough to naively 
+	// shift img around.
+	int sh0, sh1, i, j;
+	if (pos[0]+pos[1] != 0) {
+		// Loop over all shifts to be tested
+		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
+			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
+				tmpsum = 0.0;
+				for (j=0; j<imgsize[1]; j++) {
+					for (i=0; i<imgsize[0]; i++) {
+						tmpsum += (img[j*imstride + i] * ref[(j+sh0)*refstride + i+sh1]) * (img[j*imstride + i] * ref[(j+sh0)*refstride + i+sh1]);
+					}
+				}
+				diffmap[(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min)] = tmpsum;
+			}
+		}
+	}
+	// If sum(pos) is zero, we use clipping of ref and img to only use the 
+	// intersection of the two datasets for comparison, using normalisation to 
+	// make the results consistent.
+	else {
+		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
+			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
+				tmpsum = 0.0;
+				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
+					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
+						tmpsum += (img[j*imstride + i] * ref[(j+sh0)*refstride + i+sh1]) * (img[j*imstride + i] * ref[(j+sh0)*refstride + i+sh1]);
+					}
+				}
+				// Scale the value found by dividing it by the number of 
+				// pixels we compared.
+				diffmap[(sh1-sh1min) * (range[0]*2+1) +(sh0-sh0min)] = \
+					tmpsum / ((imgsize[0]-abs(sh0)) * (imgsize[1]-abs(sh1)));
 			}
 		}
 	}
