@@ -53,10 +53,13 @@ def main(realdata='real'):
 		# List of shift vectors
 		#shvec = N.array([[0,0.5], [1,1], [0,0], [0.5,0.5], [3.5, 1.2]])
 		shx = N.arange(20.)/10.
-		shy = N.arange(10.)/3.0
+		shy = N.arange(5.)/5.
 		shvec = N.array([ [i, y] for y in shx for i in shy ])
 		imlist = []
 		# Shift images around, and downscale by a factor of 10
+		print "Shift vectors..."
+		print shvec
+		print "Setting up shifted images..."
 		for sh in shvec:
 			#print "Shvec: (%g,%g)." % (sh[0], sh[1])
 			sh *= 10.
@@ -90,22 +93,27 @@ def main(realdata='real'):
 				break
 		saccdpos = N.array(saccdpos)
 		# Static 'subfield' positions
-		sfccdpos = N.array([4,4])
-		sfccdsize = N.array([24,24])
-		
+		sfsizes = N.array([[24,24], [20,20], [16,16]], dtype=N.int32)
+		# sfccdsize = N.array([24,24])
+		# sfccdpos = N.array([[4,4]])
 		# Now process the data!
 		diff = {}
-		for meth in [cs.COMPARE_ABSDIFFSQ, cs.COMPARE_SQDIFF, cs.COMPARE_XCORR]:
-			for intpl in [cs.EXTREMUM_2D9PTSQ, cs.EXTREMUM_2D5PTSQ]:
-				cshift = cs.calcShifts(bigimg.astype(N.float32), saccdpos, saccdsize, sfccdpos, sfccdsize, shrange=[4,4], method=meth, extremum=intpl, refmode=cs.REF_STATIC, refopt=[0])
-				print shvec[12], cshift[0,1:,0][12]
-				diff['meth:%d-int:%d' % (meth, intpl)] = shvec - cshift[0,1:,0]
+		for sfsize in sfsizes:
+			sfccdsize = sfsize
+			sfccdpos = N.array([[4,4]])#(N.array([32,32]) - sfsize)/N.int32(2)
+			for meth in [cs.COMPARE_ABSDIFFSQ, cs.COMPARE_SQDIFF, cs.COMPARE_XCORR]:
+				for intpl in [cs.EXTREMUM_2D9PTSQ, cs.EXTREMUM_2D5PTSQ]:
+					cshift = cs.calcShifts(bigimg.astype(N.float32), saccdpos, saccdsize, sfccdpos, sfccdsize, shrange=[4,4], method=meth, extremum=intpl, refmode=cs.REF_STATIC, refopt=[0])
+					print shvec[4], cshift[0,1:,0][4]
+					diff['sz:%d-meth:%d-int:%d' % (sfccdsize[0], meth, intpl)] = shvec - cshift[0,1:,0]
 		
 		print "Meth ADSQ: %d, SQD: %d, XCORR: %d" % (cs.COMPARE_ABSDIFFSQ, cs.COMPARE_SQDIFF, cs.COMPARE_XCORR)
 		print "Int 9p: %d, 5p: %d" % (cs.EXTREMUM_2D9PTSQ, cs.EXTREMUM_2D5PTSQ)
 		
-		for key, val in diff.items():
+		#diff.keys().sort()
+		for key in sorted(diff.keys()):
 			print "%s:" % (key),
+			val = diff[key]
 			print "%g, %g, %g, %g" % (N.sum(N.abs(val)), N.max(N.abs(val)), N.mean(N.abs(val)), N.var(N.abs(val))**0.5)
 		
 		# for (sh, recsh) in zip(shvec, cshift[0,1:,0]):
@@ -116,10 +124,6 @@ def main(realdata='real'):
 	else:
 		print "Data '%s' not supported" % (realdata)
 		return -1
-		
-			
-		
-
 		src = N.random.random((8,8))
 		src = S.ndimage.zoom(src, 8)
 		#img = src[]
