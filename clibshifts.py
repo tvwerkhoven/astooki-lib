@@ -43,14 +43,19 @@ REF_STATIC = 1						# Use static reference subapertures, pass a
 													# which subaps should be used.
 
 ## Wrapper for _libshifts.calcShifts
-def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refopt=1, shrange=[3,3], refaps=None):
+def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refopt=1, shrange=[3,3], refaps=None, subfields=None, corrmaps=None):
 	
 	# Make sure shrange is a numpy array
-	shrange = N.array(shrange)
+	shrange = N.array(shrange, dtype=N.int32)
+	img = img.astype(N.float32)
+	saccdpos = saccdpos.astype(N.int32)
+	saccdsize = saccdsize.astype(N.int32)
+	sfccdpos = sfccdpos.astype(N.int32)
+	# TODO: fix this, ugly!
 	if (refmode == REF_BESTRMS):
-		refopt = N.array(refopt)[0]
+		refopt = N.array([refopt]).flatten()[0]
 	else:
-		refopt = N.array(refopt)[0]
+		refopt = N.array([refopt]).flatten()[0]
 	# Call C library
 	ret = _libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, shrange, method, extremum, refmode, refopt)
 	# Return reference apertures used if requested
