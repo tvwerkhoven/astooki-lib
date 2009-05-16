@@ -140,16 +140,16 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 	@return Data array, or False when loading failed.
 	"""
 	import numpy as N
-	log.prNot(log.INFO, "loadData(): asnpy: %d aspickle: %d, ascsv: %d" % \
-		(asnpy, aspickle, ascsv))
+	log.prNot(log.INFO, "loadData(): loading '%s', npy: %d pickle: %d, csv: %d" % (os.path.split(path)[1], asnpy, aspickle, ascsv))
 	
 	if (N.sum([asnpy, aspickle, ascsv]) > 0 and auto):
-		log.prNot(log.WARNING, "loadData(): auto-guessing set but .")
+		log.prNot(log.WARNING, "loadData(): auto-guessing and specific format set, defaulting to format.")
+		auto = False 
 	# Make sure there is only one setting true
 	if (N.sum([asnpy, aspickle, ascsv]) > 1):
 		aspickle = False
 		ascsv = False
-		log.prNot(log.WARNING, "loadData(): Cannot load more than one format at a time, disabling pickle.")
+		log.prNot(log.ERR, "loadData(): Cannot load more than one format at a time.")
 	elif (N.sum([asnpy, aspickle, ascsv]) < 1 and not auto):
 		asnpy = True
 		log.prNot(log.WARNING, "loadData(): No format selected, enabling npy.")
@@ -342,3 +342,19 @@ def restoreData(path):
 	
 	return (ret, meta)
 
+
+def calcTag(data):
+	"""
+	Calculate a unique tag for 'data' by storing it as binary numpy format
+	and calculating the md5sum of the stored file.
+	
+	@param data Any variable that can be stored as numpy file.
+	
+	@return MD5 digest of 'data' stored as numpy file.
+	"""
+	import subprocess
+	
+	saveData('/tmp/calcTagData', data, asnpy=True)
+	tag = subprocess.Popen(["md5sum /tmp/calcTagData.npy | cut -c 1-32"], \
+		stdout=subprocess.PIPE, shell=True).communicate()[0].rstrip()
+	return tag
