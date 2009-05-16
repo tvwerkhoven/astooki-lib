@@ -96,13 +96,13 @@ def loadSaSfConf(safile):
 		line = reader.next()
 		sallsize = N.array([float(line[0]), float(line[1])])
 		# Try to read the lenslet offset, set to 0 if not present
-		try: salloff = N.array([int(line[2]), int(line[3])])
+		try: salloff = N.array([float(line[2]), float(line[3])])
 		except: salloff = N.array([0, 0])
 		# Box pixel size [int, int] and offset [int, int]
 		line = reader.next()
-		ccdsize = N.array([int(line[0]), int(line[1])])
+		ccdsize = N.array([float(line[0]), float(line[1])])
 		# Try to read the ccd offset, set to 0 if not present
-		try: saccdoff = N.array([int(line[2]), int(line[3])])
+		try: saccdoff = N.array([float(line[2]), float(line[3])])
 		except: saccdoff = N.array([0, 0])
 	except:
 		raise RuntimeError("loadSaSfConf(): Could not parse file header.")
@@ -110,13 +110,12 @@ def loadSaSfConf(safile):
 	ccdpos = []
 	for line in reader:
 		try:
-			_pos = [int(line[0]), int(line[1])]
+			_pos = [float(line[0]), float(line[1])]
 			ccdpos.append(_pos)
 		except:
 			raise RuntimeError("loadSaSfConf(): Could not parse file.")
 	
-	log.prNot(log.INFO, "loadSaSfConf(): Found %d coordinates, (expected %d)."% \
-		 (len(ccdpos), nsa))
+	log.prNot(log.INFO, "loadSaSfConf(): In '%s': found %d coordinates, (expected %d)."% (os.path.split(safile)[1], len(ccdpos), nsa))
 	
 	if (len(ccdpos) != nsa):
 		log.prNot(log.WARNING, "loadSaSfConf(): Found %d coordinates, expected %d. Using all positions found (%d)." % (len(ccdpos), nsa, len(ccdpos)))
@@ -223,15 +222,15 @@ def calcSubaptConf(rad, size, pitch, shape='circular', xoff=[0,0.5], disp=(0,0),
 	
 	# Apply scaling and displacement to the pattern before returning
 	# NB: pos gives the *centroid* position of the subapertures here
-	pos = (N.array(pos) * scl) + disp
+	cpos = (N.array(pos) * scl) + disp
 	
-	# Convert symmetric centroid positions to CCD positions:
-	saccdpos = N.round(pos + rad - size/2.0).astype(N.int)
+	# Convert symmetric centroid positions to origin positions:
+	llpos = cpos - size/2.0
 	
-	nsa = len(saccdpos)
+	nsa = len(llpos)
 	log.prNot(log.NOTICE, "calcSubaptConf(): found %d subapertures." % (nsa))
 	
-	return (nsa, saccdpos, size)
+	return (nsa, llpos, cpos, size)
 
 
 def optSubapConf(img, sapos, sasize, saifac):
