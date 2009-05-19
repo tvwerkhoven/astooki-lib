@@ -121,8 +121,8 @@ def loadSaSfConf(safile):
 		log.prNot(log.WARNING, "loadSaSfConf(): Found %d coordinates, expected %d. Using all positions found (%d)." % (len(ccdpos), nsa, len(ccdpos)))
 		nsa = len(ccdpos)
 	
-	ccdsize = (N.array(ccdsize)).astype(N.int32)
-	ccdpos = (N.array(ccdpos)+saccdoff).astype(N.int32)
+	ccdsize = (N.array(ccdsize)).astype(N.float32)
+	ccdpos = (N.array(ccdpos)+saccdoff).astype(N.float32)
 	return (nsa, ccdpos, ccdsize)
 
 
