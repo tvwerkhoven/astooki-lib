@@ -12,6 +12,8 @@ import clibshifts			# C version of libshifts
 import clibshifts as cs
 import libshifts			# Python version of libshifts
 import time						# For timing
+import liblog as log
+log.VERBOSITY += 2
 
 def main(realdata='real'):
 	if (realdata == 'wfwfs'):
@@ -51,10 +53,10 @@ def main(realdata='real'):
 		# Take whole image as reference
 		ref = crop.copy()
 		# List of shift vectors
-		#shvec = N.array([[0,0.5], [1,1], [0,0], [0.5,0.5], [3.5, 1.2]])
+		shvec = N.array([[2,0], [0,2]])
 		shx = N.arange(20.)/10.
 		shy = N.arange(5.)/5.
-		shvec = N.array([ [i, y] for y in shx for i in shy ])
+		#shvec = N.array([ [i, y] for y in shx for i in shy ])
 		imlist = []
 		# Shift images around, and downscale by a factor of 10
 		print "Shift vectors..."
@@ -89,7 +91,7 @@ def main(realdata='real'):
 				x=0
 				y+=1
 			if (y >= nx):
-				print "Oops, shouldnt happen :P"
+				print "Oops, shouldn't happen :P"
 				break
 		saccdpos = N.array(saccdpos)
 		# Static 'subfield' positions
@@ -104,13 +106,14 @@ def main(realdata='real'):
 			for meth in [cs.COMPARE_ABSDIFFSQ, cs.COMPARE_SQDIFF, cs.COMPARE_XCORR]:
 				for intpl in [cs.EXTREMUM_2D9PTSQ, cs.EXTREMUM_2D5PTSQ]:
 					cshift = cs.calcShifts(bigimg.astype(N.float32), saccdpos, saccdsize, sfccdpos, sfccdsize, shrange=[4,4], method=meth, extremum=intpl, refmode=cs.REF_STATIC, refopt=[0])
-					print shvec[4], cshift[0,1:,0][4]
+					print shvec[0], cshift[0,1:,0][0]
 					diff['sz:%d-meth:%d-int:%d' % (sfccdsize[0], meth, intpl)] = shvec - cshift[0,1:,0]
 		
 		print "Meth ADSQ: %d, SQD: %d, XCORR: %d" % (cs.COMPARE_ABSDIFFSQ, cs.COMPARE_SQDIFF, cs.COMPARE_XCORR)
 		print "Int 9p: %d, 5p: %d" % (cs.EXTREMUM_2D9PTSQ, cs.EXTREMUM_2D5PTSQ)
 		
 		#diff.keys().sort()
+		print "sum(abs(diff)), max(abs(diff)), mean(abs(diff)), std(abs(diff))."
 		for key in sorted(diff.keys()):
 			print "%s:" % (key),
 			val = diff[key]
