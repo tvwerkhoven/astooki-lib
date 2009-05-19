@@ -338,7 +338,8 @@ void *_procsubaps_float32(void* args) {
 #ifdef DEBUG
 	printf("...: diffmap: %dx%d.\n", diffsize[0], diffsize[1]);
 #endif
-	float32_t diffmap[diffsize[0] * diffsize[1]]; // correlation map
+	float32_t *diffmap = (float32_t *) calloc(diffsize[0] * diffsize[1], \
+		sizeof(float32_t));
 	float32_t shvec[2];
 
 #ifdef DEBUG
@@ -389,15 +390,15 @@ void *_procsubaps_float32(void* args) {
 			// Calculate correlation map
 			switch (dat->compmeth) {
 				case (COMPARE_ABSDIFFSQ): {
-					ret += _absdiffsq(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
+					ret = _absdiffsq(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran, 1);
 					break;
 				}
 				case (COMPARE_SQDIFF): {
-					ret += _sqdiff(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
+					ret = _sqdiff(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran, 1);
 					break;
 				}
 				case (COMPARE_XCORR): {
-					ret += _crosscorr(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran);
+					ret = _crosscorr(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran, 1);
 					break;
 				}
 				default: {
@@ -405,15 +406,18 @@ void *_procsubaps_float32(void* args) {
 					break;
 				}
 			}
+			if (ret == 2)
+				printf("_procsubaps_float32(): err in COMPARE @ sa: %d, sf :%d\n", \
+					sa, sf);
 			
 			// Find subpixel maximum
 			switch (dat->extmeth) {
 				case (EXTREMUM_2D9PTSQ): {
-					ret += _9pquadint(diffmap, diffsize, shvec, dat->shran);
+					ret = _9pquadint(diffmap, diffsize, shvec, dat->shran);
 					break;
 				}
 				case (EXTREMUM_2D5PTSQ): {
-					ret += _5pquadint(diffmap, diffsize, shvec, dat->shran);					
+					ret = _5pquadint(diffmap, diffsize, shvec, dat->shran);					
 					break;
 				}
 				default: {
@@ -421,10 +425,12 @@ void *_procsubaps_float32(void* args) {
 					break;
 				}
 			}
-			
-			// Store shift, we flip them here to get the right order.
-			dat->shifts[_refoff + sa * (nsf * 2) + sf * (2) + 0] = (float32_t) shvec[1]-dat->shran[1];
-			dat->shifts[_refoff + sa * (nsf * 2) + sf * (2) + 1] = (float32_t) shvec[0]-dat->shran[0];
+			if (ret == 2)
+				printf("_procsubaps_float32(): err in EXTREMUM @ sa: %d, sf :%d\n", \
+				 	sa, sf);
+
+			dat->shifts[_refoff + sa * (nsf * 2) + sf * (2) + 0] = (float32_t) shvec[0]-dat->shran[0];
+			dat->shifts[_refoff + sa * (nsf * 2) + sf * (2) + 1] = (float32_t) shvec[1]-dat->shran[1];
 #ifdef DEBUG
 			printf("sh: (%.3g, %.3g) ", shvec[0]-dat->shran[0], shvec[1]-dat->shran[1]);
 #endif
@@ -529,7 +535,7 @@ int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int3
 		}
 	}
 #ifdef DEBUG
-	printf("max: %g (%d,%d) ", max, maxidx[0], maxidx[1]);
+	printf("max @: %g (%d,%d) ", max, maxidx[0], maxidx[1]);
 #endif
 	if (maxidx[0] == 0 || maxidx[0] == diffsize[0]-1 ||
 		maxidx[1] == 0 || maxidx[1] == diffsize[1]-1) {
@@ -570,6 +576,27 @@ int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int3
 	
 	shvec[0] = maxidx[0] + (2.0*a2*a5-a4*a6)/(a6*a6-4.0*a3*a5);
 	shvec[1] = maxidx[1] + (2.0*a3*a4-a2*a6)/(a6*a6-4.0*a3*a5);
+	if (!(shvec[0] >= 0 && shvec[0] <= diffsize[0]) || !(shvec[1] >= 0 && shvec[1] <= diffsize[1])) {
+		printf("NAN: %g,%g (%d,%d). %g - %g - %g - %g - %g\n", 
+			shvec[0], shvec[1], maxidx[0], maxidx[1], a2, a3, a4, a5, a6);
+		// printf("a4: 0.5 * (%g - %g)\n", \
+		// 	diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
+		// 	diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]]);
+		// printf("a5: 0.5 * %g - %g + 0.5 * %g\n", \
+		// 	diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
+		// 	diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]], \
+		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]]);
+		// printf("a6: 0.25 * (%g - %g - %g + %g)\n", \
+		// 	diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]+1], \
+		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]+1], \
+		// 	diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]-1], \
+		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]-1]);
+		// printf("diff: %dx%d\n", diffsize[0], diffsize[1]);
+		// for (i=0; i<diffsize[0]*diffsize[1]; i++)
+		// 	printf("%g ", diffmap[i]);
+		// printf("\n");
+		return 2;
+	}
 	return 0;
 }
 
@@ -612,10 +639,31 @@ int _5pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int3
 	
 	shvec[0] = maxidx[0] + (2.0*a2*a5)/(-4.0*a3*a5);
 	shvec[1] = maxidx[1] + (2.0*a3*a4)/(-4.0*a3*a5);
+	if (!(shvec[0] >= 0 && shvec[0] <= diffsize[0]) || !(shvec[1] >= 0 && shvec[1] <= diffsize[1])) {
+		printf("NAN: %g,%g (%d,%d). %g - %g - %g - %g\n", 
+			shvec[0], shvec[1], maxidx[0], maxidx[1], a2, a3, a4, a5);
+		// printf("a4: 0.5 * (%g - %g)\n", \
+		// 	diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
+		// 	diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]]);
+		// printf("a5: 0.5 * %g - %g + 0.5 * %g\n", \
+		// 	diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
+		// 	diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]], \
+		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]]);
+		// printf("a6: 0.25 * (%g - %g - %g + %g)\n", \
+		// 	diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]+1], \
+		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]+1], \
+		// 	diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]-1], \
+		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]-1]);
+		// printf("diff: %dx%d\n", diffsize[0], diffsize[1]);
+		// for (i=0; i<diffsize[0]*diffsize[1]; i++)
+		// 	printf("%g ", diffmap[i]);
+		// printf("\n");
+		return 2;
+	}
 	return 0;
 }
 
-int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]) {
+int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
 	double tmpsum, diff;
 	// Loop ranges
 	int sh0min = -range[0] + pos[0];
@@ -623,10 +671,10 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 	int sh1min = -range[1] + pos[1];
 	int sh1max =  range[1] + pos[1];
 	
-	// If sum(pos) is not zero, we expect that ref is large enough to naively 
+	// If bigref is 1, we expect that the reference is large enough to naively 
 	// shift img around.
 	int sh0, sh1, i, j;
-	if (pos[0]+pos[1] != 0) {
+	if (bigref == 1) {
 		// Loop over all shifts to be tested
 		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
@@ -636,7 +684,7 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
 						// First get the difference...
-						diff = img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1];
+						diff = img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0];
 						// ...then square this
 						tmpsum += diff*diff;
 					}
@@ -650,9 +698,10 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 			}
 		}
 	}
-	// If sum(pos) is zero, we use clipping of ref and img to only use the 
+	// If bigref is zero, we use clipping of ref and img to only use the 
 	// intersection of the two datasets for comparison, using normalisation to 
-	// make the results consistent.
+	// make the results consistent. This does increase the noise in the shift 
+	// measurement though.
 	else {
 		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
@@ -667,7 +716,7 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
 						// First get the difference...
-						diff = img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1];
+						diff = img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0];
 						//diff = img(i,j) - ref(i+sh1,j+sh0);
 						// ...then square this
 						tmpsum += diff*diff;
@@ -684,7 +733,7 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 	return 0;
 }
 
-int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]) {
+int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
 	double tmpsum;
 	// Loop ranges
 	int sh0min = -range[0] + pos[0];
@@ -692,28 +741,53 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 	int sh1min = -range[1] + pos[1];
 	int sh1max =  range[1] + pos[1];
 	
-	// If sum(pos) is not zero, we expect that ref is large enough to naively 
+	//printf("pos: %d-%d, range: %d-%d\n", pos[0], pos[1], range[0], range[1]);
+	//printf("sh0: %d-%d, sh1: %d-%d\n", sh0min, sh0max, sh1min, sh1max);
+	
+	// If bigref is 1, we expect that the reference is large enough to naively 
 	// shift img around.
 	int sh0, sh1, i, j;
-	if (pos[0]+pos[1] != 0) {
+	double max = 0;
+	int maxidx[] = {-1,-1};
+	if (bigref == 1) {
 		// Loop over all shifts to be tested
-		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
-			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
+		for (sh1=sh1min; sh1 <= sh1max; sh1++) {
+			for (sh0=sh0min; sh0 <= sh0max; sh0++) {
 				tmpsum = 0.0;
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
 						tmpsum += \
-							fabsf(img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1]);
+							fabs(img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0]);
+							// was:
+							// fabsf(img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1]);
 					}
 				}
+				if (max == 0)
+					max = -(tmpsum*tmpsum);
+				if (-(tmpsum*tmpsum) > max) {
+					max = -(tmpsum*tmpsum);
+					maxidx[0] = sh0-sh0min;
+					maxidx[1] = sh1-sh1min;
+				}
+				// printf("diffmap @ %d: %d,%d", 
+				// 	(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min), sh0, sh1);
 				diffmap[(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min)] = \
 				 	-(tmpsum*tmpsum);
+				//printf("(%d,%d) ", (sh0-sh0min), (sh1-sh1min));
 			}
 		}
+		// printf("max @ diffmap: %g - %d,%d\n", \
+		// 	max, maxidx[0], maxidx[1]);
+		// if ((sh0-sh0min) != 15 || (sh1-sh1min) != 15) {
+		// 	printf("error! %d,%d\n", (sh0-sh0min), (sh1-sh1min));
+		// 	printf("pos: (%d,%d), range: (%d,%d)\n", pos[0], pos[1], range[0], range[1]);
+		// 	exit(0);			
+		// }
 	}
-	// If sum(pos) is zero, we use clipping of ref and img to only use the 
+	// If bigref is zero, we use clipping of ref and img to only use the 
 	// intersection of the two datasets for comparison, using normalisation to 
-	// make the results consistent.
+	// make the results consistent. This does increase the noise in the shift 
+	// measurement though.
 	else {
 		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
@@ -721,7 +795,7 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
 						tmpsum += \
-							fabsf(img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1]);
+							fabsf(img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0]);
 					}
 				}
 				// Scale the value found by dividing it by the number of 
@@ -735,7 +809,7 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 	return 0;
 }
 
-int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]) {
+int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
 	double tmpsum;
 	// Loop ranges
 	int sh0min = -range[0] + pos[0];
@@ -743,33 +817,34 @@ int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 	int sh1min = -range[1] + pos[1];
 	int sh1max =  range[1] + pos[1];
 	
-	// If sum(pos) is not zero, we expect that ref is large enough to naively 
+	// If bigref is 1, we expect that the reference is large enough to naively 
 	// shift img around.
 	int sh0, sh1, i, j;
-	if (pos[0]+pos[1] != 0) {
+	if (bigref == 1) {
 		// Loop over all shifts to be tested
 		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
 				tmpsum = 0.0;
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
-						tmpsum += (img[j*imstride + i] * ref[(j+sh0)*refstride + i+sh1]) * (img[j*imstride + i] * ref[(j+sh0)*refstride + i+sh1]);
+						tmpsum += (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
 					}
 				}
 				diffmap[(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min)] = tmpsum;
 			}
 		}
 	}
-	// If sum(pos) is zero, we use clipping of ref and img to only use the 
+	// If bigref is zero, we use clipping of ref and img to only use the 
 	// intersection of the two datasets for comparison, using normalisation to 
-	// make the results consistent.
+	// make the results consistent. This does increase the noise in the shift 
+	// measurement though.
 	else {
 		for (sh0=sh0min; sh0 <= sh0max; sh0++) {
 			for (sh1=sh1min; sh1 <= sh1max; sh1++) {
 				tmpsum = 0.0;
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
-						tmpsum += (img[j*imstride + i] * ref[(j+sh0)*refstride + i+sh1]) * (img[j*imstride + i] * ref[(j+sh0)*refstride + i+sh1]);
+						tmpsum += (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
 					}
 				}
 				// Scale the value found by dividing it by the number of 

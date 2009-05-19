@@ -59,7 +59,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 															// list to the 'refopt' parameter to specify
 															// which subaps should be used.
 
-#define NTHREADS 2            // Number of threads to work with
+#define NTHREADS 1            // Number of threads to work with
 
 //#define DEBUG               // Enable debug output
 
@@ -105,13 +105,13 @@ int _calcshifts_float32(float32_t *image, int32_t stride, int32_t sapos[][2], in
 void *_procsubaps_float32(void* args);
 
 // Square difference image comparison
-int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]);
+int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref);
 
 // Absolute difference squared image comparison
-int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]);
+int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref);
 
 // Direct cross-correlation image comparison
-int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2]);
+int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref);
 
 // 9-point quadratic interpolation
 int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int32_t shran[2]);
