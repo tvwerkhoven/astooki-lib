@@ -68,7 +68,8 @@ def initLogFile(logfile):
 	(Re-)initialize logfile.
 	"""
 	import libfile
-	libfile.saveOldFile(logfile)
+	# Don't save old file, simply append to existing file
+	#libfile.saveOldFile(logfile)
 	global LOGFD
 	if (not LOGFD):
 		LOGFD = open(logfile, "a+")
