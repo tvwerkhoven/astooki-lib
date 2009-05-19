@@ -17,6 +17,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 ## Import C library
 
 import _libshifts
+import liblog as log
 import numpy as N
 
 ## Same defines as libshift
@@ -46,20 +47,36 @@ REF_STATIC = 1						# Use static reference subapertures, pass a
 def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refopt=1, shrange=[3,3], refaps=None, subfields=None, corrmaps=None):
 	
 	# Make sure shrange is a numpy array
-	shrange = N.array(shrange, dtype=N.int32)
 	img = img.astype(N.float32)
 	saccdpos = saccdpos.astype(N.int32)
 	saccdsize = saccdsize.astype(N.int32)
 	sfccdpos = sfccdpos.astype(N.int32)
-	# TODO: fix this, ugly!
-	if (refmode == REF_BESTRMS):
-		refopt = N.array([refopt]).flatten()[0]
-	else:
-		refopt = N.array([refopt]).flatten()[0]
-	# Call C library
+	sfccdsize = sfccdsize.astype(N.int32)
+	shrange = N.array(shrange, dtype=N.int32)
+	# Refopt should *always* be a 1-d list. This trick ensures that
+	refopt = N.array([refopt]).flatten()[0]
+	# Sanity check for subfield windows
+	if (N.min(sfccdpos, 0) - shrange < 0).any():
+		log.prNot(log.NOTICE, "%d,%d - %d,%d < 0,0" % \
+			(tuple(N.min(sfccdpos, 0)) + tuple(shrange)))
+		log.prNot(log.ERR, "calcShifts(): Warning, subfield position - shift range smaller than 0!")
+	if (N.max(sfccdpos, 0) + sfccdsize + shrange > saccdsize).any():
+		log.prNot(log.NOTICE, "%d,%d + %d,%d + %d,%d > %d,%d" % \
+			(tuple(N.max(sfccdpos, 0)) + tuple(sfccdsize) + tuple(shrange) + \
+			 	tuple(saccdsize)))
+		log.prNot(log.ERR, "calcShifts(): Warning, subfield position + subfield size + shift range bigger than subaperture!")
+
+	# Call C library with the pre-processed parameters
 	ret = _libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, shrange, method, extremum, refmode, refopt)
 	# Return reference apertures used if requested
 	if (refaps is not None):
 		refaps.extend(ret['refapts'])
+	# Give stats
+	log.prNot(log.NOTICE, "calcShifts(): average shift: (%g,%g)." % \
+	 	(tuple(ret['shifts'].reshape(-1,2).mean(0))))
+	log.prNot(log.NOTICE, "calcShifts(): shift clipped: %d/%d, %g%%." % \
+	 	(N.sum(abs(ret['shifts']) >= shrange), ret['shifts'].size, \
+	 	100*N.sum(abs(ret['shifts']) >= shrange)/ret['shifts'].size) )
+	
 	# Return shifts
 	return ret['shifts']
