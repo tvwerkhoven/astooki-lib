@@ -33,7 +33,7 @@ __COMPILE_OPTS = "-O3 -ffast-math -msse -msse2"
 # Routines 
 #=============================================================================
 
-def computeFwdMatrix(lh, lsize, lorig, lcells, sasize, sapos, sfang, sffov, matroot='./matrices/'):
+def computeFwdMatrix(lh, lsize, lorig, lcells, sasize, sapos, sfang, sffov, matroot='./matrices/', engine='c'):
 	"""
 	Calculate a model forward matrix giving the WFWFS output for a given
 	atmosphere geometry.
@@ -56,6 +56,7 @@ def computeFwdMatrix(lh, lsize, lorig, lcells, sasize, sapos, sfang, sffov, matr
 	@param sapos Subaperture positions (m)
 	@param sfang Subfield pointing angle (radian)
 	@param sffov Subfield field of view (radian)
+	@param engine Code to use for matrix computation, 'c' or 'py' ('c')
 	"""
 	
 	# Store all relevant parameters for this matrix in matconf:
@@ -91,75 +92,151 @@ def computeFwdMatrix(lh, lsize, lorig, lcells, sasize, sapos, sfang, sffov, matr
 	m = nsa * nsf
 	fwdmatrix = N.zeros((m, n), dtype=N.float32)
 	
-	# Base positions for different fields of view:
-	basecbl = (N.tan(sfang - sffov/2.) * lh.reshape(-1,1,1) - sasize/2. - \
-		lorig.reshape(-1,1,2) + lsize.reshape(-1,1,2)) * \
-		lcells.reshape(1,1,2) / (lsize.reshape(-1,1,2)*2)
-	basecur = (N.tan(sfang + sffov/2.) * lh.reshape(-1,1,1) + sasize/2. - \
-		lorig.reshape(-1,1,2) + lsize.reshape(-1,1,2)) * \
-		lcells.reshape(1,1,2) / (lsize.reshape(-1,1,2)*2)
-	
-	# Loop over all subapertures:
-	for sa, csapos in zip(range(nsa), sapos):
-		# Offset base positions for this subap:
-		subcbl = basecbl + (csapos.reshape(1,1,-1) * lcells.reshape(1,1,2) / \
-		 	(lsize.reshape(-1,1,2)*2))
-		subcur = basecur + (csapos.reshape(1,1,-1) * lcells.reshape(1,1,2) / \
-		 	(lsize.reshape(-1,1,2)*2))
-		# Make sure all coordinates are within the range [0,0] -- lcells
-		blFix = len(subcbl[subcbl < lcells*0])
-		urFix = len(subcur[subcur > lcells])
-		if (blFix + urFix > 0):
-			log.prNot(log.WARNING, "computeFwdMatrix(): Fixing %d and %d coordinates @ sa %d." % (blFix, urFix, sa))
+	if (engine == 'py'):
 		
-		# subcbl[subcbl[:,:,0] > lcells[0], 0] = lcells[0]
-		# subcbl[subcbl[:,:,1] > lcells[1], 1] = lcells[1]
-		subcbl[subcbl[:,:,0] < 0, 0] = 0
-		subcbl[subcbl[:,:,1] < 0, 1] = 0
-		subcur[subcur[:,:,0] > lcells[0], 0] = lcells[0]
-		subcur[subcur[:,:,1] > lcells[1], 1] = lcells[1]
-		# Loop over all subfields:
-		for sf, csfang in zip(range(nsf), sfang):
-			#csfang = sfang[sf]
-			# Offset in the model matrix
-			woff = sa * nsf + sf
-			# Loop over all atmosphere layers:
-			for lay in range(nl):
-				# Investigate the which atmospheric cells in layer 'lay'
-				# influence subfield 'sf' in subaperture 'sa':
+		# Base positions for different fields of view:
+		basecbl = (N.tan(sfang - sffov/2.) * lh.reshape(-1,1,1) - sasize/2. - \
+			lorig.reshape(-1,1,2) + lsize.reshape(-1,1,2)) * \
+			lcells.reshape(1,1,2) / (lsize.reshape(-1,1,2)*2)
+		basecur = (N.tan(sfang + sffov/2.) * lh.reshape(-1,1,1) + sasize/2. - \
+			lorig.reshape(-1,1,2) + lsize.reshape(-1,1,2)) * \
+			lcells.reshape(1,1,2) / (lsize.reshape(-1,1,2)*2)
+	
+		# Loop over all subapertures:
+		for sa, csapos in zip(range(nsa), sapos):
+			# Offset base positions for this subap:
+			subcbl = basecbl + (csapos.reshape(1,1,-1) * lcells.reshape(1,1,2) / \
+			 	(lsize.reshape(-1,1,2)*2))
+			subcur = basecur + (csapos.reshape(1,1,-1) * lcells.reshape(1,1,2) / \
+			 	(lsize.reshape(-1,1,2)*2))
+			# Make sure all coordinates are within the range [0,0] -- lcells
+			blFix = len(subcbl[subcbl < lcells*0])
+			urFix = len(subcur[subcur > lcells])
+			if (blFix + urFix > 0):
+				log.prNot(log.WARNING, "computeFwdMatrix(): Fixing %d and %d coordinates @ sa %d." % (blFix, urFix, sa))
+		
+			# subcbl[subcbl[:,:,0] > lcells[0], 0] = lcells[0]
+			# subcbl[subcbl[:,:,1] > lcells[1], 1] = lcells[1]
+			subcbl[subcbl[:,:,0] < 0, 0] = 0
+			subcbl[subcbl[:,:,1] < 0, 1] = 0
+			subcur[subcur[:,:,0] > lcells[0], 0] = lcells[0]
+			subcur[subcur[:,:,1] > lcells[1], 1] = lcells[1]
+			# Loop over all subfields:
+			for sf, csfang in zip(range(nsf), sfang):
+				#csfang = sfang[sf]
+				# Offset in the model matrix
+				woff = sa * nsf + sf
+				# Loop over all atmosphere layers:
+				for lay in range(nl):
+					# Investigate the which atmospheric cells in layer 'lay'
+					# influence subfield 'sf' in subaperture 'sa':
 				
-				# Old:
-				#cpos2 = sasfBounds(csapos, csfang, sasize, sffov, \
-				# 	lh[lay], units='cell', rtype='bounds', lorig=lorig[lay], \
-				# 	lsize=lsize[lay], lcells=lcells)
-				#xr = cpos[:, 0]
-				#yr = cpos[:, 1]
+					# Old:
+					#cpos2 = sasfBounds(csapos, csfang, sasize, sffov, \
+					# 	lh[lay], units='cell', rtype='bounds', lorig=lorig[lay], \
+					# 	lsize=lsize[lay], lcells=lcells)
+					#xr = cpos[:, 0]
+					#yr = cpos[:, 1]
 				
-				xr0 = subcbl[lay,sf,0]
-				xr1 = subcur[lay,sf,0]
-				yr0 = subcbl[lay,sf,1]
-				yr1 = subcur[lay,sf,1]
-				off = (lay * lcells[0] * lcells[1])
+					xr0 = subcbl[lay,sf,0]
+					xr1 = subcur[lay,sf,0]
+					yr0 = subcbl[lay,sf,1]
+					yr1 = subcur[lay,sf,1]
+					off = (lay * lcells[0] * lcells[1])
 				
-				# Old
-				# Calculate the coordinates of the cells intersected and the
-				# amount of intersection
-				#(isectc, isect) = calcIsect(xr, yr, lcells[0])
+					# Old
+					# Calculate the coordinates of the cells intersected and the
+					# amount of intersection
+					#(isectc, isect) = calcIsect(xr, yr, lcells[0])
 				
-				# if (sa == 81):
-				# 	print("sa 81, sf %d, l %d, x: %g--%g, y: %g--%g." % \
-				# 		(sf, lay, xr0, xr1, yr0, yr1))
-				# Flatten & insert this in the full matrix
-				#fwdmatrix[sa * nsf + sf, \
-				#	(isectc + (lay * product(lcells))).reshape(-1).tolist()]=\
-				# 	isect.reshape(-1)
-				#print int(xr0), int(N.ceil(xr1)), int(yr0), int(N.ceil(yr1))
-				for cx in xrange(int(xr0), int(N.ceil(xr1))):
-					for cy in xrange(int(yr0), int(N.ceil(yr1))):
-						isect = (min(cx+1, xr1) - max(cx, xr0)) * \
-							(min(cy+1, yr1) - max(cy, yr0))
-						fwdmatrix[woff, off + cy * lcells[0] + cx] = isect
-								
+					# Flatten & insert this in the full matrix
+					#fwdmatrix[sa * nsf + sf, \
+					#	(isectc + (lay * product(lcells))).reshape(-1).tolist()]=\
+					# 	isect.reshape(-1)
+					#print int(xr0), int(N.ceil(xr1)), int(yr0), int(N.ceil(yr1))
+					for cx in xrange(int(xr0), int(N.ceil(xr1))):
+						for cy in xrange(int(yr0), int(N.ceil(yr1))):
+							isect = (min(cx+1, xr1) - max(cx, xr0)) * \
+								(min(cy+1, yr1) - max(cy, yr0))
+							fwdmatrix[woff, off + cy * lcells[0] + cx] = isect
+	elif (engine == 'c'):
+		code = """
+		#line 177 "libtomo.py"
+		#ifndef max
+		#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
+		#endif
+	
+		#ifndef min
+		#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
+		#endif
+	
+		int sa, sf, lay;
+		int xc, yc, off, woff;
+		int cx, cy;
+		double xll, yll, xur, yur;
+		double xllc, yllc, xurc, yurc;
+		double isect;
+		int lcellsx = lcells(0);
+		int lcellsy = lcells(1);
+	
+		// Loop over all subapertures
+		for (sa=0; sa<nsa; sa++) {
+			// Loop over all subfields
+			for (sf=0; sf<nsf; sf++) {
+				// Loop over all layers
+				woff = sa * nsf + sf;
+				for (lay=0; lay<nl; lay++) {
+					// Calculate intersection of subfield 'sf' in subaperture 'sa' with 
+					// atmospheric layer 'lay'
+				
+					// Lower-left position of the subfield-subaperture pair at this layer:
+					xll = tan(sfang(sf, 0) - sffov(0)/2.0) * lh(lay) + sapos(sa, 0) - \\
+						sasize(0)/2.0;
+					yll = tan(sfang(sf, 1) - sffov(1)/2.0) * lh(lay) + sapos(sa, 1) - \\
+						sasize(1)/2.0;
+					// Upper-right position:
+					xur = tan(sfang(sf, 0) + sffov(0)/2.0) * lh(lay) + sapos(sa, 0) + \\
+						sasize(0)/2.0;
+					yur = tan(sfang(sf, 1) + sffov(1)/2.0) * lh(lay) + sapos(sa, 1) + \\
+						sasize(1)/2.0;
+					// Now convert to cell coordinates
+					xllc = (xll - lorig(lay, 0) + lsize(lay, 0))/(lsize(lay, 0)*2.0) * \\
+					 	lcellsx;
+					yllc = (yll - lorig(lay, 1) + lsize(lay, 1))/(lsize(lay, 1)*2.0) * \\
+					 	lcellsy;
+					xurc = (xur - lorig(lay, 0) + lsize(lay, 0))/(lsize(lay, 0)*2.0) * \\
+					 	lcellsx;
+					yurc = (yur - lorig(lay, 1) + lsize(lay, 1))/(lsize(lay, 1)*2.0) * \\
+					 	lcellsy;
+					// Clip ranges to (0,0) -- (lcellsx, lcellsy)
+					xllc = max(0, xllc);
+					yllc = max(0, yllc);
+					xurc = min(lcellsx, xurc);
+					yurc = min(lcellsy, yurc);
+					// Now we know that our subfield cone intersects the area (xllc, yllc)
+					// -- (xurc, yurc) in cell coordinates. Calculate the fractional
+					// intersection for each cell in this range.
+					off = (lay * (lcellsx) * (lcellsy));
+					//printf("off: %d, lsize: %d,%d, sa: %d sf: %d, x: %g--%g, y: %g--%g.\\n", off, lcellsx, lcellsy, sa, sf, xllc, xurc, yllc, yurc);
+					for (cx = floor(xllc); cx < ceil(xurc); cx++) {
+						for (cy = floor(yllc); cy < ceil(yurc); cy++) {
+							isect = (min(cx+1, xurc) - max(cx, xllc)) * (min(cy+1, yurc) - max(cy, yllc));
+							fwdmatrix(woff, off + (cy * lcellsx) + cx) = isect;
+							//printf("(%d,%d) = %g\\n", woff, off + (cy * lcellsx) + cx, isect);
+						}
+					}
+				}
+			}
+		}
+		"""
+		one = S.weave.inline(code, \
+			['fwdmatrix', 'nsa', 'nsf', 'nl', 'sfang', 'sffov', 'sapos', 'sasize', 'lh', 'lorig', 'lsize', 'lcells'], \
+			extra_compile_args= [__COMPILE_OPTS], \
+			type_converters=S.weave.converters.blitz)
+	# log.prNot(log.NOTICE, "computeFwdMatrix(): difference between C and Python: sum: %g abs mean: %g allclose: %d" % \
+	# 	(N.sum(fwdmatrixC-fwdmatrix), \
+	# 	N.mean(abs(fwdmatrixC-fwdmatrix)), \
+	# 	N.allclose(fwdmatrix, fwdmatrixC)) )
 	
 	# Simple sanity checks (elements should be between 0 and 1)
 	if N.amax(fwdmatrix) > 1.001: 
@@ -171,86 +248,7 @@ def computeFwdMatrix(lh, lsize, lorig, lcells, sasize, sapos, sfang, sffov, matr
 	# if not N.allclose(fwdmatrix.sum(1),1):
 	# 	raise ArithmeticError("Some rows have sums different than 1.")
 	log.prNot(log.INFO, "computeFwdMatrix(): Simple sanity checks passed.")
-	
-	fwdmatrixC = N.zeros((m, n), dtype=N.float32)
-	code = """
-	#line 177 "libtomo.py"
-	#ifndef max
-	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
-	#endif
-	
-	#ifndef min
-	#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
-	#endif
-	
-	int sa, sf, lay;
-	int xc, yc, off, woff;
-	int cx, cy;
-	double xll, yll, xur, yur;
-	double xllc, yllc, xurc, yurc;
-	double isect;
-	int lcellsx = lcells(0);
-	int lcellsy = lcells(1);
-	
-	// Loop over all subapertures
-	for (sa=0; sa<nsa; sa++) {
-		// Loop over all subfields
-		for (sf=0; sf<nsf; sf++) {
-			// Loop over all layers
-			woff = sa * nsf + sf;
-			for (lay=0; lay<nl; lay++) {
-				// Calculate intersection of subfield 'sf' in subaperture 'sa' with 
-				// atmospheric layer 'lay'
-				
-				// Lower-left position of the subfield-subaperture pair at this layer:
-				xll = tan(sfang(sf, 0) - sffov(0)/2.0) * lh(lay) + sapos(sa, 0) - \\
-					sasize(0)/2.0;
-				yll = tan(sfang(sf, 1) - sffov(1)/2.0) * lh(lay) + sapos(sa, 1) - \\
-					sasize(1)/2.0;
-				// Upper-right position:
-				xur = tan(sfang(sf, 0) + sffov(0)/2.0) * lh(lay) + sapos(sa, 0) + \\
-					sasize(0)/2.0;
-				yur = tan(sfang(sf, 1) + sffov(1)/2.0) * lh(lay) + sapos(sa, 1) + \\
-					sasize(1)/2.0;
-				// Now convert to cell coordinates
-				xllc = (xll - lorig(lay, 0) + lsize(lay, 0))/(lsize(lay, 0)*2.0) * \\
-				 	lcellsx;
-				yllc = (yll - lorig(lay, 1) + lsize(lay, 1))/(lsize(lay, 1)*2.0) * \\
-				 	lcellsy;
-				xurc = (xur - lorig(lay, 0) + lsize(lay, 0))/(lsize(lay, 0)*2.0) * \\
-				 	lcellsx;
-				yurc = (yur - lorig(lay, 1) + lsize(lay, 1))/(lsize(lay, 1)*2.0) * \\
-				 	lcellsy;
-				// Clip ranges to (0,0) -- (lcellsx, lcellsy)
-				xllc = max(0, xllc);
-				yllc = max(0, yllc);
-				xurc = min(lcellsx, xurc);
-				yurc = min(lcellsy, yurc);
-				// Now we know that our subfield cone intersects the area (xllc, yllc)
-				// -- (xurc, yurc) in cell coordinates. Calculate the fractional
-				// intersection for each cell in this range.
-				off = (lay * (lcellsx) * (lcellsy));
-				//printf("off: %d, lsize: %d,%d, sa: %d sf: %d, x: %g--%g, y: %g--%g.\\n", off, lcellsx, lcellsy, sa, sf, xllc, xurc, yllc, yurc);
-				for (cx = floor(xllc); cx < ceil(xurc); cx++) {
-					for (cy = floor(yllc); cy < ceil(yurc); cy++) {
-						isect = (min(cx+1, xurc) - max(cx, xllc)) * (min(cy+1, yurc) - max(cy, yllc));
-						fwdmatrixC(woff, off + (cy * lcellsx) + cx) = isect;
-						//printf("(%d,%d) = %g\\n", woff, off + (cy * lcellsx) + cx, isect);
-					}
-				}
-			}
-		}
-	}
-	"""
-	one = S.weave.inline(code, \
-		['fwdmatrixC', 'nsa', 'nsf', 'nl', 'sfang', 'sffov', 'sapos', 'sasize', 'lh', 'lorig', 'lsize', 'lcells'], \
-		extra_compile_args= [__COMPILE_OPTS], \
-		type_converters=S.weave.converters.blitz)
-	log.prNot(log.NOTICE, "computeFwdMatrix(): difference between C and Python: sum: %g abs mean: %g allclose: %d" % \
-		(N.sum(fwdmatrixC-fwdmatrix), \
-		N.mean(abs(fwdmatrixC-fwdmatrix)), \
-		N.allclose(fwdmatrix, fwdmatrixC)) )
-	
+
 	# Store the matrix to disk for later use
 	try: os.makedirs(matdir)
 	except OSError: pass
@@ -258,7 +256,7 @@ def computeFwdMatrix(lh, lsize, lorig, lcells, sasize, sapos, sfang, sffov, matr
 	
 	saveData(os.path.join(matdir, matfile), fwdmatrix, asnpy=True)
 	saveData(os.path.join(matdir, 'matconf'), matconf, aspickle=True)
-	return (fwdmatrix, fwdmatrixC, mattag)
+	return (fwdmatrix, mattag)
 
 
 def computeSvd(matrix, mattag=None, matroot='./matrices/', checkSanity=True, eps=0.1):

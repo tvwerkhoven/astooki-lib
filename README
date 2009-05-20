@@ -1,70 +1,31 @@
-## watchdog: wide-field wavefront sensor data processing.
-## $Id$
+astooki-lib: astronomical toolkit library
+==============================================================================
 
-This set of scripts takes wide-field wavefront sensor measurements as input
-and aims to analyze the atmospheric seeing that disturbed the incoming light.
+The astronomical toolkit library is a set of Python libraries which can be
+used to process and analyze astronomical data. Currently, the focus is mainly
+on wavefront-sensor data, but the aim is to expand this to include other
+functionality as well.
 
-DATA STRUCTURES
+This library is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.
 
-* metainfo
+Installation
+============
 
-Constructed in: CompGrid.getMeta()
+This module can be installed using the standard NumPy distutils. Therefore,
+simply running
 
-Returns a list 'meta' with fixed size and structure containing meta-info on 
-the bulk data that will follow. 'meta' is a list with 32 32-bit integers. 
-Syntax is:
-  meta[0]: number of dimensions (max 8)
-  meta[1:9]: size of each dimension
-  meta[10]: datatype
-  meta[11]: task
-  meta[12:]: unused/reserved
+   python setup.py install
 
-* fileinfo
+will install this module to the default installation location. Running
 
-Constructed in: WfsData.getMetaData()
+   python setup.py
 
-Returns fileinfo, a list of files with metainfo on the file. Each entry in the 
-list fileinfo is structured like:
-  [filename, [index, ctime, resx, resy, exposure, quality, comment]]]
+will start an interactive installation process.
 
-* rawfiles
+Version history
+===============
 
-Constructed in: WfsData.watchDog()
-
-rawfiles structure:
-  rawfiles[root], with root the data directory
-rawfiles[root]:
-  rawfiles[root][runid], with runid a unique run ID for that directory
-rawfiles[root][runid]:
-  rawfiles[root][runid]['files'] holds the raw filenames in a list
-  rawfiles[root][runid]['datadir'] is the directory where 'files' can be found
-  rawfiles[root][runid]['flat'] holds all flats in a list, each item
-    consisting of [filepath, age [s], multiplicity]
-  rawfiles[root][runid]['dark'] holds darks, structure like flats
-  rawfiles[root][runid]['begin'] begin of the run in epoch
-  rawfiles[root][runid]['end'] end of the run
-  rawfiles[root][runid]['runid'] contains the variable runid
-  rawfiles[root][runid]['nfiles'] is the same as
-    len(rawfiles[root][runid]['files'])
-  rawfiles[root][runid]['outdir'] is the root-directory where output 
-    should go (cache, plots, whatever)
-  rawfiles[root][runid]['resultdir'] is the directory where results for this 
-    dataset should go
-  rawfiles[root][runid]['plotdir'] is the directory where the plots and other 
-    'nice' results should go, equal to resultdir+runid+'plots'
-  rawfiles[root][runid]['cachedir'] is the directory where cache should go
-    (intermediate results etc), equal to resultdir+runid+'cache'
-
-CONFIGURATION FILES
-
-* subapt config files (loadSubaptConf()):
-line 1: <INT number of subapertures>
-line 2: <FLOAT xsize [m]> <FLOAT ysize [m]>
-line 3: <INT xsize [pix]> <INT ysize [pix]>
-line 4--n: <INT subaperture n xpos [pix]> <INT subaperture n ypos [pix]>
-
-* subfield config files (loadSubfieldConf()):
-line 1: <INT number of subfields>
-line 2: <FLOAT xsize [m]> <FLOAT ysize [m]>
-line 3: <INT xsize [pix]> <INT ysize [pix]>
-line 4--n: <INT subfield n xpos [pix]> <INT subfields n ypos [pix]>
+20090520, v0.0.1:
+   * Initial packaging in distutils.

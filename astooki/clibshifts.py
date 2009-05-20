@@ -21,7 +21,7 @@ import liblog as log
 import numpy as N
 
 ## Same defines as libshift
-# TODO: fix this, read from library *directly*
+# TODO: fix this, read from C library *directly* (is this even possible?)
 
 # Defines for comparison algor#ithms
 COMPARE_XCORR = 0					# Direct cross correlation
@@ -46,15 +46,17 @@ REF_STATIC = 1						# Use static reference subapertures, pass a
 ## Wrapper for _libshifts.calcShifts
 def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refopt=1, shrange=[3,3], refaps=None, subfields=None, corrmaps=None):
 	
-	# Make sure shrange is a numpy array
+	# Make sure datatypes are correct
 	img = img.astype(N.float32)
 	saccdpos = saccdpos.astype(N.int32)
 	saccdsize = saccdsize.astype(N.int32)
 	sfccdpos = sfccdpos.astype(N.int32)
 	sfccdsize = sfccdsize.astype(N.int32)
 	shrange = N.array(shrange, dtype=N.int32)
+	
 	# Refopt should *always* be a 1-d list. This trick ensures that
 	refopt = N.array([refopt]).flatten()[0]
+	
 	# Sanity check for subfield windows
 	if (N.min(sfccdpos, 0) - shrange < 0).any():
 		log.prNot(log.NOTICE, "%d,%d - %d,%d < 0,0" % \
@@ -65,14 +67,17 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 			(tuple(N.max(sfccdpos, 0)) + tuple(sfccdsize) + tuple(shrange) + \
 			 	tuple(saccdsize)))
 		log.prNot(log.ERR, "calcShifts(): Warning, subfield position + subfield size + shift range bigger than subaperture!")
-
+	
 	# Call C library with the pre-processed parameters
 	ret = _libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, shrange, method, extremum, refmode, refopt)
+	
 	# Return reference apertures used if requested
 	if (refaps is not None):
 		refaps.extend(ret['refapts'])
+	
 	# Clip shifts
 	ret['shifts'] = N.clip(ret['shifts'], -shrange, shrange)
+	
 	# Give stats
 	log.prNot(log.NOTICE, "calcShifts(): average shift: (%g,%g)." % \
 	 	(tuple(ret['shifts'].reshape(-1,2).mean(0))))

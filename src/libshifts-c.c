@@ -1,7 +1,7 @@
 /**
 @file libshifts-c.c
 @brief Image shift measurement library for Shack-Hartmann wavefront sensors -- fast C version
-@author Tim van Werkhoven (tim@astrou.su.se)
+@author Tim van Werkhoven (tim@astro.su.se)
 @date 20090429
 
 * About
@@ -13,9 +13,25 @@ aimed at Shack-Hartmann wavefront sensor data.
 
 * Install
 
-Compile with
-gcc -ffast-math -O4 -c libshifts-c.c -I/sw/lib/python2.5/site-packages/numpy/core/include -I/sw/include/python2.5/ -Wall
-Link with
+Preferably, install this using the Python distutil setup process using 
+setup.py. If this fails or is undesirable for some reason, compile this module 
+manually:
+
+Compile with something like:
+
+   gcc -ffast-math -O4 -c libshifts-c.c \
+    -I/path/to/lib/python2.5/site-packages/numpy/core/include \
+    -I/path/to//include/python2.5/ -Wall
+
+Link with something like:
+
+   gcc -L/path/to/lib -shared libshifts-c.o -o _libshifts.so -Wall
+
+* Usage
+
+To use this module, refer to the wrapper Python module clibshifts.py. This 
+Python module takes care of some sanity checks such that the C library doesn't 
+segfault, buserror, core dump or whatever.
 
 Created by Tim van Werkhoven on 2009-04-29.
 Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
@@ -234,7 +250,7 @@ static PyObject *libshifts_calcshifts(PyObject *self, PyObject *args) {
 }
 
 //
-// Helper functions
+// Wrapper functions
 //
 
 int _calcshifts_float32(float32_t *image, int32_t stride, int32_t sapos[][2], int nsa, int32_t sasize[2], int32_t sfpos[][2], int nsf, int32_t sfsize[2], int32_t shran[2], int compmeth, int extmeth, int32_t *reflist, int32_t nref, float32_t **shifts) {
@@ -324,6 +340,10 @@ int _calcshifts_float32(float32_t *image, int32_t stride, int32_t sapos[][2], in
 	
 	return ret;
 }
+
+//
+// Worker thread function
+//
 
 void *_procsubaps_float32(void* args) {
 	// Re-cast argument to right type
@@ -442,6 +462,10 @@ void *_procsubaps_float32(void* args) {
 	return NULL;
 }
 
+//
+// Find reference subapertures
+//
+
 int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], int npos, int32_t sasize[2], int refmode, int refopt, int32_t **list, int32_t *nref) {
 #ifdef DEBUG
 	printf("_findrefidx_float32() im: 0x%p, pos: 0x%p, size: 0x%p.\n", image, sapos, sasize);
@@ -519,6 +543,10 @@ int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], in
 	return -1;
 }
 
+//
+// Interpolation functions
+//
+
 int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int32_t shran[2]) {
 	// Find maximum
 	float32_t max = diffmap[0], pix;
@@ -545,20 +573,6 @@ int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int3
 			return 1;
 	}
 	// Now interpolate around the maximum	
-	// float32_t a2 = 0.5 * (diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]] - \
-	// 	diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]]);
-	// float32_t a3 = 0.5 * diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]] - \
-	// 	diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]] + \
-	// 	0.5 * diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]];
-	// float32_t a4 = 0.5 * (diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]+1] -
-	// 	diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]-1]);
-	// float32_t a5 = 0.5 * diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]+1] -
-	// 	diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]] + \
-	// 	0.5 * diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]-1];
-	// float32_t a6 = 0.25 * (diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]+1] -\
-	// 	diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]-1] - \
-	// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]+1] + \
-	// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]-1]);
 	float32_t a2 = 0.5 * (diffmap[(maxidx[1]) * diffsize[0] + maxidx[0] + 1] - \
 		diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]-1]);
 	float32_t a3 = 0.5 * diffmap[(maxidx[1]) * diffsize[0] + maxidx[0] + 1] - \
@@ -576,27 +590,29 @@ int _9pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int3
 	
 	shvec[0] = maxidx[0] + (2.0*a2*a5-a4*a6)/(a6*a6-4.0*a3*a5);
 	shvec[1] = maxidx[1] + (2.0*a3*a4-a2*a6)/(a6*a6-4.0*a3*a5);
+#ifdef DEBUG
 	if (!(shvec[0] >= 0 && shvec[0] <= diffsize[0]) || !(shvec[1] >= 0 && shvec[1] <= diffsize[1])) {
 		printf("NAN: %g,%g (%d,%d). %g - %g - %g - %g - %g\n", 
 			shvec[0], shvec[1], maxidx[0], maxidx[1], a2, a3, a4, a5, a6);
-		// printf("a4: 0.5 * (%g - %g)\n", \
-		// 	diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
-		// 	diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]]);
-		// printf("a5: 0.5 * %g - %g + 0.5 * %g\n", \
-		// 	diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
-		// 	diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]], \
-		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]]);
-		// printf("a6: 0.25 * (%g - %g - %g + %g)\n", \
-		// 	diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]+1], \
-		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]+1], \
-		// 	diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]-1], \
-		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]-1]);
-		// printf("diff: %dx%d\n", diffsize[0], diffsize[1]);
-		// for (i=0; i<diffsize[0]*diffsize[1]; i++)
-		// 	printf("%g ", diffmap[i]);
-		// printf("\n");
+		printf("a4: 0.5 * (%g - %g)\n", \
+			diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
+			diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]]);
+		printf("a5: 0.5 * %g - %g + 0.5 * %g\n", \
+			diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
+			diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]], \
+			diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]]);
+		printf("a6: 0.25 * (%g - %g - %g + %g)\n", \
+			diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]+1], \
+			diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]+1], \
+			diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]-1], \
+			diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]-1]);
+		printf("diff: %dx%d\n", diffsize[0], diffsize[1]);
+		for (i=0; i<diffsize[0]*diffsize[1]; i++)
+			printf("%g ", diffmap[i]);
+		printf("\n");
 		return 2;
 	}
+#endif
 	return 0;
 }
 
@@ -639,29 +655,35 @@ int _5pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int3
 	
 	shvec[0] = maxidx[0] + (2.0*a2*a5)/(-4.0*a3*a5);
 	shvec[1] = maxidx[1] + (2.0*a3*a4)/(-4.0*a3*a5);
+#ifdef DEBUG
 	if (!(shvec[0] >= 0 && shvec[0] <= diffsize[0]) || !(shvec[1] >= 0 && shvec[1] <= diffsize[1])) {
 		printf("NAN: %g,%g (%d,%d). %g - %g - %g - %g\n", 
 			shvec[0], shvec[1], maxidx[0], maxidx[1], a2, a3, a4, a5);
-		// printf("a4: 0.5 * (%g - %g)\n", \
-		// 	diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
-		// 	diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]]);
-		// printf("a5: 0.5 * %g - %g + 0.5 * %g\n", \
-		// 	diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
-		// 	diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]], \
-		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]]);
-		// printf("a6: 0.25 * (%g - %g - %g + %g)\n", \
-		// 	diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]+1], \
-		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]+1], \
-		// 	diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]-1], \
-		// 	diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]-1]);
-		// printf("diff: %dx%d\n", diffsize[0], diffsize[1]);
-		// for (i=0; i<diffsize[0]*diffsize[1]; i++)
-		// 	printf("%g ", diffmap[i]);
-		// printf("\n");
+		printf("a4: 0.5 * (%g - %g)\n", \
+			diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
+			diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]]);
+		printf("a5: 0.5 * %g - %g + 0.5 * %g\n", \
+			diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]], \
+			diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]], \
+			diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]]);
+		printf("a6: 0.25 * (%g - %g - %g + %g)\n", \
+			diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]+1], \
+			diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]+1], \
+			diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]-1], \
+			diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]-1]);
+		printf("diff: %dx%d\n", diffsize[0], diffsize[1]);
+		for (i=0; i<diffsize[0]*diffsize[1]; i++)
+			printf("%g ", diffmap[i]);
+		printf("\n");
 		return 2;
 	}
+#endif
 	return 0;
 }
+
+//
+// Image comparison functions
+//
 
 int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
 	double tmpsum, diff;
@@ -741,9 +763,6 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 	int sh1min = -range[1] + pos[1];
 	int sh1max =  range[1] + pos[1];
 	
-	//printf("pos: %d-%d, range: %d-%d\n", pos[0], pos[1], range[0], range[1]);
-	//printf("sh0: %d-%d, sh1: %d-%d\n", sh0min, sh0max, sh1min, sh1max);
-	
 	// If bigref is 1, we expect that the reference is large enough to naively 
 	// shift img around.
 	int sh0, sh1, i, j;
@@ -758,8 +777,6 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 					for (i=0; i<imgsize[0]; i++) {
 						tmpsum += \
 							fabs(img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0]);
-							// was:
-							// fabsf(img[j*imstride + i] - ref[(j+sh0)*refstride + i+sh1]);
 					}
 				}
 				if (max == 0)
@@ -769,20 +786,10 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 					maxidx[0] = sh0-sh0min;
 					maxidx[1] = sh1-sh1min;
 				}
-				// printf("diffmap @ %d: %d,%d", 
-				// 	(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min), sh0, sh1);
 				diffmap[(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min)] = \
 				 	-(tmpsum*tmpsum);
-				//printf("(%d,%d) ", (sh0-sh0min), (sh1-sh1min));
 			}
 		}
-		// printf("max @ diffmap: %g - %d,%d\n", \
-		// 	max, maxidx[0], maxidx[1]);
-		// if ((sh0-sh0min) != 15 || (sh1-sh1min) != 15) {
-		// 	printf("error! %d,%d\n", (sh0-sh0min), (sh1-sh1min));
-		// 	printf("pos: (%d,%d), range: (%d,%d)\n", pos[0], pos[1], range[0], range[1]);
-		// 	exit(0);			
-		// }
 	}
 	// If bigref is zero, we use clipping of ref and img to only use the 
 	// intersection of the two datasets for comparison, using normalisation to 
