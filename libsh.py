@@ -360,7 +360,7 @@ def procStatShift(shifts):
 	@return An array of vectors which gives the offset for each subimage.
 	"""
 	
-	# First average over Nref
+	# First average over all Nref reference subapertures
 	s_ref = N.mean(shifts, axis=1)
 	# Now make sure the average *per frame* is zero
 	s_avgfr = N.mean(s_ref, axis=1)

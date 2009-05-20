@@ -59,7 +59,7 @@ http://creativecommons.org/licenses/by-sa/3.0/
 															// list to the 'refopt' parameter to specify
 															// which subaps should be used.
 
-#define NTHREADS 1            // Number of threads to work with
+#define NTHREADS 4            // Number of threads to work with
 
 //#define DEBUG               // Enable debug output
 

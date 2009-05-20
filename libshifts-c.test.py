@@ -53,10 +53,10 @@ def main(realdata='real'):
 		# Take whole image as reference
 		ref = crop.copy()
 		# List of shift vectors
-		shvec = N.array([[2,0], [0,2]])
+		#shvec = N.array([[2,0], [0,2]])
 		shx = N.arange(20.)/10.
 		shy = N.arange(5.)/5.
-		#shvec = N.array([ [i, y] for y in shx for i in shy ])
+		shvec = N.array([ [i, y] for y in shx for i in shy ])
 		imlist = []
 		# Shift images around, and downscale by a factor of 10
 		print "Shift vectors..."

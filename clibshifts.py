@@ -71,6 +71,8 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	# Return reference apertures used if requested
 	if (refaps is not None):
 		refaps.extend(ret['refapts'])
+	# Clip shifts
+	ret['shifts'] = N.clip(ret['shifts'], -shrange, shrange)
 	# Give stats
 	log.prNot(log.NOTICE, "calcShifts(): average shift: (%g,%g)." % \
 	 	(tuple(ret['shifts'].reshape(-1,2).mean(0))))
