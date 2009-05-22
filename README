@@ -24,6 +24,13 @@ will install this module to the default installation location. Running
 
 will start an interactive installation process.
 
+Usage
+=====
+
+Documentation of astooki-lib can be found in the docstrings of the respective 
+modules in astooki-lib. Also, most functions are documented. Alternatively, 
+one can use astooki-py, a command-line tool which utilizes the libraries.
+
 Version history
 ===============
 
