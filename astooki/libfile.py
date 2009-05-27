@@ -331,14 +331,15 @@ def restoreData(path):
 	
 	# Process meta-data first, remove from dict.
 	ret['path'] = meta.pop('path', os.path.dirname(os.path.realpath('.')))
-	ret['base'] = meta.pop('base', os.path.commonprefix(files_used)[:-1])
-	ret['base'] = os.path.basename(ret['base'])
-	if (len(ret['base']) < 4): 
-		log.prNot(log.WARNING, "restoreData(): Warning, base very short, adding timestamp.")
-		ret['base'] += str(int(time.time()))
 	# Re-insert in meta after sanitizing
-	meta['base'] = ret['base']
 	meta['path'] = ret['path']
+	### DEPRECATED:
+	#ret['base'] = meta.pop('base', os.path.commonprefix(files_used)[:-1])
+	#ret['base'] = os.path.basename(ret['base'])
+	# if (len(ret['base']) < 4): 
+	# 	log.prNot(log.WARNING, "restoreData(): Warning, base very short, adding timestamp.")
+	# 	ret['base'] += str(int(time.time()))
+	#meta['base'] = ret['base']
 	
 	return (ret, meta)
 
