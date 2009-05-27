@@ -310,10 +310,11 @@ def restoreData(path):
 	import cPickle as pickle
 	
 	meta = pickle.load(open(path))
+	if (os.path.isdir(meta['path'])): dpath = meta['path']
+	else: dpath = os.path.dirname(path)
 	
 	ret = {}
-	files_used = []
-		
+	#files_used = []
 	# Loop over the data IDs
 	for (did, dtype) in meta.items():
 		# Loop over the data types for each dataid
@@ -321,18 +322,16 @@ def restoreData(path):
 		for (dtype, dfile) in dtype.items():
 			# If the filetype is supported, load it
 			if (dtype in _FORMATS_LOAD): 
-				ret[did] = _FORMATS_LOAD_F[dtype](dfile)
-				files_used.append(dfile)
+				ret[did] = _FORMATS_LOAD_F[dtype](os.path.join(dpath, dfile))
+				#files_used.append(dfile)
 				# If we succesfully loaded the file using this datatype, skip the 
 				# other datatypes.
 				if (ret[did] is not False): continue
 			else:
 				ret[did] = None			
 	
-	# Process meta-data first, remove from dict.
-	ret['path'] = meta.pop('path', os.path.dirname(os.path.realpath('.')))
-	# Re-insert in meta after sanitizing
-	meta['path'] = ret['path']
+	# Fix path if it was wrong
+	meta['path'] = dpath
 	### DEPRECATED:
 	#ret['base'] = meta.pop('base', os.path.commonprefix(files_used)[:-1])
 	#ret['base'] = os.path.basename(ret['base'])
