@@ -79,7 +79,7 @@ PyMODINIT_FUNC init_libshifts(void) {
 //
 static PyObject *libshifts_calcshifts(PyObject *self, PyObject *args) {
 	// Python function arguments
-	PyArrayObject *image, *saccdpos, *saccdsize, *sfccdpos, *sfccdsize, *shrange;
+	PyArrayObject *image, *saccdpos, *saccdsize, *sfccdpos, *sfccdsize, *shrange, *corrmask;
 	// Optional arguments with default settings
 	int compmeth = COMPARE_SQDIFF, extmeth = EXTREMUM_2D9PTSQ;
 	int refmode = REF_BESTRMS, refopt=1;
@@ -93,13 +93,14 @@ static PyObject *libshifts_calcshifts(PyObject *self, PyObject *args) {
 	//
 	// Parse arguments from Python function
 	//
-	if (!PyArg_ParseTuple(args, "O!O!O!O!O!O!|iiii", 
+	if (!PyArg_ParseTuple(args, "O!O!O!O!O!O!O!|iiii", 
 		&PyArray_Type, &image, 								// Image data
 		&PyArray_Type, &saccdpos, 						// Subaperture positions
 		&PyArray_Type, &saccdsize, 						// SA size
 		&PyArray_Type, &sfccdpos, 						// Subfield positions
 		&PyArray_Type, &sfccdsize, 						// SF size
 		&PyArray_Type, &shrange, 							// Shift range
+		&PyArray_Type, &corrmask, 						// Correlation mask
 		&compmeth,														// Compmethod to use
 		&extmeth, 														// Interpolation method to use
 		&refmode,															// Subap reference mode
@@ -120,11 +121,12 @@ static PyObject *libshifts_calcshifts(PyObject *self, PyObject *args) {
 	 	PyArray_TYPE((PyObject *) saccdsize) != NPY_INT32 ||
 	 	PyArray_TYPE((PyObject *) sfccdpos) != NPY_INT32 || 
 		PyArray_TYPE((PyObject *) sfccdsize) != NPY_INT32 ||
+		PyArray_TYPE((PyObject *) corrmask) != NPY_INT32 ||
 		PyArray_TYPE((PyObject *) shrange) != NPY_INT32) {
 #ifdef DEBUG
-		printf("...: coordinates and ranges are not int32.\n");
+		printf("...: coordinates, ranges or masks are not int32.\n");
 #endif
-		PyErr_SetString(PyExc_ValueError, "In calcshifts: coordinates and ranges should be int32.");
+		PyErr_SetString(PyExc_ValueError, "In calcshifts: coordinates, ranges and masks should be int32.");
 		return NULL;
 		}
 	
@@ -194,18 +196,21 @@ static PyObject *libshifts_calcshifts(PyObject *self, PyObject *args) {
 #ifdef DEBUG
 			printf("...: Found type NPY_FLOAT32\n");
 #endif
+			// Convenience pointers
 			float32_t *im32 = (float32_t *) PyArray_DATA((PyObject *) image);
-			int32_t stride = PyArray_STRIDES((PyObject *) image)[0] / PyArray_ITEMSIZE((PyObject *) image);
+			int32_t imstride = PyArray_STRIDES((PyObject *) image)[0] / PyArray_ITEMSIZE((PyObject *) image);
+			int32_t *mask = (int32_t *) PyArray_DATA((PyObject *) corrmask);
+			int32_t maskstride = PyArray_STRIDES((PyObject *) corrmask)[0] / PyArray_ITEMSIZE((PyObject *) corrmask);
 			// First get the reference subapertures
 #ifdef DEBUG
 			printf("...: Calling _findrefidx_float32().\n");
 #endif
-			ret = _findrefidx_float32(im32, stride, sapos, nsa, sasize, refmode, refopt, &reflist, &nref);
+			ret = _findrefidx_float32(im32, imstride, sapos, nsa, sasize, refmode, refopt, &reflist, &nref);
 
 #ifdef DEBUG
 			printf("...: Calling _calcshifts_float32().\n");
 #endif
-			ret = _calcshifts_float32(im32, stride, sapos, nsa, sasize, sfpos, nsf, sfsize, shran, compmeth, extmeth, reflist, nref, &shifts);
+			ret = _calcshifts_float32(im32, imstride, mask, maskstride, sapos, nsa, sasize, sfpos, nsf, sfsize, shran, compmeth, extmeth, reflist, nref, &shifts);
 			break;
 		}
 		case (NPY_FLOAT64): {
@@ -253,7 +258,7 @@ static PyObject *libshifts_calcshifts(PyObject *self, PyObject *args) {
 // Wrapper functions
 //
 
-int _calcshifts_float32(float32_t *image, int32_t stride, int32_t sapos[][2], int nsa, int32_t sasize[2], int32_t sfpos[][2], int nsf, int32_t sfsize[2], int32_t shran[2], int compmeth, int extmeth, int32_t *reflist, int32_t nref, float32_t **shifts) {
+int _calcshifts_float32(float32_t *image, int32_t stride, int32_t *mask, int32_t maskstride, int32_t sapos[][2], int nsa, int32_t sasize[2], int32_t sfpos[][2], int nsf, int32_t sfsize[2], int32_t shran[2], int compmeth, int extmeth, int32_t *reflist, int32_t nref, float32_t **shifts) {
 #ifdef DEBUG
 	printf("_calcshifts_float32(): im: 0x%p\n", image);
 	printf("...: stride: %d, nsa: %d, nsf: %d, shran: %d,%d, nref: %d\n", stride, nsa, nsf, shran[0], shran[1], nref);
@@ -281,6 +286,8 @@ int _calcshifts_float32(float32_t *image, int32_t stride, int32_t sapos[][2], in
 	for (thr=0; thr<NTHREADS; thr++) {
 		thr_dat[thr].img = image;
 		thr_dat[thr].stride = stride;
+		thr_dat[thr].mask = mask;
+		thr_dat[thr].maskstride = maskstride;
 		thr_dat[thr].shifts = (*shifts);
 		thr_dat[thr].sapos = sapos;
 		thr_dat[thr].nsa = nsa;
@@ -368,6 +375,7 @@ void *_procsubaps_float32(void* args) {
 	//
 	// Loop over subapertures
 	//
+	
 	for (sa=dat->dosa[0]; sa<dat->dosa[1]; sa++) {
 #ifdef DEBUG
 		printf("...: parsing sa %d at (%d,%d).. ", sa, dat->sapos[sa][0], dat->sapos[sa][1]);
@@ -410,15 +418,15 @@ void *_procsubaps_float32(void* args) {
 			// Calculate correlation map
 			switch (dat->compmeth) {
 				case (COMPARE_ABSDIFFSQ): {
-					ret = _absdiffsq(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran, 1);
+					ret = _absdiffsq(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], dat->mask, dat->maskstride, diffmap, dat->sfpos[sf], dat->shran, 1);
 					break;
 				}
 				case (COMPARE_SQDIFF): {
-					ret = _sqdiff(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran, 1);
+					ret = _sqdiff(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], dat->mask, dat->maskstride, diffmap, dat->sfpos[sf], dat->shran, 1);
 					break;
 				}
 				case (COMPARE_XCORR): {
-					ret = _crosscorr(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], diffmap, dat->sfpos[sf], dat->shran, 1);
+					ret = _crosscorr(_subfield, dat->sfsize, dat->sasize[0], dat->ref, dat->sasize, dat->sasize[0], dat->mask, dat->maskstride, diffmap, dat->sfpos[sf], dat->shran, 1);
 					break;
 				}
 				default: {
@@ -685,7 +693,7 @@ int _5pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int3
 // Image comparison functions
 //
 
-int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
+int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, int32_t *mask, int32_t maskstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
 	double tmpsum, diff;
 	// Loop ranges
 	int sh0min = -range[0] + pos[0];
@@ -705,10 +713,13 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 				tmpsum = 0.0;
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
-						// First get the difference...
-						diff = img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0];
-						// ...then square this
-						tmpsum += diff*diff;
+						// Check the mask if we need to correlate this pixel
+						if (mask[j*maskstride + i] == 1) {
+							// First get the difference...
+							diff = img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0];
+							// ...then square this
+							tmpsum += diff*diff;
+						}
 					}
 				}
 				// Store the current correlation value in the map. Use
@@ -737,11 +748,14 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 				// Nimg[1] gives the second dimension of array 'img'
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
-						// First get the difference...
-						diff = img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0];
-						//diff = img(i,j) - ref(i+sh1,j+sh0);
-						// ...then square this
-						tmpsum += diff*diff;
+						// Check the mask if we need to correlate this pixel
+						if (mask[j*maskstride + i] == 1) {
+							// First get the difference...
+							diff = img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0];
+							//diff = img(i,j) - ref(i+sh1,j+sh0);
+							// ...then square this
+							tmpsum += diff*diff;
+						}
 					}
 				}
 				// Scale the value found by dividing it by the number of 
@@ -755,7 +769,7 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 	return 0;
 }
 
-int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
+int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, int32_t *mask, int32_t maskstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
 	double tmpsum;
 	// Loop ranges
 	int sh0min = -range[0] + pos[0];
@@ -775,8 +789,10 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				tmpsum = 0.0;
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
-						tmpsum += \
-							fabs(img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0]);
+						if (mask[j*maskstride + i] == 1) {
+							tmpsum += \
+								fabs(img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0]);
+						}
 					}
 				}
 				if (max == 0)
@@ -801,8 +817,10 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				tmpsum = 0.0;
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
-						tmpsum += \
-							fabsf(img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0]);
+						if (mask[j*maskstride + i] == 1) {
+							tmpsum += \
+								fabsf(img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0]);
+						}
 					}
 				}
 				// Scale the value found by dividing it by the number of 
@@ -816,7 +834,7 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 	return 0;
 }
 
-int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
+int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref, int32_t refsize[2], int32_t refstride, int32_t *mask, int32_t maskstride, float32_t *diffmap, int32_t pos[2], int32_t range[2], int bigref) {
 	double tmpsum;
 	// Loop ranges
 	int sh0min = -range[0] + pos[0];
@@ -834,7 +852,9 @@ int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				tmpsum = 0.0;
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
-						tmpsum += (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
+						if (mask[j*maskstride + i] == 1) {
+							tmpsum += (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
+						}
 					}
 				}
 				diffmap[(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min)] = tmpsum;
@@ -851,7 +871,9 @@ int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				tmpsum = 0.0;
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
-						tmpsum += (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
+						if (mask[j*maskstride + i] == 1) {
+							tmpsum += (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
+						}
 					}
 				}
 				// Scale the value found by dividing it by the number of 
