@@ -88,8 +88,10 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	if (refaps is not None):
 		refaps.extend(ret['refapts'])
 	
-	# Clip shifts
-	ret['shifts'] = N.clip(ret['shifts'], -shrange, shrange)
+	# Clip shifts. Use float32 shrange because otherwise shifts is
+	# upcasted to float64...
+	clrn = shrange.astype(N.float32)
+	ret['shifts'] = N.clip(ret['shifts'], -clrn, clrn)
 	
 	# Give stats
 	log.prNot(log.NOTICE, "calcShifts(): average shift: (%g,%g)." % \
