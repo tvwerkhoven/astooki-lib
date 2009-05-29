@@ -714,12 +714,12 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
 						// Check the mask if we need to correlate this pixel
-						if (mask[j*maskstride + i] == 1) {
+//						if (mask[j*maskstride + i] == 1) {
 							// First get the difference...
 							diff = img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0];
 							// ...then square this
-							tmpsum += diff*diff;
-						}
+						tmpsum += mask[j*maskstride + i]*diff*diff;
+//						}
 					}
 				}
 				// Store the current correlation value in the map. Use
@@ -749,13 +749,13 @@ int _sqdiff(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *ref
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
 						// Check the mask if we need to correlate this pixel
-						if (mask[j*maskstride + i] == 1) {
+//						if (mask[j*maskstride + i] == 1) {
 							// First get the difference...
 							diff = img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0];
 							//diff = img(i,j) - ref(i+sh1,j+sh0);
 							// ...then square this
-							tmpsum += diff*diff;
-						}
+							tmpsum += mask[j*maskstride + i]*diff*diff;
+//						}
 					}
 				}
 				// Scale the value found by dividing it by the number of 
@@ -789,19 +789,19 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				tmpsum = 0.0;
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
-						if (mask[j*maskstride + i] == 1) {
-							tmpsum += \
+//						if (mask[j*maskstride + i] == 1) {
+							tmpsum += mask[j*maskstride + i] *\
 								fabs(img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0]);
-						}
+//						}
 					}
 				}
-				if (max == 0)
-					max = -(tmpsum*tmpsum);
-				if (-(tmpsum*tmpsum) > max) {
-					max = -(tmpsum*tmpsum);
-					maxidx[0] = sh0-sh0min;
-					maxidx[1] = sh1-sh1min;
-				}
+				// if (max == 0)
+				// 	max = -(tmpsum*tmpsum);
+				// if (-(tmpsum*tmpsum) > max) {
+				// 	max = -(tmpsum*tmpsum);
+				// 	maxidx[0] = sh0-sh0min;
+				// 	maxidx[1] = sh1-sh1min;
+				// }
 				diffmap[(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min)] = \
 				 	-(tmpsum*tmpsum);
 			}
@@ -817,10 +817,10 @@ int _absdiffsq(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				tmpsum = 0.0;
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
-						if (mask[j*maskstride + i] == 1) {
-							tmpsum += \
+//						if (mask[j*maskstride + i] == 1) {
+							tmpsum += mask[j*maskstride + i] *\
 								fabsf(img[j*imstride + i] - ref[(j+sh1)*refstride + i+sh0]);
-						}
+//						}
 					}
 				}
 				// Scale the value found by dividing it by the number of 
@@ -852,9 +852,11 @@ int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				tmpsum = 0.0;
 				for (j=0; j<imgsize[1]; j++) {
 					for (i=0; i<imgsize[0]; i++) {
-						if (mask[j*maskstride + i] == 1) {
-							tmpsum += (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
-						}
+//						if (mask[j*maskstride + i] == 1) {
+							tmpsum += mask[j*maskstride + i] * \
+								(img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * \
+								(img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
+//						}
 					}
 				}
 				diffmap[(sh1-sh1min) * (range[0]*2+1) + (sh0-sh0min)] = tmpsum;
@@ -871,9 +873,11 @@ int _crosscorr(float32_t *img, int32_t imgsize[2], int32_t imstride, float32_t *
 				tmpsum = 0.0;
 				for (j=0 - min(sh0, 0); j<imgsize[1] - max(sh0, 0); j++){
 					for (i=0 - min(sh1, 0); i<imgsize[0] - max(sh1, 0); i++) {
-						if (mask[j*maskstride + i] == 1) {
-							tmpsum += (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * (img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
-						}
+//						if (mask[j*maskstride + i] == 1) {
+							tmpsum += mask[j*maskstride + i] * \
+								(img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]) * \
+								(img[j*imstride + i] * ref[(j+sh1)*refstride + i+sh0]);
+//						}
 					}
 				}
 				// Scale the value found by dividing it by the number of 

@@ -45,7 +45,6 @@ REF_STATIC = 1						# Use static reference subapertures, pass a
 
 # Mask the subimage and reference image before correlating
 MASK_CIRC = 1							# Use a circular mask
-MASK_CIRCTINY = 2					# Use a tiny circular mask (half the radius)
 
 ## Wrapper for _libshifts.calcShifts
 def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABSDIFFSQ, extremum=EXTREMUM_2D9PTSQ, refmode=REF_BESTRMS, refopt=1, shrange=[3,3], mask=None, refaps=None, subfields=None, corrmaps=None):
@@ -77,10 +76,6 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 		log.prNot(log.NOTICE, "calcShifts(): Using a circular mask.")
 		maskc = N.indices(sfccdsize) - ((sfccdsize-1)/2.).reshape(2,1,1)
 		mask = (N.sum(maskc**2.0, 0) < (sfccdsize[0]/2.0)**2.0).astype(N.int32)
-	if (mask == MASK_CIRCTINY):
-		log.prNot(log.NOTICE, "calcShifts(): Using a tiny circular mask.")
-		maskc = N.indices(sfccdsize) - ((sfccdsize-1)/2.).reshape(2,1,1)
-		mask = (N.sum(maskc**2.0, 0) < (sfccdsize[0]/4.0)**2.0).astype(N.int32)
 	elif (mask):
 		log.prNot(log.ERR, "calcShifts(): Error, unknown mask!")
 	else:
@@ -89,7 +84,6 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 		
 	# Call C library with the pre-processed parameters
 	ret = _libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, shrange, mask, method, extremum, refmode, refopt)
-	
 	# Return reference apertures used if requested
 	if (refaps is not None):
 		refaps.extend(ret['refapts'])
