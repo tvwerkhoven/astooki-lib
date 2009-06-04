@@ -503,16 +503,18 @@ int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], in
 			rmslist[sa] = 0;
 			double mean=0;
 			// Calculate mean
-			for (j=0; j<sasize[1]; j++)
-				for (i=0; i<sasize[0]; i++)
+			// ONLY USE THE CENTRAL 50% OF THE SUBAP!
+			for (j=sasize[1]/4; j<3*sasize[1]/4; j++)
+				for (i=sasize[0]/4; i<3*sasize[0]/4; i++)
 					mean += image[(sapos[sa][1] + j) * stride + sapos[sa][0] + i];
-			mean /= (sasize[0] * sasize[1]);
-			for (j=0; j<sasize[1]; j++) {
-				for (i=0; i<sasize[0]; i++) {
+			mean /= ((sasize[0]/2) * (sasize[1]/2));
+			for (j=sasize[1]/4; j<3*sasize[1]/4; j++)
+				for (i=sasize[0]/4; i<3*sasize[0]/4; i++)
 					rmslist[sa] += pow(image[(sapos[sa][1] + j) * stride + sapos[sa][0] + i] - mean, 2.0);
 				}
 			}
-			rmslist[sa] = 100.0*pow(rmslist[sa]/(sasize[0]*sasize[1]), 0.5)/mean;
+			rmslist[sa] = 100.0*pow(rmslist[sa]/((sasize[0]/2) * (sasize[1]/2)), \
+			 	0.5)/mean;
 			rmslists[sa] = rmslist[sa];
 #ifdef DEBUG
 			printf(" rms is: %g\n", rmslist[sa]);
