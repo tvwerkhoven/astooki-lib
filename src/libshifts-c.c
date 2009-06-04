@@ -511,8 +511,7 @@ int _findrefidx_float32(float32_t *image, int32_t stride, int32_t sapos[][2], in
 			for (j=sasize[1]/4; j<3*sasize[1]/4; j++)
 				for (i=sasize[0]/4; i<3*sasize[0]/4; i++)
 					rmslist[sa] += pow(image[(sapos[sa][1] + j) * stride + sapos[sa][0] + i] - mean, 2.0);
-				}
-			}
+
 			rmslist[sa] = 100.0*pow(rmslist[sa]/((sasize[0]/2) * (sasize[1]/2)), \
 			 	0.5)/mean;
 			rmslists[sa] = rmslist[sa];
