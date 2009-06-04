@@ -229,8 +229,8 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 	# Expand path
 	path = os.path.realpath(path)
 	
-	log.prNot(log.INFO, "saveData(): file '%s', npy: %d pickle: %d, csv: %d" %\
-		(os.path.basename(path), asnpy, aspickle, ascsv))
+	log.prNot(log.INFO, "saveData(): file '%s', fits: %d, npy: %d, pickle: %d, csv: %d" %\
+		(os.path.basename(path), asfits, asnpy, aspickle, ascsv))
 	
 	# Make dir if necessary
 	outdir = os.path.dirname(path)
