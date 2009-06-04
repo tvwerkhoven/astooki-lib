@@ -310,8 +310,10 @@ def restoreData(path):
 	import cPickle as pickle
 	
 	meta = pickle.load(open(path))
-	if (os.path.isdir(meta['path'])): dpath = meta['path']
-	else: dpath = os.path.dirname(path)
+	if (meta.has_key('path') and os.path.isdir(meta['path'])):
+		dpath = meta['path']
+	else: 
+		dpath = os.path.dirname(path)
 	
 	ret = {}
 	#files_used = []
