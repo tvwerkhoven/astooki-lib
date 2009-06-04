@@ -73,13 +73,13 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	
 	# Check if we need a mask
 	if (mask == MASK_CIRC):
-		log.prNot(log.NOTICE, "calcShifts(): Using a circular mask.")
+		#log.prNot(log.NOTICE, "calcShifts(): Using a circular mask.")
 		maskc = N.indices(sfccdsize) - ((sfccdsize-1)/2.).reshape(2,1,1)
 		mask = (N.sum(maskc**2.0, 0) < (sfccdsize[0]/2.0)**2.0).astype(N.int32)
 	elif (mask):
 		log.prNot(log.ERR, "calcShifts(): Error, unknown mask!")
 	else:
-		log.prNot(log.NOTICE, "calcShifts(): Not masking.")
+		#log.prNot(log.NOTICE, "calcShifts(): Not masking.")
 		mask = N.ones(sfccdsize, dtype=N.int32)
 		
 	# Call C library with the pre-processed parameters
@@ -94,9 +94,11 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 	ret['shifts'] = N.clip(ret['shifts'], -clrn, clrn)
 	
 	# Give stats
-	log.prNot(log.NOTICE, "calcShifts(): average shift: (%g,%g)." % \
-	 	(tuple(ret['shifts'].reshape(-1,2).mean(0))))
-	log.prNot(log.NOTICE, "calcShifts(): shift clipped: %d/%d, %g%%." % \
+	log.prNot(log.NOTICE, "calcShifts(): shift: (%g,%g) +- (%g,%g)." % \
+	 	(tuple(ret['shifts'].reshape(-1,2).mean(0)) + \
+	 	tuple(ret['shifts'].reshape(-1,2).std(0))) )
+	log.prNot(log.NOTICE, "calcShifts(): refaps used: %s" % str(ret['refapts']))
+	log.prNot(log.NOTICE, "calcShifts(): clipped: %d/%d, %g%%." % \
 	 	(N.sum(abs(ret['shifts']) >= shrange), ret['shifts'].size, \
 	 	100*N.sum(abs(ret['shifts']) >= shrange)/ret['shifts'].size) )
 	
