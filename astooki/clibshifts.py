@@ -65,42 +65,41 @@ def calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, method=COMPARE_ABS
 		log.prNot(log.NOTICE, "%d,%d - %d,%d < 0,0" % \
 			(tuple(N.min(sfccdpos, 0)) + tuple(shrange)))
 		log.prNot(log.ERR, "calcShifts(): Error, subfield position - shift range smaller than 0!")
+	
 	if (N.max(sfccdpos, 0) + sfccdsize + shrange > saccdsize).any():
 		log.prNot(log.NOTICE, "%d,%d + %d,%d + %d,%d > %d,%d" % \
 			(tuple(N.max(sfccdpos, 0)) + tuple(sfccdsize) + tuple(shrange) + \
 			 	tuple(saccdsize)))
 		log.prNot(log.ERR, "calcShifts(): Error, subfield position + subfield size + shift range bigger than subaperture!")
 	
-	# Check if we need a mask
+	# Check & setup a mask if we need it ("circular" or "none")
 	if (mask == MASK_CIRC):
-		#log.prNot(log.NOTICE, "calcShifts(): Using a circular mask.")
 		maskc = N.indices(sfccdsize) - ((sfccdsize-1)/2.).reshape(2,1,1)
 		mask = (N.sum(maskc**2.0, 0) < (sfccdsize[0]/2.0)**2.0).astype(N.int32)
 	elif (mask):
 		log.prNot(log.ERR, "calcShifts(): Error, unknown mask!")
 	else:
-		#log.prNot(log.NOTICE, "calcShifts(): Not masking.")
 		mask = N.ones(sfccdsize, dtype=N.int32)
 		
 	# Call C library with the pre-processed parameters
 	ret = _libshifts.calcShifts(img, saccdpos, saccdsize, sfccdpos, sfccdsize, shrange, mask, method, extremum, refmode, refopt)
+	
 	# Return reference apertures used if requested
 	if (refaps is not None):
 		refaps.extend(ret['refapts'])
 	
-	# Clip shifts. Use float32 shrange because otherwise shifts is
-	# upcasted to float64...
+	# Clip shifts, use float32 shrange, otherwise shifts is upcasted to float64.
 	clrn = shrange.astype(N.float32)
 	ret['shifts'] = N.clip(ret['shifts'], -clrn, clrn)
 	
-	# Give stats
-	log.prNot(log.NOTICE, "calcShifts(): shift: (%g,%g) +- (%g,%g)." % \
+	# Give stats on the shifts just calculated
+	log.prNot(log.INFO, "calcShifts(): shift: (%g,%g) +- (%g,%g)." % \
 	 	(tuple(ret['shifts'].reshape(-1,2).mean(0)) + \
 	 	tuple(ret['shifts'].reshape(-1,2).std(0))) )
-	log.prNot(log.NOTICE, "calcShifts(): refaps used: %s" % str(ret['refapts']))
-	log.prNot(log.NOTICE, "calcShifts(): clipped: %d/%d, %g%%." % \
+	log.prNot(log.INFO, "calcShifts(): clipped: %d/%d, %g%%, refaps used: %s" %\
 	 	(N.sum(abs(ret['shifts']) >= shrange), ret['shifts'].size, \
-	 	100*N.sum(abs(ret['shifts']) >= shrange)/ret['shifts'].size) )
+	 	100*N.sum(abs(ret['shifts']) >= shrange)/ret['shifts'].size, \
+		str(ret['refapts'])) )
 	
 	# Return shifts
 	return ret['shifts']
