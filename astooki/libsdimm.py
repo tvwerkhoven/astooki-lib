@@ -141,8 +141,8 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 	log.prNot(log.INFO, "Got s values: %s" % str(slist))
 	log.prNot(log.INFO, "Got a values: %s" % str(alist))
 	
-	# Allocate memory (mean shift (2), difference shift (2), multiplicity (1))
-	sd_rc = N.zeros((2+2+6+1, len(slist), len(alist)))
+	# Allocate memory (mean shift (2), error analysis (2+2), multiplicity (1))
+	sd_rc = N.zeros((2+2+2+4+1, len(slist), len(alist)))
 	
 	if row:
 		sarows = N.unique(sapos[:,1])
@@ -169,10 +169,10 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 					# Pre-calculate difference
 					dx = shifts_a[:, rowsa1, :, :] - shifts_a[:, rowsa2, :, :]
 					dx_d = shifts_d[:, rowsa1, :, :] - shifts_d[:, rowsa2, :, :]
-					#dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
+					dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
 					# Loop over all subfield rows (do this in C)
 					code = """
-					#line 195 "libsdimm.py"
+					#line 175 "libsdimm.py"
 					#define NQUANT 5
 					#define NCOV (NQUANT*2)
 					int sfrow, rowsf2, rowsf1, fr, aidx, i, r;
@@ -236,45 +236,25 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 									cov[3].y += dx_d(fr,rowsf2,1);
 									
 									// CROSS-TALK ANALYSIS: ////////////////////////////////////
-									// COV( x1(0)-x2(0), x1(a) + x2(a))
-									cov[4].p += dx_d(fr,rowsf1,0) * dx(fr,rowsf2,0);
-									cov[4].x += dx_d(fr,rowsf1,0);
-									cov[4].y += dx(fr,rowsf2,0);
+									// COV( x1(0) + x2(0), y1(a) + y2(a))
+									cov[4].p += dx(fr,rowsf1,0) * dx(fr,rowsf2,1);
+									cov[4].x += dx(fr,rowsf1,0);
+									cov[4].y += dx(fr,rowsf2,1);
 									
-									// COV( y1(0)-y2(0), y1(a) + y2(a))
-									cov[5].p += dx_d(fr,rowsf1,1) * dx(fr,rowsf2,1);
-									cov[5].x += dx_d(fr,rowsf1,1);
-									cov[5].y += dx(fr,rowsf2,1);
-									
-									// COV( x1(0)-x2(0), y1(a) + y2(a))
-									cov[6].p += dx_d(fr,rowsf1,0) * dx(fr,rowsf2,1);
-									cov[6].x += dx_d(fr,rowsf1,0);
-									cov[6].y += dx(fr,rowsf2,1);
-									
-									// COV( y1(0)-y2(0), x1(a) + x2(a))
-									cov[7].p += dx_d(fr,rowsf1,1) * dx(fr,rowsf2,0);
-									cov[7].x += dx_d(fr,rowsf1,1);
-									cov[7].y += dx(fr,rowsf2,0);
-									
-									// COV( x1(0)-x2(0), y1(a) - y2(a))
-									cov[8].p += dx_d(fr,rowsf1,0) * dx_d(fr,rowsf2,1);
-									cov[8].x += dx_d(fr,rowsf1,0);
-									cov[8].y += dx_d(fr,rowsf2,1);
-									
-									// COV( y1(0)-y2(0), x1(a) - x2(a))
-									cov[9].p += dx_d(fr,rowsf1,1) * dx_d(fr,rowsf2,0);
-									cov[9].x += dx_d(fr,rowsf1,1);
-									cov[9].y += dx_d(fr,rowsf2,0);
+									// COV( y1(0) + y2(0), x1(a) + x2(a))
+									cov[5].p += dx(fr,rowsf1,1) * dx(fr,rowsf2,0);
+									cov[5].x += dx(fr,rowsf1,1);
+									cov[5].y += dx(fr,rowsf2,0);
 									
 									// Covariance for different references
-									// for (r=0; r<Ndx_r[1]*2; r += 2) {
-									// 	cov[r+4].p += dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0);
-									// 	cov[r+4].x += dx_r(fr,r,rowsf1,0);
-									// 	cov[r+4].y += dx_r(fr,r,rowsf2,0);
-									// 	cov[r+5].p += dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
-									// 	cov[r+5].x += dx_r(fr,r,rowsf1,1);
-									// 	cov[r+5].y += dx_r(fr,r,rowsf2,1);
-									// }
+									for (r=0; r<Ndx_r[1]*2; r += 2) {
+										cov[r+6].p += dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0);
+										cov[r+6].x += dx_r(fr,r,rowsf1,0);
+										cov[r+6].y += dx_r(fr,r,rowsf2,0);
+										cov[r+7].p += dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
+										cov[r+7].x += dx_r(fr,r,rowsf1,1);
+										cov[r+7].y += dx_r(fr,r,rowsf2,1);
+									}
 								}
 								
 								// Normalize values and calculate covariance
@@ -295,7 +275,8 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 					return_val = 1;
 					"""
 					one = S.weave.inline(code, \
-						['sd_rc', 'sidx', 'sfrows', 'sfpos', 'alist', 'dx', 'dx_d'], \
+						['sd_rc', 'sidx', 'sfrows', 'sfpos', 'alist', 'dx', 'dx_d', 
+						'dx_r'], \
 						extra_compile_args= [__COMPILE_OPTS], \
 						type_converters=S.weave.converters.blitz)
 		# Normalize the covariance map
