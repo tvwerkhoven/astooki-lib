@@ -13,7 +13,7 @@ import numpy as N
 import astooki.liblog as log
 
 # Compilation flags
-__COMPILE_OPTS = "-O3 -ffast-math -msse -msse2"
+__COMPILE_OPTS = "-Wall -O3 -ffast-math -msse -msse2"
 
 def computeSdimmCov(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 	"""
@@ -160,8 +160,6 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 				othersa = salist[sapos[salist,0] >= sapos[rowsa1,0]]
 				for rowsa2 in othersa:
 					#if (rowsa == refsa): continue
-					log.prNot(log.NOTICE, "ROW: Comparing subap %d with subap %d." % \
-						(rowsa1, rowsa2))
 					# Calculate the distance between these two subaps
 					# FIXME: Need to round off 's' values because we get numerical errors
 					s = N.round(sapos[rowsa2, 0] - sapos[rowsa1, 0], 7)
@@ -170,6 +168,8 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 					dx = shifts_a[:, rowsa1, :, :] - shifts_a[:, rowsa2, :, :]
 					dx_d = shifts_d[:, rowsa1, :, :] - shifts_d[:, rowsa2, :, :]
 					dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
+					log.prNot(log.NOTICE, "ROW: Comparing subap %d with subap %d." % \
+						(rowsa1, rowsa2))
 					# Loop over all subfield rows (do this in C)
 					code = """
 					#line 175 "libsdimm.py"
@@ -200,6 +200,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 								for (aidx=0; aidx < Nalist[0]; aidx++)
 									if (alist(aidx) == a) break;
 								
+								//printf("inner loop now\\n");
 								// Now calculate the covariance between:
 								// dx[:,rowsf1,0] and dx[:,rowsf2,0],
 								// dx[:,rowsf1,1] and dx[:,rowsf2,1]
@@ -215,45 +216,46 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 								for (fr=0; fr<Ndx[0]; fr++) {
 									// SDIMM COVARIANCE OF DATA: ///////////////////////////////
 									// Longitidinal covariance for mean over references
-									cov[0].p += dx(fr,rowsf1,0) * dx(fr,rowsf2,0);
-									cov[0].x += dx(fr,rowsf1,0);
-									cov[0].y += dx(fr,rowsf2,0);
-									
-									// Transversal covariance for mean over references
-									cov[1].p += dx(fr,rowsf1,1) * dx(fr,rowsf2,1);
-									cov[1].x += dx(fr,rowsf1,1);
-									cov[1].y += dx(fr,rowsf2,1);
-									
-									// NOISE PROPAGATION ANALYSIS: /////////////////////////////	
-									// Longitidinal covariance for *difference* over references
-									cov[2].p += dx_d(fr,rowsf1,0) * dx_d(fr,rowsf2,0);
-									cov[2].x += dx_d(fr,rowsf1,0);
-									cov[2].y += dx_d(fr,rowsf2,0);
-									
-									// Transversal covariance for *difference* over references
-									cov[3].p += dx_d(fr,rowsf1,1) * dx_d(fr,rowsf2,1);
-									cov[3].x += dx_d(fr,rowsf1,1);
-									cov[3].y += dx_d(fr,rowsf2,1);
-									
-									// CROSS-TALK ANALYSIS: ////////////////////////////////////
-									// COV( x1(0) + x2(0), y1(a) + y2(a))
-									cov[4].p += dx(fr,rowsf1,0) * dx(fr,rowsf2,1);
-									cov[4].x += dx(fr,rowsf1,0);
-									cov[4].y += dx(fr,rowsf2,1);
-									
-									// COV( y1(0) + y2(0), x1(a) + x2(a))
-									cov[5].p += dx(fr,rowsf1,1) * dx(fr,rowsf2,0);
-									cov[5].x += dx(fr,rowsf1,1);
-									cov[5].y += dx(fr,rowsf2,0);
+									//cov[0].p += dx(fr,rowsf1,0) * dx(fr,rowsf2,0);
+									//cov[0].x += dx(fr,rowsf1,0);
+									//cov[0].y += dx(fr,rowsf2,0);
+									//
+									//// Transversal covariance for mean over references
+									//cov[1].p += dx(fr,rowsf1,1) * dx(fr,rowsf2,1);
+									//cov[1].x += dx(fr,rowsf1,1);
+									//cov[1].y += dx(fr,rowsf2,1);
+									//
+									//// NOISE PROPAGATION ANALYSIS: /////////////////////////////	
+									//// Longitidinal covariance for *difference* over references
+									//cov[2].p += dx_d(fr,rowsf1,0) * dx_d(fr,rowsf2,0);
+									//cov[2].x += dx_d(fr,rowsf1,0);
+									//cov[2].y += dx_d(fr,rowsf2,0);
+									//
+									//// Transversal covariance for *difference* over references
+									//cov[3].p += dx_d(fr,rowsf1,1) * dx_d(fr,rowsf2,1);
+									//cov[3].x += dx_d(fr,rowsf1,1);
+									//cov[3].y += dx_d(fr,rowsf2,1);
+									//
+									//// CROSS-TALK ANALYSIS: ////////////////////////////////////
+									//// COV( x1(0) + x2(0), y1(a) + y2(a))
+									//cov[4].p += dx(fr,rowsf1,0) * dx(fr,rowsf2,1);
+									//cov[4].x += dx(fr,rowsf1,0);
+									//cov[4].y += dx(fr,rowsf2,1);
+									//
+									//// COV( y1(0) + y2(0), x1(a) + x2(a))
+									//cov[5].p += dx(fr,rowsf1,1) * dx(fr,rowsf2,0);
+									//cov[5].x += dx(fr,rowsf1,1);
+									//cov[5].y += dx(fr,rowsf2,0);
 									
 									// Covariance for different references
-									for (r=0; r<Ndx_r[1]*2; r += 2) {
-										cov[r+6].p += dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0);
-										cov[r+6].x += dx_r(fr,r,rowsf1,0);
-										cov[r+6].y += dx_r(fr,r,rowsf2,0);
-										cov[r+7].p += dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
-										cov[r+7].x += dx_r(fr,r,rowsf1,1);
-										cov[r+7].y += dx_r(fr,r,rowsf2,1);
+									for (r=0; r<1; r++) {
+									//for (r=0; r<Ndx_r[1]; r++) {
+										cov[2*r+6].p += dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0);
+										cov[2*r+6].x += dx_r(fr,r,rowsf1,0);
+										cov[2*r+6].y += dx_r(fr,r,rowsf2,0);
+								    cov[2*r+7].p += dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
+								    cov[2*r+7].x += dx_r(fr,r,rowsf1,1);
+								    cov[2*r+7].y += dx_r(fr,r,rowsf2,1);									
 									}
 								}
 								
@@ -284,6 +286,189 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 	
 	if col:
 		log.prNot(log.WARNING, "Column-wise comparison not implemented.")
+	
+	return (slist, alist, sd_rc)
+
+
+def computeSdimmCovWeave2(shfiles, sapos, sfpos, path='./', skipsa=[], row=True, col=False):
+	"""
+	Compute the SDIMM+ covariance maps which can consequently be used to compute 
+	the atmospheric seeing structure using inversion techniques. The methods we
+	use here is described in the paper Scharmer & van Werkhoven and is based on 
+	DIMM as described by Sarazin and Roddier.
+	
+	This is the optimized weave version of computeSdimmCov(), and reads in the 
+	shifts per file instead of as one big file.
+	
+	@param [in] shfiles Array of filenames to read and process
+	@param [in] sapos The centroid subaperture centroid positions
+	@param [in] sfpos The centroid subfield positions
+	@param [in] path Path for 'shfiles' if not the current working dir
+	@param [in] skipsa List of subapertures to skip
+	@param [in] row Use row-wise comparison of subapertures
+	@param [in] col Use column-wise comparison of subapertures
+	"""
+	
+	import scipy as S
+	import scipy.weave				# For inlining C
+	
+	# Get the different values of s and a we have to work on:
+	slist = getDist(sapos, skip=skipsa, row=row, col=col)
+	alist = getDist(sfpos, skip=[], row=row, col=col)
+	
+	# Get unique values
+	slist = N.unique(N.round(slist, 7))
+	alist = N.unique(alist)
+	log.prNot(log.INFO, "Got s values: %s" % str(slist))
+	log.prNot(log.INFO, "Got a values: %s" % str(alist))
+	
+	# Allocate memory for covariance map
+	# (mean shift (2), error analysis (2+2), individual references (4)
+	# multiplicity (1))
+	sd_rc = N.zeros((2+2+2+4+1, len(slist), len(alist), 3))
+	
+	# Subap/subfield row positions
+	sarows = N.unique(sapos[:,1])
+	sarowlist = []
+	for sarowpos in sarows:
+		# Get a list of all subapertures at this row (i.e. same y coordinate)
+		salist = N.argwhere(sapos[:,1] == sarowpos).flatten()
+		# Exclude bad subaps
+		salist = N.lib.arraysetops.setdiff1d(salist, skipsa)
+		sarowlist.append([salist[0], salist[-1]])
+	sarowlist = N.array(sarowlist)
+	sfrows = N.unique(sfpos[:,1])
+	
+	for f in shfiles:
+		# Load shifts from file
+		log.prNot(log.INFO, "Processing file %s now." % (f))
+		sh = N.load(f)
+		print sarows.shape, sfrows.shape
+		# Loop over:
+		# - All rows of subaps
+		# - All subap-pairs in each row
+		# - All rows of subfields
+		# - All subfield-pairs in each row
+		
+		# # Get unique SA row positions
+		# sarows = N.unique(sapos[:,1])
+		# # Get unique SF row positions
+		# sfrows = N.unique(sfpos[:,1])		
+		# # Loop over all subaperture rows
+		# for sarowpos in sarows:
+		# 	# Get a list of all subapertures at this row (i.e. same y coordinate)
+		# 	salist = N.argwhere(sapos[:,1] == sarowpos).flatten()
+		# 	# Exclude bad subaps
+		# 	salist = N.lib.arraysetops.setdiff1d(salist, skipsa)
+		# 	# Take a reference subaperture in this row (the one on the left)
+		# 	#refsa = salist[N.argmin(sapos[salist][:,0])]
+		# 	# Loop over all subapertures in this row
+		# 	for rowsa1 in salist:
+		# 		othersa = salist[sapos[salist,0] >= sapos[rowsa1,0]]
+		# 		for rowsa2 in othersa:
+		# 			#if (rowsa == refsa): continue
+		# 			log.prNot(log.NOTICE, "ROW: Comparing subap %d with subap %d." % \
+		# 				(rowsa1, rowsa2))
+		# 			# Calculate the distance between these two subaps
+		# 			s = sapos[rowsa2, 0] - sapos[rowsa1, 0]
+		# 			# s = sapos[rowsa, 0] - sapos[refsa, 0]
+		# 			# Pre-calculate difference
+		# 			# Loop over all subfield rows
+		# 			for sfrowpos in sfrows:
+		# 				# Get a list of all subfields at this row (i.e. same y coordinate)
+		# 				sflist = N.argwhere(sfpos[:,1] == sfrowpos).flatten()
+		# 				# Take a reference subaperture in this row (the one on the left)
+		# 				#rowsf = refsf = sflist[N.argmin(sfpos[sflist][:,0])]
+		# 				# Loop over all subfields in this row
+		# 				for rowsf1 in sflist:
+		# 					othersf = sflist[sfpos[sflist,0] >= \
+		# 					 	sfpos[rowsf1,0]]
+		# 					# Loop over all other subfields
+		# 					for rowsf2 in othersf:
+		# 						a = sfpos[rowsf2, 0] - sfpos[rowsf1, 0]
+		# 						#dx_s0 = shifts_a[:, rowsa1, rowsf1, :] - \
+		# 						#	shifts_a[:, rowsa2, rowsf1, :]
+		# 						#dx_s02 = dx[:,rowsf1]
+		# 						#dx_sa = shifts_a[:, rowsa1, rowsf2, :] - \
+		# 						#	shifts_a[:, rowsa2, rowsf2, :]
+		# 						#dx_sa2 = dx[:,rowsf2]
+		# 						#print (dx_s02 - dx_s0).sum(), (dx_sa2 - dx_sa).sum()
+		# 						# C_lsa = (N.cov(dx_s0[:,0], dx_sa[:,0]))[0,1]
+		# 						# C_tsa = (N.cov(dx_s0[:,1], dx_sa[:,1]))[0,1]
+		
+		code = """
+		#line 354 "libsdimm.py"
+		int sarow, rowsa1, rowsa2, sfrow, rowsf1, rowsf2;
+		int aidx=0, sidx=0, ntot=0;
+		double a, s;
+		
+		//printf("diagnostics: a=%d, s=%d\\n", Nalist[0], Nslist[0]);
+		// SUBAPERTURE LOOP //////////////////////////////////////////////////////
+			for (rowsa1=0; rowsa1 < Nsapos[0]; rowsa1++) {
+				for (rowsa2=rowsa1; rowsa2 < Nsapos[0]; rowsa2++) {
+					if (sapos(rowsa2, 1) != sapos(rowsa1, 1)) break;
+					//if (sapos(rowsa2, 0) < sapos(rowsa1, 0)) continue;
+					
+					s = roundf((sapos(rowsa2, 0) - sapos(rowsa1, 0)) * \\
+						10000000)/10000000;
+					// Find index where to put this covariance value
+					for (sidx=0; sidx < Nslist[0]; sidx++)
+						if (slist(sidx) == s) break;
+					
+					//for (; ; ) {
+					//	if (sidx >= Nslist[0]) sidx=0;
+					//	if (slist(sidx) == s) break;
+					//	sidx++;
+					//}					
+					for (rowsf1=0; rowsf1 < Nsfpos[0]; rowsf1++) {
+						for (rowsf2=rowsf1; rowsf2 < Nsfpos[0]; rowsf2++) {
+							if (sfpos(rowsf2, 1) != sfpos(rowsf1, 1)) continue;
+							if (sfpos(rowsf2, 0) < sfpos(rowsf1, 0)) continue;
+							
+							a = sfpos(rowsf2, 0) - sfpos(rowsf1, 0);
+							for (; ; ) {
+								if (aidx >= Nalist[0]) aidx=0;
+								if (alist(aidx) == a) break;
+								aidx++;
+							}
+							//fprintf(stderr, "%d/%d ", aidx, Nalist[0]);
+								
+								//exit(-1);
+								
+								if (alist(aidx) != a) printf("FAIL\\n");
+								
+								ntot++;
+								// Now calculate cov map
+								// Longitidinal covariance for references 0
+								//sd_rc(0, sidx, aidx, 1) += sh(0, rowsa1, rowsf1, 0) - \\
+								//	sh(0, rowsa2, rowsf1, 0);
+								//sd_rc(0, sidx, aidx, 2) += sh(0, rowsa1, rowsf2, 0) - \\
+								//	sh(0, rowsa2, rowsf2, 0);
+								//sd_rc(0, sidx, aidx, 0) += sd_rc(0, sidx, aidx, 1) * \\
+								//	sd_rc(0, sidx, aidx, 2);
+								//
+								//// Transversal covariance for references 0
+								//sd_rc(1, sidx, aidx, 1) += sh(0, rowsa1, rowsf1, 1) - \\
+								//	sh(0, rowsa2, rowsf1, 1);
+								//sd_rc(1, sidx, aidx, 2) += sh(0, rowsa1, rowsf2, 1) - \\
+								//	sh(0, rowsa2, rowsf2, 1);
+								//sd_rc(1, sidx, aidx, 0) += sd_rc(1, sidx, aidx, 1) * \\
+								//	sd_rc(1, sidx, aidx, 2);
+							}
+						}
+					//} // SUBFIELD LOOP
+				}
+			}
+		//} // SUBAPERTURE LOOP
+		
+		printf("tot=%d\\n", ntot);
+		"""
+		one = S.weave.inline(code, \
+			['sd_rc', 'sh', 'sarows', 'sarowlist', 'sapos', 'sfrows', 'sfpos', 'alist', 'slist'], \
+			extra_compile_args= [__COMPILE_OPTS], \
+			type_converters=S.weave.converters.blitz)
+	# End loop over files, normalize
+	sd_rc /= len(shfiles)
 	
 	return (slist, alist, sd_rc)
 
