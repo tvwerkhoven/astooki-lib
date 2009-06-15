@@ -167,7 +167,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 					s = N.round(sapos[rowsa2, 0] - sapos[rowsa1, 0], 7)
 					sidx = int(N.argwhere(slist == s).flatten())
 					# Pre-calculate difference between subapertures
-					dx = shifts_a[:, rowsa1, :, :] - shifts_a[:, rowsa2, :, :]
+					dx_a = shifts_a[:, rowsa1, :, :] - shifts_a[:, rowsa2, :, :]
 					#dx_d = shifts_d[:, rowsa1, :, :] - shifts_d[:, rowsa2, :, :]
 					dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
 					log.prNot(log.NOTICE, "ROW: Comparing subap %d with subap %d." % \
@@ -202,44 +202,37 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 								for (aidx=0; aidx < Nalist[0]; aidx++)
 									if (alist(aidx) == a) break;
 								
-								//printf("inner loop now\\n");
-								// Now calculate the covariance between:
-								// dx[:,rowsf1,0] and dx[:,rowsf2,0],
-								// dx[:,rowsf1,1] and dx[:,rowsf2,1]
-								// dx_d[:,rowsf1,0] and dx_d[:,rowsf2,0]
-								// dx_d[:,rowsf1,1] and dx_d[:,rowsf2,1]
-								
 								// Set variables to zero
 								for (i=0; i<NCOV; i++)
 									cov[i].p = cov[i].x = cov[i].y = cov[i].c = 0.0;
 								
 								// Loop over all frames to calculate the mean of various 
 								// quantities, then calculate the cov. from this
-								for (fr=0; fr<Ndx[0]; fr++) {
+								for (fr=0; fr<Ndx_a[0]; fr++) {
 									// SDIMM COVARIANCE OF DATA: ///////////////////////////////
 									// Longitidinal covariance for mean over references
-									cov[0].p += dx(fr,rowsf1,0) * dx(fr,rowsf2,0);
-									cov[0].x += dx(fr,rowsf1,0);
-									cov[0].y += dx(fr,rowsf2,0);
+									cov[0].p += dx_a(fr,rowsf1,0) * dx_a(fr,rowsf2,0);
+									cov[0].x += dx_a(fr,rowsf1,0);
+									cov[0].y += dx_a(fr,rowsf2,0);
 									
 									// Transversal covariance for mean over references
-									cov[1].p += dx(fr,rowsf1,1) * dx(fr,rowsf2,1);
-									cov[1].x += dx(fr,rowsf1,1);
-									cov[1].y += dx(fr,rowsf2,1);
+									cov[1].p += dx_a(fr,rowsf1,1) * dx_a(fr,rowsf2,1);
+									cov[1].x += dx_a(fr,rowsf1,1);
+									cov[1].y += dx_a(fr,rowsf2,1);
 									
 									// NOISE PROPAGATION ANALYSIS: /////////////////////////////
 									for (r=0; r<Ndx_r[1]; r++)	{
 										// Longitidinal covariance for *difference* over refs
-										cov[2].p += (dx(fr,rowsf1,0) - dx_r(fr,r,rowsf1,0)) * \\
-											dx(fr,rowsf2,0) - dx_r(fr,r,rowsf2,0));
-										cov[2].x += dx(fr,rowsf1,0) - dx_r(fr,r,rowsf1,0);
-										cov[2].y += dx(fr,rowsf2,0) - dx_r(fr,r,rowsf2,0)
+										cov[2].p += (dx_a(fr,rowsf1,0) - dx_r(fr,r,rowsf1,0)) * \\
+											dx_a(fr,rowsf2,0) - dx_r(fr,r,rowsf2,0));
+										cov[2].x += dx_a(fr,rowsf1,0) - dx_r(fr,r,rowsf1,0);
+										cov[2].y += dx_a(fr,rowsf2,0) - dx_r(fr,r,rowsf2,0)
 									
 										// Transversal covariance for *difference* over refs
-										cov[3].p += (dx(fr,rowsf1,1) - dx_r(fr,r,rowsf1,1)) * \\
-											dx(fr,rowsf2,1) - dx_r(fr,r,rowsf2,1));
-										cov[3].x += dx(fr,rowsf1,1) - dx_r(fr,r,rowsf1,1);
-										cov[3].y += dx(fr,rowsf2,1) - dx_r(fr,r,rowsf2,1)
+										cov[3].p += (dx_a(fr,rowsf1,1) - dx_r(fr,r,rowsf1,1)) * \\
+											dx_a(fr,rowsf2,1) - dx_r(fr,r,rowsf2,1));
+										cov[3].x += dx_a(fr,rowsf1,1) - dx_r(fr,r,rowsf1,1);
+										cov[3].y += dx_a(fr,rowsf2,1) - dx_r(fr,r,rowsf2,1)
 									}
 									
 									// Covariance for first single reference
@@ -262,9 +255,9 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 								
 								// Normalize values and calculate covariance
 								for (i=0; i<NCOV; i++) {
-									cov[i].p /= Ndx[0]-1;
-									cov[i].x /= Ndx[0]-1;
-									cov[i].y /= Ndx[0]-1; 
+									cov[i].p /= Ndx_a[0]-1;
+									cov[i].x /= Ndx_a[0]-1;
+									cov[i].y /= Ndx_a[0]-1; 
 									cov[i].c = cov[i].p - (cov[i].x * cov[i].y);
 									sd_rc(i, sidx, aidx) += cov[i].c;
 								}
@@ -278,8 +271,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 					return_val = 1;
 					"""
 					one = S.weave.inline(code, \
-						['sd_rc', 'sidx', 'sfrows', 'sfpos', 'alist', 'dx', 'dx_d', 
-						'dx_r'], \
+						['sd_rc', 'sidx', 'sfrows', 'sfpos', 'alist', 'dx_a', 'dx_r'], \
 						extra_compile_args= [__COMPILE_OPTS], \
 						type_converters=S.weave.converters.blitz)
 		# Normalize the covariance map
