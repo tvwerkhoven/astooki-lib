@@ -174,7 +174,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 						(rowsa1, rowsa2))
 					# Loop over all subfield rows (do this in C)
 					code = """
-					#line 175 "libsdimm.py"
+					#line 177 "libsdimm.py"
 					#define NQUANT 3
 					#define NCOV (NQUANT*2)
 					int sfrow, rowsf2, rowsf1, fr, aidx, i, r;
@@ -224,15 +224,15 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 									for (r=0; r<Ndx_r[1]; r++)	{
 										// Longitidinal covariance for *difference* over refs
 										cov[2].p += (dx_a(fr,rowsf1,0) - dx_r(fr,r,rowsf1,0)) * \\
-											dx_a(fr,rowsf2,0) - dx_r(fr,r,rowsf2,0));
+											(dx_a(fr,rowsf2,0) - dx_r(fr,r,rowsf2,0));
 										cov[2].x += dx_a(fr,rowsf1,0) - dx_r(fr,r,rowsf1,0);
-										cov[2].y += dx_a(fr,rowsf2,0) - dx_r(fr,r,rowsf2,0)
+										cov[2].y += dx_a(fr,rowsf2,0) - dx_r(fr,r,rowsf2,0);
 									
 										// Transversal covariance for *difference* over refs
 										cov[3].p += (dx_a(fr,rowsf1,1) - dx_r(fr,r,rowsf1,1)) * \\
-											dx_a(fr,rowsf2,1) - dx_r(fr,r,rowsf2,1));
+											(dx_a(fr,rowsf2,1) - dx_r(fr,r,rowsf2,1));
 										cov[3].x += dx_a(fr,rowsf1,1) - dx_r(fr,r,rowsf1,1);
-										cov[3].y += dx_a(fr,rowsf2,1) - dx_r(fr,r,rowsf2,1)
+										cov[3].y += dx_a(fr,rowsf2,1) - dx_r(fr,r,rowsf2,1);
 									}
 									
 									// Covariance for first single reference
