@@ -20,11 +20,9 @@ http://creativecommons.org/licenses/by-sa/3.0/
 import numpy as N			# Processing numerical data
 import liblog as log		# Logging stuff
 import Gnuplot				# For making nice plots
-import cairo				# For making nice PNG stuff
 import time
 import os
 import subprocess			# For running eps2pdf in a shell
-import pyfits				# For FITS I/O
 
 #=============================================================================
 # Data processing & plotting functions
@@ -442,6 +440,7 @@ def overlayMask(img, saccdpos, saccdsize, filename, number=True, coord=True, nor
 	
 	### Use Cairo to make the image
 	### ===========================
+	import cairo				# For making nice PNG stuff
 	
 	# Scale the values to 0-255
 	masked = (255*(masked - minval)/(maxval - minval)) 
@@ -496,6 +495,7 @@ def overlayMask(img, saccdpos, saccdsize, filename, number=True, coord=True, nor
 	destsurf.write_to_png(filename + '.png')
 	
 	# And as FITS file
+	import pyfits
 	pyfits.writeto(filename + '.fits', masked, clobber=True)
 	
 	log.prNot(log.INFO, "overlayMask(): done, wrote image as fits and png.")
@@ -538,6 +538,7 @@ def visCorrMaps(maps, res, sapos, sasize, sfpos, sfsize, filename, shifts=None, 
 	# Init cairo for PDF if necessary
 	# TODO: 72x72 pt (1x1 inch) reasonable?
 	if (outpdf):
+		import cairo				# For making nice PNG stuff
 		pdfsurf = cairo.PDFSurface(filename+'.pdf', 72.0, 72.0)
 		# Create context
 		ctx = cairo.Context(pdfsurf)
