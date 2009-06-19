@@ -133,7 +133,8 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 	if (refs > nref):
 		log.prNot(log.WARNING, "Data only contains %d references, cannot use the requested %d!" % (nref, refs))
 		refs = nref
-		
+	if (refs == 0): refs = nref
+	
 	log.prNot(log.INFO, "Using %d references for SDIMM+ calculations." % (refs))
 	shifts = shifts[:,0:refs]
 	
