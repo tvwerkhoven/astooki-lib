@@ -29,6 +29,8 @@ def computeSdimmCov(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 	@param [in] col Use column-wise comparison of subapertures
 	"""
 	
+	log.prNot(log.ERR, "This function is deprecated, please use computeSdimmCovWeave() intead!")
+	
 	# Average over number of references
 	shifts_a = shifts.mean(axis=1)
 	# Take difference if number of references is 2 or more
@@ -102,7 +104,7 @@ def computeSdimmCov(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 	return N.array(sdimm_a)
 
 
-def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
+def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=False):
 	"""
 	Compute the SDIMM+ covariance maps which can consequently be used to compute 
 	the atmospheric seeing structure using inversion techniques. The methods we
@@ -121,6 +123,19 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 	
 	import scipy as S
 	import scipy.weave				# For inlining C
+	
+	# Data dimensions + interpretation
+	nfiles = shifts.shape[0]
+	nref = shifts.shape[1]
+	nsa = shifts.shape[2]
+	nsf = shifts.shape[3]
+	
+	if (refs > nref):
+		log.prNot(log.WARNING, "Data only contains %d references, cannot use the requested %d!" % (nref, refs))
+		refs = nref
+		
+	log.prNot(log.INFO, "Using %d references for SDIMM+ calculations." % (refs))
+	shifts = shifts[:,0:refs]
 	
 	# Average over number of references
 	log.prNot(log.INFO, "Averaging shift over references...")
@@ -278,7 +293,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 		sd_rc[0:-1] /= sd_rc[-1].reshape(1,sd_rc.shape[1],sd_rc.shape[2])
 	
 	if col:
-		log.prNot(log.WARNING, "Column-wise comparison not implemented.")
+		log.prNot(log.WARNING, "Column-wise comparison not yet implemented.")
 	
 	return (slist, alist, sd_rc)
 
