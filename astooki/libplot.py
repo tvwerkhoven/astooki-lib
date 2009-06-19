@@ -120,6 +120,8 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag
 		xran = tuple(N.array(plrange[0])*1.0)
 		yran = tuple(N.array(plrange[1])*1.0)
 	
+	plsize = N.array([xran[1] - xran[0], yran[1] - yran[0]])
+	
 	gp('set xrange [%f:%f]' % xran)	
 	gp('set yrange [%f:%f]' % yran)
 	
