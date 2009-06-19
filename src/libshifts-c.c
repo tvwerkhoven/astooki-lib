@@ -651,19 +651,23 @@ int _5pquadint(float32_t *diffmap, int32_t diffsize[2], float32_t shvec[2], int3
 			return 1;
 	}
 	// Now interpolate around the maximum	
+	// a2 = f(x)
 	float32_t a2 = 0.5 * (diffmap[(maxidx[1]) * diffsize[0] + maxidx[0] + 1] - \
 		diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]-1]);
+	// a3 = f(x)
 	float32_t a3 = 0.5 * diffmap[(maxidx[1]) * diffsize[0] + maxidx[0] + 1] - \
 		diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]] + \
 		0.5 * diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]-1];
+	// a4 = f(y) -- 0.5 * map[x, y+1] - 0.5 * map[x, y-1]
 	float32_t a4 = 0.5 * (diffmap[(maxidx[1] + 1) * diffsize[0] + maxidx[0]] -
 		diffmap[(maxidx[1] - 1) * diffsize[0] + maxidx[0]]);
+	// a5 = f(y) -- 0.5 * map[x, y+1] - map[x, y] + 0.5 * map[x, y-1]
 	float32_t a5 = 0.5 * diffmap[(maxidx[1]+1) * diffsize[0] + maxidx[0]] -
 		diffmap[(maxidx[1]) * diffsize[0] + maxidx[0]] + \
 		0.5 * diffmap[(maxidx[1]-1) * diffsize[0] + maxidx[0]];
 	
-	shvec[0] = maxidx[0] + (2.0*a2*a5)/(-4.0*a3*a5);
-	shvec[1] = maxidx[1] + (2.0*a3*a4)/(-4.0*a3*a5);
+	shvec[0] = maxidx[0] + (2.0*a2)/(-4.0*a3);
+	shvec[1] = maxidx[1] + (2.0*a4)/(-4.0*a5);
 #ifdef DEBUG
 	if (!(shvec[0] >= 0 && shvec[0] <= diffsize[0]) || !(shvec[1] >= 0 && shvec[1] <= diffsize[1])) {
 		printf("NAN: %g,%g (%d,%d). %g - %g - %g - %g\n", 
