@@ -69,7 +69,7 @@ def procDimmR0(plotfile, r0dat):
 	rmFiles([datafile])
 
 
-def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plorigin=(0,0), plrange=(2048, 2048), mag=1.0, allsh=False, title=None, legend=True):
+def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag=1.0, allsh=False, title=None, legend=True):
 	"""
 	Plot 'shifts', which should be a N * Nref * Nsa * Nsf * 2 array. Array will 
 	be averaged over Nref before processing. 'filebase' should be a complete uri 
@@ -88,8 +88,6 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plorigin=(0,0), p
 	nsf = shifts.shape[3]
 	# Average over Nref, the number of references we have
 	shifts = shifts.mean(axis=1)
-	plrange = N.array(plrange)
-	plorigin = N.array(plorigin)
 	
 	# Reform data, save to file. Use 4 column x, y, dx, dy syntax.
 	allcpos = (sapos.reshape(-1,1,2) + sfpos.reshape(1,-1,2)) + sfsize/2.0
@@ -105,12 +103,32 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plorigin=(0,0), p
 	gp = Gnuplot.Gnuplot()
 	gnuplotInit(gp, hardcopy=plotfile, rmfile=True)
 	
-	gp('set xrange [%d:%d]' % (plorigin[0], plrange[0]))
-	gp('set yrange [%d:%d]' % (plorigin[1], plrange[1]))
+	# OLD
+	# if (plorigin and plrange):
+	# 	gp('set xrange [%d:%d]' % (plorigin[0], plrange[0]))
+	# 	gp('set yrange [%d:%d]' % (plorigin[1], plrange[1]))
+	# 	plsize = N.array(plrange)-N.array(plorigin)
+	# 	gp('set size ratio %f' % (1.0*plsize[1]/plsize[0]))
+	
+	# Set plotting range
+	if plrange == None:
+		xran = (min(sapos[:,0]) - 0.5*sasize[0], \
+			max(sapos[:,0]) + 1.5*sasize[0])
+		yran = (min(sapos[:,1]) - 0.5*sasize[1], \
+			max(sapos[:,1]) + 1.5*sasize[1])
+	else:
+		xran = tuple(N.array(plrange[0])*1.0)
+		yran = tuple(N.array(plrange[1])*1.0)
+	
+	gp('set xrange [%f:%f]' % xran)	
+	gp('set yrange [%f:%f]' % yran)
+	
+	# Aspect ratio square
+	ar = (yran[1] - yran[0])/(xran[1] - xran[0])
+	gp('set size ratio %f' % (ar))
+	
 	gp('set xlabel "x [pixel]"')
 	gp('set ylabel "y [pixel]"')
-	plsize = plrange-plorigin
-	gp('set size ratio %f' % (1.0*plsize[1]/plsize[0]))
 	gp('set key off')
 	
 	if (title != None):
