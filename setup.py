@@ -22,7 +22,7 @@ extlibs = []
 extlibs.append(\
 										Extension('_libshifts',
                     define_macros = [('MAJOR_VERSION', '0'),
-                                     ('MINOR_VERSION', '1')],
+                                     ('MINOR_VERSION', '2')],
                     include_dirs = [numpy.get_include()],
 										libraries = ["m", "pthread"],
                    	library_dirs = [''],
@@ -34,7 +34,7 @@ extlibs.append(\
 
 # Setup 
 setup(name = 'astooki',
-	version = '0.0.1',
+	version = '0.0.2',
 	description = 'Process and analyze astronomical data.',
 	author = 'Tim van Werkhoven',
 	author_email = 't.i.m.vanwerkhoven@xs4all.nl',

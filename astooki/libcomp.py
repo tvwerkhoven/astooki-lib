@@ -1,21 +1,20 @@
 #!/usr/bin/env python2.5
 # encoding: utf-8
-"""
-@file libcomp.py
-@brief (Grid/Parallel/Distributed) computation library
-@author Tim van Werkhoven (tim@astrou.su.se)
-@date 20090320
-
-This library provides functions to distribute computation over different 
-MPI threads.
-
-Created by Tim van Werkhoven on 2009-03-20.
-Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
-
-This file is licensed under the Creative Commons Attribution-Share Alike
-license versions 3.0 or higher, see
-http://creativecommons.org/licenses/by-sa/3.0/
-"""
+##
+# @file libcomp.py
+# @brief (Grid/Parallel/Distributed) computation library
+# @author Tim van Werkhoven (tim@astrou.su.se)
+# @date 20090320
+# 
+# This library provides functions to distribute computation over different 
+# MPI threads. This package is currently deprecated.
+# 
+# Created by Tim van Werkhoven on 2009-03-20.
+# Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
+# 
+# This file is licensed under the Creative Commons Attribution-Share Alike
+# license versions 3.0 or higher, see
+# http://creativecommons.org/licenses/by-sa/3.0/
 
 #=============================================================================
 # Import libraries here

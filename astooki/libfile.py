@@ -1,18 +1,23 @@
 #!/usr/bin/env python2.5
 # encoding: utf-8
-"""
-@file libfile.py
-@brief Library for file I/O
-@author Tim van Werkhoven (tim@astrou.su.se)
-@date 20090424
 
-Created by Tim van Werkhoven on 2009-04-24.
-Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
+##  @file libfile.py
+# @author Tim van Werkhoven (tim@astrou.su.se)
+# @date 20090424
+# 
+# Created by Tim van Werkhoven on 2009-04-24.
+# Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
+# 
+# This file is licensed under the Creative Commons Attribution-Share Alike
+# license versions 3.0 or higher, see
+# http://creativecommons.org/licenses/by-sa/3.0/
 
-This file is licensed under the Creative Commons Attribution-Share Alike
-license versions 3.0 or higher, see
-http://creativecommons.org/licenses/by-sa/3.0/
-"""
+## @package astooki.libfile
+# @brief Library for file I/O
+# @author Tim van Werkhoven (tim@astrou.su.se)
+# @date 20090507
+#
+# This package provides some routines for loading and saving data.
 
 #=============================================================================
 # Import libraries here
@@ -26,11 +31,12 @@ import time
 # Local helper functions
 #=============================================================================
 
+## @brief Load ana file
+# @param path File to load
+# @return Data if successful, False otherwise.
 def _anaload(path):
 	"""
 	Load ana file using pyana.
-	@param path File to load
-	@return Data if successful, False otherwise.
 	"""
 	import pyana
 	try: data = pyana.getdata(path)
@@ -89,20 +95,17 @@ _FORMATS_LOAD_F = {_FORMAT_ANA: _anaload, _FORMAT_FITS: _fitsload, _FORMAT_PICKL
 # Data storage functions
 #=============================================================================
 
+## @brief Rename a file to prevent overwriting it.
+#
+# If 'uri' exists, rename the file to prevent it being overwritten. 
+# The filename will be to 'uri' + postfix + the lowest integer that 
+# constitutes a non-existing file. 'maxold' specifies how many old files 
+# we should keep.
+# 
+# @param uri Filepath to prevent overwriting to
+# @param postfix Suffix to add to the file before a counter
+# @param maxold Keep this many old files maximum
 def saveOldFile(uri, postfix='.old', maxold=5):
-	"""
-	If 'uri' is present, rename the file to prevent it being overwritten. 
-	The filename will be to 'uri' + postfix + the lowest integer that 
-	constitutes a non-existing file. 'maxold' specifies how many old files 
-	we should keep.
-	
-	@param uri Filepath to prevent overwriting to
-	@param postfix Suffix to add to the file before a counter
-	@param maxold Keep this many old files maximum
-	
-	@return Nothing
-	"""
-	
 	if (maxold == 0): return 
 	
 	if (os.path.exists(uri)):
@@ -122,23 +125,23 @@ def saveOldFile(uri, postfix='.old', maxold=5):
 		# the file 'uri' is now free
 		log.prNot(log.INFO, "saveOldFile(): renamed file (%s) to prevent overwriting" % (uri))
 
-	
+
+## @brief Load data from disk	
+#
+# Reverse function of saveData(): load data stored on disk. Formats supported 
+# are numpy arrays, pickled files and csv files. If multiple formats are 
+# enabled, numpy will be preferred. If shape is set, it will be verified that
+# the returned array is indeed that shape. If not, it will return False.
+# 
+# @param path Path to the datafile
+# @param asnpy Load data as numpy format
+# @param aspickle Load data as pickle format
+# @param ascsv Load data as csv format
+# @param auto Try to guess the filetype from extension + contents (TODO)
+# @param shape Shape that the data stored in the file should have
+# 
+# @return Data array, or False when loading failed.
 def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=None):
-	"""
-	Reverse function of saveData(): load data stored on disk. Formats supported 
-	are numpy arrays, pickled files and csv files. If multiple formats are 
-	enabled, numpy will be preferred. If shape is set, it will be verified that
-	the returned array is indeed that shape. If not, it will return False.
-	
-	@param path Path to the datafile
-	@param asnpy Load data as numpy format
-	@param aspickle Load data as pickle format
-	@param ascsv Load data as csv format
-	@param auto Try to guess the filetype from extension + contents (TODO)
-	@param shape Shape that the data stored in the file should have
-	
-	@return Data array, or False when loading failed.
-	"""
 	import numpy as N
 	log.prNot(log.INFO, "loadData(): loading '%s', npy: %d pickle: %d, csv: %d" % (os.path.split(path)[1], asnpy, aspickle, ascsv))
 	
@@ -183,7 +186,7 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 		#uri = path + '.pickle'
 		# Check if file exists
 		if (not os.path.isfile(path)):
-			log.prNot(log.WARNING, "loadData(): pickle file '%s' does not exists."%\
+			log.prNot(log.WARNING, "loadData(): csv file '%s' does not exists."%\
 					(os.path.split(path)[1]))
 			return False
 			
@@ -197,31 +200,32 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 		
 	return results
 
-
+## @brief Save data to disk in various formats
+#
+# Save (intermediate) results to 'path'. Data can be 
+# stored as numpy array (if asnpy is True), csv file (if ascsv is True), FITS 
+# file (asfits) and/or pickled format (if aspickle is True). The final path 
+# will be path + '.npy'/'.csv'/'.fits'/'.pickle', for the different formats.
+# 
+# @param path Base path to store files to. Should be dir+filename
+# @param data Some NumPy formatted data.
+# @param asnpy Store data in numpy format to path+'.npy' [False]
+# @param aspickle Store data in pickle format to path+'.pickle' [False]
+# @param asfits Store data in FITS format to path+'.fits' [False]
+# @param ascsv Store data in csv format to path+'.csv' [False]
+# @param explicit Store the data exactly to 'path', don't append suffix(es)
+# @param csvfmt The format for storing data as CSV ['%.18e']
+# @param csvhdr A header to write to the head of the file. Header should nbe a 
+#               list with the same number of elements as elements in 'data' 
+#               [None]
+# @param old Backup this many pre-existing files at maximum using 
+#               saveOldFile()
+# 
+# @return A dict of files the data was saved to when successful. The keys will 
+# be one or more of 'npy', 'pickle' or 'csv' and the values will be the 
+# full file paths. Returns False when something failed.
 def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False, explicit=False, csvfmt='%g', csvhdr=None, old=3):
-	"""
-	Save (intermediate) results to 'path'. Data can be 
-	stored as numpy array (if asnpy is True), csv file (if ascsv is True), FITS 
-	file (asfits) and/or pickled format (if aspickle is True). The final path 
-	will be path + '.npy'/'.csv'/'.fits'/'.pickle', for the different formats.
-	
-	@param path Base path to store files to. Should be dir+filename
-	@param data Some numpy formatted data.
-	@param asnpy Store data in numpy format to path+'.npy' [False]
-	@param aspickle Store data in pickle format to path+'.pickle' [False]
-	@param asfits Store data in FITS format to path+'.fits' [False]
-	@param ascsv Store data in csv format to path+'.csv' [False]
-	@param explicit Store the data exactly to 'path', don't append suffix(es)
-	@param csvfmt The format for storing data as CSV ['%.18e']
-	@param csvhdr A header to write to the head of the file. Header should nbe a 
-	              list with the same number of elements as elements in 'data' 
-	              [None]
-	@param old Backup this many pre-existing files at maximum
-	
-	@return A dict of files the data was saved to when successful. The keys will 
-	be one or more of 'npy', 'pickle' or 'csv' and the values will be the 
-	full file paths. Returns False when something failed.
-	"""
+
 	
 	# Init empty list
 	flist = {}
