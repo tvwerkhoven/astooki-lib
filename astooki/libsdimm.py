@@ -315,7 +315,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 		sacols = N.unique(sapos[:,0])
 		sfcols = N.unique(sfpos[:,0])
 		# Loop over all subaperture cols
-		for sacolpos in cols:
+		for sacolpos in sacols:
 			# Get a list of all subapertures at this col (i.e. same x coordinate)
 			salist = N.argwhere(sapos[:,0] == sacolpos).flatten()
 			# Exclude bad subaps
