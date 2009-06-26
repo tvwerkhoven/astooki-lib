@@ -486,10 +486,10 @@ def getDist(pos, skip=[], row=False, col=False):
 			poslist = N.lib.arraysetops.setdiff1d(poslist, skip)
 			# Loop over all positions in this column
 			for colpos1 in poslist:
-				otherpos = poslist[pos[poslist,0] >= pos[colpos1,0]]
+				otherpos = poslist[pos[poslist,1] >= pos[colpos1,1]]
 				for colpos2 in otherpos:
 					# Calculate the distance between these two positions
-					dlist.append(pos[colpos2, 0] - pos[colpos1, 0])
+					dlist.append(pos[colpos2, 1] - pos[colpos1, 1])
 	
 	return dlist
 
