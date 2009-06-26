@@ -6,6 +6,7 @@ setup.py -- setup file for the astooki-lib module
 Created by Tim van Werkhoven (t.i.m.vanwerkhoven@xs4all.nl) on 2009-05-20.
 Copyright (c) 2009 Tim van Werkhoven. All rights reserved.
 """
+GITREVISION=test
 import sys
 
 # Try importing to see if we have NumPy available (we need this)
@@ -34,7 +35,7 @@ extlibs.append(\
 
 # Setup 
 setup(name = 'astooki',
-	version = '0.0.2',
+	version = "0.0.3-%s" % (GITREVISION),
 	description = 'Process and analyze astronomical data.',
 	author = 'Tim van Werkhoven',
 	author_email = 't.i.m.vanwerkhoven@xs4all.nl',
