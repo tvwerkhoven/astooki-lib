@@ -82,6 +82,17 @@ def _pickleload(path):
 	except: return False
 	return data
 
+def _csvload(path):
+	"""
+	Load csv file.
+	@param path File to load
+	@return Data if successful, False otherwise.
+	"""
+	import numpy as N
+	try: data = N.loadtxt(open(path))
+	except: return False
+	return data
+
 
 #=============================================================================
 # Definitions necessary for processing
@@ -93,8 +104,8 @@ _FORMAT_PNG = 'png'
 _FORMAT_NPY = 'npy'
 _FORMAT_CSV = 'csv'
 _FORMAT_PICKLE = 'pickle'
-_FORMATS_LOAD = [_FORMAT_PICKLE, _FORMAT_FITS, _FORMAT_ANA, _FORMAT_NPY]
-_FORMATS_LOAD_F = {_FORMAT_ANA: _anaload, _FORMAT_FITS: _fitsload, _FORMAT_PICKLE: _pickleload, _FORMAT_NPY: _npyload}
+_FORMATS_LOAD = [_FORMAT_PICKLE, _FORMAT_FITS, _FORMAT_ANA, _FORMAT_NPY, _FORMAT_CSV]
+_FORMATS_LOAD_F = {_FORMAT_ANA: _anaload, _FORMAT_FITS: _fitsload, _FORMAT_PICKLE: _pickleload, _FORMAT_NPY: _npyload, _FORMAT_CSV: _csvload}
 
 #=============================================================================
 # Data storage functions
