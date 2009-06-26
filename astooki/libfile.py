@@ -1,8 +1,13 @@
 #!/usr/bin/env python2.5
 # encoding: utf-8
+"""
+This is astooki.libfile, providing some fie I/O routines.
+
+This module provides routines to load and save data in different formats.
+"""
 
 ##  @file libfile.py
-# @author Tim van Werkhoven (tim@astrou.su.se)
+# @author Tim van Werkhoven (tim@astro.su.se)
 # @date 20090424
 # 
 # Created by Tim van Werkhoven on 2009-04-24.
@@ -14,8 +19,8 @@
 
 ## @package astooki.libfile
 # @brief Library for file I/O
-# @author Tim van Werkhoven (tim@astrou.su.se)
-# @date 20090507
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090424
 #
 # This package provides some routines for loading and saving data.
 
@@ -225,8 +230,6 @@ def loadData(path, asnpy=False, aspickle=False, ascsv=False, auto=False, shape=N
 # be one or more of 'npy', 'pickle' or 'csv' and the values will be the 
 # full file paths. Returns False when something failed.
 def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False, explicit=False, csvfmt='%g', csvhdr=None, old=3):
-
-	
 	# Init empty list
 	flist = {}
 	
@@ -293,24 +296,30 @@ def saveData(path, data, asnpy=False, aspickle=False, asfits=False, ascsv=False,
 	# done
 
 
+## @brief Restore files to memory saved by astooki.
+# 
+# Restore files to memory. 'path' should be a pickled file holding a dict with 
+# data identifiers as keys. Each entry should again be a dict with data types 
+# as keys, and filenames as values. For example:
+# 
+# meta = {'data': {'fits': 'data-in-fitsformat.fits', npy:
+#   'data-in-numpyformat.npy'}, 'data2': {'fits': 'data2.fits'}}
+# 
+# This function will load the file, parse the contents, and return a dict with 
+# the data for each data id in the pickled file. If one data id has more 
+# datatypes, the first one will be loaded.
+#
+# Note that the format this routine supports is exactly the format that 
+# astooki uses to save meta information after processing some data. These 
+# files are named "*meta-data.pickle" and point to the files holding the 
+# processed data. To easily restore the processed data, use this routine with 
+# the meta-data file as argument.
+# 
+# @param path A pickled file holding the metadata
+# 
+# @return A (data, meta) tuple. Data is a dict with data ids as key and the 
+# actual data as value. meta holds the original contents of the pickled file.
 def restoreData(path):
-	"""
-	Restore files to memory. 'path' should be a pickled file holding a dict with 
-	data identifiers as keys. Each entry should again be a dict with data types 
-	as keys, and filenames as values. For example:
-	
-	meta = {'data': {'fits': 'data-in-fitsformat.fits', npy:
-	  'data-in-numpyformat.npy'}}
-	
-	This function will load the file, parse the contents, and return a dict with 
-	the data for each data id. If one data id has more datatypes, the first one
-	will be loaded.
-	
-	@param path Pickled file holding the metadata.
-	
-	@return A dict with dataid as keys, and the data as values.
-	"""
-	
 	import cPickle as pickle
 	
 	meta = pickle.load(open(path))
@@ -349,18 +358,20 @@ def restoreData(path):
 	return (ret, meta)
 
 
+
+## @brief Calculate a unique id for 'data'
+#
+# Calculate a unique tag for 'data' by storing it as binary NumPy format
+# and calculating the md5sum of the stored file. Can be useful to distinguish 
+# files holding settings, if the tag is the same, the settings are the same as 
+# well.
+# 
+# @param data Any variable that can be stored as NumPy file.
+# @return MD5 digest of 'data' stored as NumPy file.
 def calcTag(data):
-	"""
-	Calculate a unique tag for 'data' by storing it as binary numpy format
-	and calculating the md5sum of the stored file.
-	
-	@param data Any variable that can be stored as numpy file.
-	
-	@return MD5 digest of 'data' stored as numpy file.
-	"""
 	import subprocess
-	
-	saveData('/tmp/calcTagData', data, asnpy=True)
-	tag = subprocess.Popen(["md5sum /tmp/calcTagData.npy | cut -c 1-32"], \
+	path = '/tmp/astooki.libfile_calcTagData_' + str(time.time())
+	saveData(path, data, asnpy=True)
+	tag = subprocess.Popen(["md5sum "+path+" | cut -c 1-32"], \
 		stdout=subprocess.PIPE, shell=True).communicate()[0].rstrip()
 	return tag

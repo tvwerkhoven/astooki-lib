@@ -1,17 +1,32 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-liblog.py
+This is astooki.liblog, providing logging functions
 
-Some routines for printing and logging messages to screen, disk or whatever.
-
-Created by Tim van Werkhoven on 2009-03-30.
-Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
-
-This file is licensed under the Creative Commons Attribution-Share Alike
-license versions 3.0 or higher, see
-http://creativecommons.org/licenses/by-sa/3.0/
+This module provides logging functions to log data using prefixes, loglevels
+and permanent logfiles. This is probably only useful in more elaborate scripts
+and quite meaningful on its own.
 """
+
+##  @file liblog.py
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090330
+# 
+# Created by Tim van Werkhoven on 2009-03-30.
+# Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
+# 
+# This file is licensed under the Creative Commons Attribution-Share Alike
+# license versions 3.0 or higher, see
+# http://creativecommons.org/licenses/by-sa/3.0/
+
+## @package astooki.liblog
+# @brief Library for logging functionality
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090330
+#
+# This package provides some routines for printing and logging messages to
+# screen, disk or whatever.
+
 #=============================================================================
 # Import libraries here
 #=============================================================================
@@ -23,15 +38,7 @@ import time
 # Defines
 #=============================================================================
 
-# # Various levels of verbosity (make sure these increment nicely)
-# VERB_ERROR = -2				# Print fatal problems with this code, and exit
-# VERB_WARN = -1				# Print non-fatal problems with this code
-# VERB_SILENT = 0				# Always print these messages
-# VERB_INFO = 1					# Print as info (useful runtime info)
-# VERB_DEBUG = 2				# Print as debug (useful debug info)
-# VERB_ALL = 3					# Print lots of debug (useless debug info)
-
-# Shorter synonyms of the above, use these instead
+# Various levels of verbosity (make sure these increment nicely)
 # EMERG = 0
 # ALERT = 1
 # CRIT = 2
@@ -41,7 +48,7 @@ NOTICE = 5
 INFO = 6
 DEBUG = 7
 
-# Exit with this code
+## @brief Exit code for messages with the ERR level
 EXIT = -1
 
 LOGFILE = None
@@ -50,23 +57,22 @@ LOGLASTDAY = 0
 
 VERBOSITY = 4
 
-# Some colors
+## @brief Reset color codes
 RESETCL = "\033[0m"
-# Debug is blue foregroud
+## @brief Debug color, blue text
 DEBUGCL = "\033[34m"
-# Warning color is yellow in black bg
+## @brief Warning color, yellow text on black bg
 WARNCL = "\033[33;40m"
-# Warning color is white in red bg
+## @brief Error color, white text on red bg
 ERRORCL = "\033[37;41m"
 
 #=============================================================================
 # Routines
 #=============================================================================
 
+
+## @brief (Re-)initialize logging to disk at 'logfile'
 def initLogFile(logfile):
-	"""
-	(Re-)initialize logfile.
-	"""
 	import libfile
 	# Don't save old file, simply append to existing file
 	#libfile.saveOldFile(logfile)
@@ -77,13 +83,15 @@ def initLogFile(logfile):
 		LOGFD.close()
 		LOGFD = open(logfile, "a+")
 
-	
+## @brief Print log message with a certain verbosity.
+#
+# Print a log message. If LOGFD is set, it is also written to the file that 
+# file descriptor is poiting to. Status levels are prepended to the output.
+#
+# @param verb The status level of the message
+# @param msg The message to print
+# @param err Exit status to use for verb == ERR
 def prNot(verb, msg, err=EXIT):
-	"""
-	Print a message to the screen, depending on how 'verb' and the global 
-	'VERBOSITY' relate.
-	"""
-	
 	if (VERBOSITY >= verb):
 		if (verb >= INFO):
 			sys.stdout.write(DEBUGCL)

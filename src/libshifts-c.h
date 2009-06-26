@@ -1,7 +1,7 @@
 /**
 @file libshifts-c.h
 @brief HEader file for libshifts-c.c
-@author Tim van Werkhoven (tim@astrou.su.se)
+@author Tim van Werkhoven (tim@astro.su.se)
 @date 20090507
 
 Created by Tim van Werkhoven on 2009-05-07.

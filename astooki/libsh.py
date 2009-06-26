@@ -1,21 +1,30 @@
 #!/usr/bin/env python2.5
 # encoding: utf-8
 """
-@file libsh.py
-@brief Shack-Hartmann routines
-@author Tim van Werkhoven (tim@astrou.su.se)
-@date 20090423
+This is astooki.libsh, providing Shack-Hartmann related functions.
 
 This library provides some routines for analyzing/processing Shack-Hartmann 
 wavefront sensor data.
-
-Created by Tim van Werkhoven on 2009-04-23.
-Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
-
-This file is licensed under the Creative Commons Attribution-Share Alike
-license versions 3.0 or higher, see
-http://creativecommons.org/licenses/by-sa/3.0/
 """
+
+##  @file libsh.py
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090423
+# 
+# Created by Tim van Werkhoven on 2009-04-23.
+# Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
+# 
+# This file is licensed under the Creative Commons Attribution-Share Alike
+# license versions 3.0 or higher, see
+# http://creativecommons.org/licenses/by-sa/3.0/
+
+## @package astooki.libsh
+# @brief Library for Shack-Hartmann related routines
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090423
+#
+# This package provides some routines for analyzing/processing Shack-Hartmann 
+# wavefront sensor data.
 
 #=============================================================================
 # Import libraries here
@@ -339,38 +348,6 @@ def optSubapConf(img, sapos, sasize, saifac):
 			"optSubapConf(): size standarddeviation rather high, check results!")
 	
 	return (len(optsapos), optsapos, optsize)
-
-
-def procStatShift(shifts):
-	"""
-	Process shifts from individual files, return the average offset over all 
-	files for each subaperture.
-	
-	To find the same object in each subimage (i.e. where can we find the same 
-	granule in each subimage?), one has to measure image shifts between the 
-	complete field of view of all subimages for all files. This will give an N * 
-	Nref * Nsa * 2 array, with N the number of files, Nref the number of 
-	reference subimages and Nsa the number of subapertures in the lenslet array.
-	
-	We expect that the average over N and Nref will give Nsa offset vectors 
-	which give the location of the same pointing on the sun for each subimage.
-	
-	@param shifts Shifts measured over complete subimages for many files
-	
-	@return An array of vectors which gives the offset for each subimage.
-	"""
-	
-	# First average over all Nref reference subapertures
-	s_ref = N.mean(shifts, axis=1)
-	# Now make sure the average *per frame* is zero
-	s_avgfr = N.mean(s_ref, axis=1)
-	s_norm = s_ref - s_avgfr.reshape(-1,1,2)
-	# Now average over all frames to get the offset. Also calculate the error
-	s_off = N.mean(s_norm, axis=0)
-	s_off_err = (N.var(s_norm, axis=0))**0.5
-	# Done, return as tuple
-	return (s_off, s_off_err)
-	
 
 
 def calcWfsDimmR0(shifts, sapos, sadiam, angscl, mind=2.0, wavelen=550e-9):

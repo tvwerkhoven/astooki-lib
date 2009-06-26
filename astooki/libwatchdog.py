@@ -3,7 +3,7 @@
 """
 @file libtomo.py
 @brief Library for processing (WF)WFS data
-@author Tim van Werkhoven (tim@astrou.su.se)
+@author Tim van Werkhoven (tim@astro.su.se)
 @date 20090218
 
 This library supplies various routines to process and analyse WFWFS data. This

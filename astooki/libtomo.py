@@ -1,16 +1,27 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-@file libtomo.py
-@brief Tomographic wide-field wavefront sensor data analysis tools
-@author Tim van Werkhoven (tim@astrou.su.se)
-@date 20090512
-
-This library provides some routines for tomographically analyzing/processing wide-field Shack-Hartmann wavefront sensor data.
-
-Created by Tim on 2009-05-12.
-Copyright (c) 2009 Tim van Werkhoven. All rights reserved.
+This is astooki.libtomo, providing tomographic seeing analysis
 """
+
+##  @file libtomo.py
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090512
+# 
+# Created by Tim van Werkhoven on 2009-05-12.
+# Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
+# 
+# This file is licensed under the Creative Commons Attribution-Share Alike
+# license versions 3.0 or higher, see
+# http://creativecommons.org/licenses/by-sa/3.0/
+
+## @package astooki.libtomo
+# @brief Library for tomographic seeing analysis
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090512
+#
+# This package provides some routines for tomographically analyzing/processing 
+# wide-field Shack-Hartmann wavefront sensor data.
 
 #=============================================================================
 # Import libraries here
@@ -248,7 +259,7 @@ def computeFwdMatrix(lh, lsize, lorig, lcells, sasize, sapos, sfang, sffov, matr
 	# if not N.allclose(fwdmatrix.sum(1),1):
 	# 	raise ArithmeticError("Some rows have sums different than 1.")
 	log.prNot(log.INFO, "computeFwdMatrix(): Simple sanity checks passed.")
-
+	
 	# Store the matrix to disk for later use
 	try: os.makedirs(matdir)
 	except OSError: pass

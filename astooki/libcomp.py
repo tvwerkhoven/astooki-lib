@@ -3,7 +3,7 @@
 ##
 # @file libcomp.py
 # @brief (Grid/Parallel/Distributed) computation library
-# @author Tim van Werkhoven (tim@astrou.su.se)
+# @author Tim van Werkhoven (tim@astro.su.se)
 # @date 20090320
 # 
 # This library provides functions to distribute computation over different 

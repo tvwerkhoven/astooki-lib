@@ -1,92 +1,88 @@
 #!/usr/bin/env python2.5
 # encoding: utf-8
 """
-@file libshifts.py
-@brief Image shift measurement library for Shack-Hartmann wavefront sensors
-@author Tim van Werkhoven (tim@astrou.su.se)
-@date 20090224
-
-Library to measure image shifts tailored for wavefront sensor use, but general
-enough to support other data. The calcShifts() routine is the master routine 
-calling various subroutines. CPU intensive routines are written in C and 
-inlined in Python using Weave. This approach ensures that the speeds attained 
-are competetive with pure C libraries, although there is probably still a 
-reasonable speed increase possible by using pure C and possibly even assembly 
-with SIMD instructions (such as SSEx).
-
-* Comparing images
-
-There are several algorithms and implementations to compare two
-two-dimensional images. Because it is at this point unclear which method
-performs best (speed and quality-wise) in which situations, a multitide of
-these methods have been implemented.
-
-The naming of these routines follows the scheme of <method><implementation>.
-<method> is listed between brackets in the list below, and <implementation> is
-one of Weave or Python, corresponding to a C implementation inlined with Weave
-or a pure Python function.
-
-These functions (mainly the Weave ones) have a lot of double code, but this is 
-done on purpose to provide faster execution (although a proper profiling 
-analysis of this code has not been done yet).
-
-The following image comparison methods are available (with function prefixes 
-listed between brackets):
-- Absolute difference squared (absDiffSq)
-- Squared difference (sqDiff)
-- Direct cross correlation (crossCorr)
-- FFT cross correlation (fft)
-- (TODO: Absolute difference)
-
-* Finding a reference image
-
-One can define different sources as a reference image to use the above 
-comparison methods on (with the 'method' parameter to pass to calcShift() 
-between brackets):
-- Use subimage with best RMS as reference (REF_BESTRMS)
-- Use user-supplied comparison image of same geometry as reference
-  (REF_STATIC)
-
-* Finding the subpixel maximum
-
-The above routines compare the images themselves, but to find the best 
-(sub-pixel) image shift some interpolation is needed. The following methods 
-are available (function name prefixes listed between brackets):
-- 2d 9-point parabola interpolation (quadInt2d)
-- Maximum value (no interpolation) (maxVal)
-- (TODO: 2d 9-point spline interpolation)
-- (TODO?: Double 1d 3-point parabola interpolation)
-- (TODO?: double 1d 3-point spline interpolation)
-
-All these functions expect the maps to have a maximum. This is done to provide 
-easier and more general extremum finding when using various comparison 
-methods.
-
-* Naming/programming scheme
-
-The naming convention in this library for subaperture/subfield position and 
-sizes is done as follows:
-- Full variable name is: [sa|sf][ccd|ll][pos|size]
-- [sa|sf] defines whether it is a subaperture or subfield
-- [ccd|ll] defines whether the units are in pixels on the CCD or SI units on 
-           the lenslet
-- [pos|size] defines whether the quantity is the position or size
-
-Other conventions in this library:
-- Coordinates, lengths, sizes are stored as (x,y), slicing arrays/matrices in 
-  NumPy must therefore always be done with data[coord[1], coord[0]], because 
-  of the way data is ordered in NumPy arrays. Saving images to FITS files 
-  works correctly (origin is in the lowerleft corner), but saving files as PNG 
-  does not work out of the box (origin is in the top left corner), so the data 
-  must be shifted and mirrored first.
-
-Created by Tim van Werkhoven on 2009-02-24.
-Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
-
-This file is licensed under the Creative Commons Attribution-Share Alike
-license versions 3.0 or higher, see
-http://creativecommons.org/licenses/by-sa/3.0/
+This is astooki.libshifts, an image shift measurement library for (wide-field)
+Shack-Hartmann wavefront sensors.
 """
+
+##  @file libshifts.py
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090224
+# 
+# Created by Tim van Werkhoven on 2009-02-24.
+# Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
+# 
+# This file is licensed under the Creative Commons Attribution-Share Alike
+# license versions 3.0 or higher, see
+# http://creativecommons.org/licenses/by-sa/3.0/
+
+## @package astooki.libshifts
+# @brief Image shift measurement library
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090224
+#
+# **NOTE** This library is depreacted, use clibshifts.py instead
+#
+# Library to measure image shifts tailored for wavefront sensor use, but 
+# general enough to support other data. The calcShifts() routine is the master 
+# routine calling various subroutines. CPU intensive routines are written in C 
+# and inlined in Python using Weave. This approach ensures that the speeds 
+# attained are competetive with pure C libraries, although there is probably 
+# still a reasonable speed increase possible by using pure C and possibly even 
+# assembly with SIMD instructions (such as SSEx).
+# 
+# @section Comparing images
+# 
+# There are several algorithms and implementations to compare two
+# two-dimensional images. Because it is at this point unclear which method
+# performs best (speed and quality-wise) in which situations, a multitide of
+# these methods have been implemented.
+# 
+# The following image comparison methods are available
+# - absDiffSqWeave: Absolute difference squared
+# - sqDiffWeave: Squared difference
+# - crossCorrWeave: Direct cross correlation
+# - (TODO: Absolute difference, FFT)
+# 
+# @section Finding a reference image
+# 
+# One can define different sources as a reference image to use the above 
+# comparison methods on (with the 'method' parameter to pass to calcShift() 
+# between brackets):
+# - Use subimage with best RMS as reference (REF_BESTRMS)
+# - Use user-supplied comparison image of same geometry as reference
+#   (REF_STATIC)
+# 
+# @section Finding the subpixel maximum
+# 
+# The above routines compare the images themselves, but to find the best 
+# (sub-pixel) image shift some interpolation is needed. The following methods 
+# are available:
+# - quadInt2dWeave: 2d 9-point parabola interpolation
+# - maxValPython: Maximum value (no interpolation)
+# 
+# All these functions expect the maps to have a maximum. This is done to 
+# provide easier and more general extremum finding when using various 
+# comparison methods.
+# 
+# * Naming/programming scheme
+# 
+# The naming convention in this library for subaperture/subfield position and 
+# sizes is done as follows:
+# - Full variable name is: [sa|sf][ccd|ll][pos|size]
+# - [sa|sf] defines whether it is a subaperture or subfield
+# - [ccd|ll] defines whether the units are in pixels on the CCD or SI units on 
+#            the lenslet
+# - [pos|size] defines whether the quantity is the position or size
+# 
+# Other conventions in this library:
+# - Coordinates, lengths, sizes are stored as (x,y), slicing arrays/matrices 
+#   in NumPy must therefore always be done with data[coord[1], coord[0]], 
+#		because of the way data is ordered in NumPy arrays. Saving images to FITS 
+#   files works correctly (origin is in the lowerleft corner), but saving 
+# 	files as PNG does not work out of the box (origin is in the top left
+#		corner), so the data must be shifted and mirrored first.
+
 
 #=============================================================================
 # Import necessary libraries here

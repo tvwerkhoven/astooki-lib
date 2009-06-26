@@ -1,8 +1,19 @@
 #!/usr/bin/env python2.5
 # encoding: utf-8
+"""
+This is astooki.clibshifts, a Python wrapper for the shift library written in
+C. 
+
+This module is aimed at calcuting image shifts between different subfields in 
+different subimages, which comes down to processing WFWFS data. Different
+comparison algorithms (see COMPARE_*) and subpixel interpolation algorithms 
+(see EXTREMUM_*) can be chosen. Also, data can be masked before measuring the 
+image shifts and multiple subapertures can be used as a reference. For more 
+information, consult the elaborate doxygen documentation.
+"""
 
 ## @file clibshifts.py
-# @author Tim van Werkhoven (tim@astrou.su.se)
+# @author Tim van Werkhoven (tim@astro.su.se)
 # @date 20090507
 # 
 # Created by Tim van Werkhoven on 2009-05-07.
@@ -14,7 +25,7 @@
 
 ## @package astooki.clibshifts
 # @brief Python wrapper for libshifts-c.c library
-# @author Tim van Werkhoven (tim@astrou.su.se)
+# @author Tim van Werkhoven (tim@astro.su.se)
 # @date 20090507
 #
 # This package calculates image shifts
@@ -36,7 +47,7 @@ COMPARE_SQDIFF = 1
 COMPARE_ABSDIFFSQ = 2			
 ## @brief Fourier method
 COMPARE_FFT = 3						
-## @brief Direct cross correlation
+## @brief Direct cross correlation squared
 COMPARE_XCORRSQ = 4				
 
 # Defines for extremum finding algorithms

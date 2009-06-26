@@ -1,73 +1,41 @@
 #!/usr/bin/env python2.5
 # encoding: utf-8
 """
-libplot.py
-
-Some plotting routines, especially for WFWFS data plotting.
-
-Created by Tim van Werkhoven on 2009-03-27.
-Copyright (c) 2009 Tim van Werkhoven (tim@astro.su.se)
-
-This file is licensed under the Creative Commons Attribution-Share Alike
-license versions 3.0 or higher, see
-http://creativecommons.org/licenses/by-sa/3.0/
+This is astooki.libplot, providing some specialized plotting functions.
 """
+
+##  @file libplot.py
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090327
+# 
+# Created by Tim van Werkhoven on 2009-03-27.
+# Copyright (c) 2008-2009 Tim van Werkhoven (tim@astro.su.se)
+# 
+# This file is licensed under the Creative Commons Attribution-Share Alike
+# license versions 3.0 or higher, see
+# http://creativecommons.org/licenses/by-sa/3.0/
+
+## @package astooki.libplot
+# @brief Library for specialized plotting
+# @author Tim van Werkhoven (tim@astro.su.se)
+# @date 20090327
+#
+# This package provides some routines for making WFWFS related plots
 
 #=============================================================================
 # Import libraries here
 #=============================================================================
 
-import numpy as N			# Processing numerical data
+import numpy as N				# Processing numerical data
 import liblog as log		# Logging stuff
-import Gnuplot				# For making nice plots
+import Gnuplot					# For making nice plots
 import time
 import os
-import subprocess			# For running eps2pdf in a shell
+import subprocess				# For running eps2pdf in a shell
 
 #=============================================================================
 # Data processing & plotting functions
 #=============================================================================
-
-def procDimmR0(plotfile, r0dat):
-	"""
-	Process & plot the r0 data as returned by calcWfsDimmR0(). 
-	
-	Parameters:
-	'plotfile': filepath to plot to
-	'r0dat': DIMM r0 information. Should at least have the elements [distance, 
-		r0_long, r0_trans] as the first 3 elements.
-	"""
-	# Sort the data with distance (which should be the first column)
-	r0dat.sort(axis=0)
-	
-	# Initiate Gnuplot
-	gp = Gnuplot.Gnuplot()
-	
-	# Set default settings
-	gnuplotInit(gp, hardcopy=plotfile, rmfile=True)
-	
-	# Save data to temporary file. Use 4 column x, y, dx, dy syntax.
-	datafile = os.path.join('/tmp', 'tmpgnuplot-%f' % (time.time()))
-	N.savetxt(datafile, r0dat)
-	
-	# Set plotregion
-	gp('set xrange [0:%f]' % (r0dat[:,0].max()))
-	# Set axes label
-	gp('set xlabel "distance [meter]"')
-	gp('set ylabel "r_0 [cm]"')
-	# Disable legend
-	gp('set key off')
-	
-	# Plot data
-	gp('plot "%s" using 1:2 with lines ls 1 title "Longitudinal r_0", "%s" using 1:3 with lines ls 2 title "Transversal r_0"' %\
-	 	(datafile, datafile))
-	
-	# Done, convert to PDF
-	waitForFile(plotfile)
-	convertPdf(plotfile)
-	# Remove datafiles
-	rmFiles([datafile])
-
 
 def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag=1.0, allsh=False, title=None, legend=True):
 	"""
@@ -186,8 +154,8 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag
 		gp('plot "%s" using 1:2:3:4 with vectors nohead ls 1 title "WFWFS shifts"' %\
 		 	(datafile))
 	
-	waitForFile(plotfile)
-	convertPdf(plotfile)
+	_waitForFile(plotfile)
+	_convertPdf(plotfile)
 	
 	# Now print some useful info to a file
 	f = open(infofile,'w')
@@ -209,182 +177,9 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag
 	f.close()
 	
 	# Remove datafiles
-	#rmFiles(delfiles)
+	rmFiles(delfiles)
 	# Done
 
-
-# def procStatShift(plotfile, shvec, pos, sasize, plorigin=(0,0), plrange=(2048, 2048), mag=1.0, allsh=False, title=None, legend=True, avgshift=True):
-# 	"""
-# 	Process static shift information. This is meant to process some data of 
-# 	Phase 1 analysis in libtomo.py. 
-# 	
-# 	'shvec' should be an N x NREF x SA x 2 array, with N the number of frames, 
-# 	NREF the number of reference subapertures used, SA the number of 
-# 	subapertures. 'pos' should be a SA x 2 array. This routine plots the 
-# 	averages 'shvec' such that a SA x 2 array is left, and plots these vectors 
-# 	at the positions listed by 'pos'.
-# 	
-# 	Additional options include (default values in brackets):
-# 	'plrange': sets the plotting region [(2048, 2048)]
-# 	'plorigin': sets the plotting origin [(0, 0)]
-# 	'mag': magnify each vector with a scalar [1.0]
-# 	'allsh': if True, do not only plot the average shift, but also plot small 
-# 	dots for the individual shifts. [False]
-# 	'title': optional title for plot. [None]
-# 	'legend': if True, add an arrow with a length corresponding to the average 
-# 	shift rounded to a pixel but never smaller than 1 pixel. [True]
-# 	'avgshift': if True, print the average shift in each subaperture. [True]
-# 	"""
-# 	
-# 	### Process data
-# 	### ============
-# 	
-# 	# Fix lists to numpy lists for easier manipulation
-# 	plorigin = N.array(plorigin)
-# 	plrange = N.array(plrange)
-# 	# Calculate both the lower-left position and the centroid position here.
-# 	# Add sasize/2 to lower-left position to get centroid.
-# 	llpos = pos
-# 	cpos = pos + sasize.reshape(1,-1)/2	
-# 	
-# 	# Get the sizes of the data
-# 	n = shvec.shape[0]
-# 	nref = shvec.shape[1]
-# 	nsa = shvec.shape[2]
-# 	
-# 	# shvec.shape[3] should be 1, reshape this away
-# 	shvec = shvec.reshape(n, nref, nsa, 2)
-# 	
-# 	# Subtract average shift per frame from each frame:
-# 	shfravg = N.mean(shvec, axis=2) 	# this gives a N x NREF x 2 array
-# 	#shfrrefavg = N.mean(shfravg, axis=1)		# this gives a N x 2 array
-# 	shnrm = shvec - shfravg.reshape(n,nref,1,2)
-# 	# Magnify plots a bit
-# 	# shnrmpl = shnrm * mag
-# 	# # Now average over all frames:
-# 	shavg = shnrm.mean(axis=0)	# this gives an SA x 2 array
-# 	# # Magnify the shift vectors, if requested:
-# 	# shavgpl = shavg * mag
-# 	
-# 	### Plot a map for each reference
-# 	### =============================
-# 	
-# 	# Check if the sizes match
-# 	if ((nsa, 2) != cpos.shape):
-# 		raise ValueError("'shvec' and 'pos' are not of the same shape.")
-# 	
-# 	# Plot all individual reference-shifts
-# 	for _ref in range(nref):
-# 		# Add extension to filename (-sing-0,1,2...)
-# 		pf = os.path.splitext(plotfile)
-# 		_plotStatShift(pf[0] + "-sing-%d" % (_ref) + pf[1], shnrm[:,_ref], cpos, llpos, sasize, plorigin, plrange, mag, allsh, title, legend, avgshift)
-# 	
-# 	# Now plot the grand average
-# 	_plotStatShift(plotfile, N.mean(shnrm, axis=1), cpos, llpos, sasize, plorigin, plrange, mag, allsh, title, legend, avgshift)
-# 
-# 		
-# def _plotStatShift(plotfile, shnrm, cpos, llpos, sasize, plorigin, plrange, mag, allsh, title, legend, avgshift):
-# 	"""
-# 	Helper function for procStatShift(). This does all the plotting.
-# 	"""
-# 	# Magnify plots a bit
-# 	shnrmpl = shnrm * mag
-# 	# Now average over all frames:
-# 	shavg = shnrm.mean(axis=0)	# this gives an SA x 2 array
-# 	# Magnify the shift vectors, if requested:
-# 	shavgpl = shavg * mag
-# 	
-# 	# TODO: rmFiles fails when filenames are not set, can be solved by setting 
-# 	# files to bogus strings (like here). What's a better solution?
-# 	datafilea = ''
-# 	datafile = ''
-# 	
-# 	# Initiate Gnuplot
-# 	gp = Gnuplot.Gnuplot()
-# 	
-# 	# Set default settings
-# 	gnuplotInit(gp, hardcopy=plotfile, rmfile=True)
-# 	
-# 	# Save data to temporary file. Use 4 column x, y, dx, dy syntax.
-# 	datafile = os.path.join('/tmp', 'tmpgnuplot-%f' % (time.time()))
-# 	N.savetxt(datafile, N.concatenate((cpos, shavgpl), axis=1))
-# 	
-# 	# Set plotregion
-# 	gp('set xrange [%d:%d]' % (plorigin[0], plrange[0]))
-# 	gp('set yrange [%d:%d]' % (plorigin[1], plrange[1]))
-# 	# Set axes label
-# 	gp('set xlabel "x [pixel]"')
-# 	gp('set ylabel "y [pixel]"')
-# 	# Set aspect ratio (probably square)
-# 	plsize = plrange-plorigin
-# 	gp('set size ratio %f' % (1.0*plsize[1]/plsize[0]))
-# 	# Disable legend
-# 	gp('set key off')
-# 	
-# 	# Set title
-# 	if (title != None):
-# 		title = addGpSlashes(title)
-# 		gp('set title "%s"' % (title))
-# 		
-# 	# If sasize is not 'None', plot boxes (rectangles) in the plot region
-# 	if (sasize != None):
-# 		sasize = N.array(sasize)
-# 		if (sasize.shape[0] != 2 or sasize.ndim != 1):
-# 			log.prNot(log.WARNING, "plotVecMap(): Cannot add boxes around vectors, is not a valid 2-element list")
-# 		
-# 		box = 1
-# 		for p in llpos:
-# 			gp('set obj %d rect from %d,%d to %d,%d' % (box, p[0], p[1], \
-# 			 	p[0]+sasize[0], p[1]+sasize[1]))
-# 			box += 1
-# 			
-# 	# If avgshift is True, add the average shift as caption
-# 	if (avgshift is True):
-# 		for sa in xrange(len(llpos)):
-# 			# Set caption
-# 			cap = '#%d (%.3g, %.3g)' % \
-# 				(sa, shavg[sa][0], shavg[sa][1])
-# 			gp('set label "%s" at %d,%d font "Palatino,4"' % \
-# 				(cap, llpos[sa][0] + sasize[0]*0.06, \
-# 					llpos[sa][1] + sasize[1]*0.1))
-# 					
-# 	# If legend is True, add an arrow with a length corresponding to the 
-# 	# average shift:
-# 	if (legend is True):
-# 		# Average shift for all subapertures to get the global average shift:
-# 		avgshift = legend #N.round(N.mean(shavg))
-# 		if (avgshift < 1.0): avgshift = 1.0
-# 		legsize = avgshift * mag
-# 		# Position at 5% of the plot
-# 		legpos = N.round(plsize * 0.05)
-# 		txtpos = N.round(plsize * [0.05, 0.02])
-# 		gp('set style line 1 lt 1 lw 1.0 lc rgb "red"')
-# 		gp('set arrow from %d,%d rto %d,%d ls 1' % \
-# 			(legpos[0], legpos[1], legsize, 0))
-# 		gp('set label "%d-pix shift" at %d,%d font "Palatino,4"' % \
-# 			(avgshift, txtpos[0], txtpos[1]))
-# 			
-# 	# If allsh is True, add dots for all individual measured shifts
-# 	if (allsh is True):
-# 		datafilea = os.path.join('/tmp', 'tmpgnuplot-%f' % (time.time()))
-# 		allshvec = shnrmpl + cpos.reshape(1,-1,2)
-# 		allshvec = allshvec.reshape(-1,2)
-# 		N.savetxt(datafilea, allshvec)
-# 		gp('set style line 1 lt 1 lw 1.0 lc rgb "red"')
-# 		gp('set style line 2 pt 0 ps 0.8 lt 0 lw 0.8 lc rgb "blue"')
-# 		gp('plot "%s" with points ls 2 title "All WFWFS shifts", "%s" using 1:2:3:4 with vectors ls 1 title "WFWFS shifts"' % \
-# 		 	(datafilea, datafile))
-# 	else:
-# 		# Plot the actual vectors from file now
-# 		gp('plot "%s" using 1:2:3:4 with vectors ls 1 title "WFWFS shifts"' %\
-# 		 	(datafile))
-# 	
-# 	waitForFile(plotfile)
-# 	convertPdf(plotfile)
-# 	# Remove datafiles
-# 	rmFiles([datafile, datafilea])
-# 	# Done
-# 
 
 def overlayMask(img, saccdpos, saccdsize, filename, number=True, coord=True, norm=0.5, crop=False, border=True):
 	"""
@@ -673,8 +468,7 @@ def showSaSfLayout(outfile, sapos, sasize, sfpos=[], sfsize=[], method='ccd', co
 	'sfsize' is the subfield size in the same units
 	'method' is the meaning of the positions: 'ccd' or 'll'
 	'coord' if True, add coordinates of the subapertures
-	'number' if True, add numbers to the subapertures
-	
+	'number' if True, add numbers to the subapertures	
 	"""	
 	
 	# TODO: implement 'll' method
@@ -750,18 +544,17 @@ def showSaSfLayout(outfile, sapos, sasize, sfpos=[], sfsize=[], method='ccd', co
 	# Finish the plot (TODO: ugly hack, how to do this nicer?)
 	gp('plot -99999')
 	
-	waitForFile(outfile)
-	convertPdf(outfile)
+	_waitForFile(outfile)
+	_convertPdf(outfile)
 
 
 #=============================================================================
 # Helper routines
 #=============================================================================
 
-def convertPdf(file):
+def _convertPdf(file):
 	"""
-	Convert a file to PDF, and possibly other formats. Works only with eps files 
-	now.
+	Convert an EPS file to PDF using epstopdf.
 	"""
 	pdffile = os.path.splitext(file)[0]+'.pdf'
 	ret = subprocess.call(["epstopdf %s -o=%s" % (file, pdffile)], shell=True)
@@ -779,7 +572,7 @@ def mkPlName(runfiles, appendix, sep='_'):
 	return os.path.join(runfiles['plotdir'], filename)
 
 
-def waitForFile(fname, delay=0.3, maxw=5):
+def _waitForFile(fname, delay=0.3, maxw=5):
 	"""
 	Wait until 'fname' exists. Sort of a solution for the asynchronous Gnuplot 
 	calls, we never know when it's finished so we can't convert it to PDF and 
@@ -818,7 +611,6 @@ def rmFiles(filelist):
 		if os.path.exists(_f):
 			log.prNot(log.INFO, "rmFiles(): Removing %s" % (_f))
 			os.remove(_f)
-	
 
 
 def gnuplotInit(gp, hardcopy=False, verb=False, rmfile=False):
