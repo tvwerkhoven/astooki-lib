@@ -28,7 +28,42 @@ information, consult the elaborate doxygen documentation.
 # @author Tim van Werkhoven (tim@astro.su.se)
 # @date 20090507
 #
-# This package calculates image shifts
+# This package calculates image shifts and supsersedes the old Python module 
+# astooki.libshifts.
+# 
+# @section Finding a reference image
+# 
+# One can define different sources as a reference subimage to compare the 
+# other subimages with. This can be tuned with the 'refmode' parameter of 
+# calcShifts():
+# - Use subimage with best RMS as reference (REF_BESTRMS)
+# - Use user-supplied comparison image of same geometry as reference
+#   (REF_STATIC)
+# 
+# @section Comparing images
+# 
+# There are several algorithms and implementations to compare two
+# two-dimensional images. Because it is at this point unclear which method
+# performs best (speed and quality-wise) in which situations, a multitide of
+# these methods have been implemented.
+# 
+# The following image comparison methods are available
+# - Absolute difference squared
+# - Squared difference
+# - Direct cross correlation
+# - (TODO: Absolute difference?, FFT?)
+# 
+# @section Finding the subpixel maximum
+# 
+# The above routines compare the images themselves, but to find the best 
+# (sub-pixel) image shift some interpolation is needed. The following methods 
+# are available:
+# - 2d 9-point parabolic interpolation
+# - double 1d 5-point parabolic interpolation
+# 
+# All these functions expect the maps to have a *maximum*. This is done to 
+# provide easier and more general extremum finding when using various 
+# comparison methods.
 
 # Import C library
 import _libshifts
