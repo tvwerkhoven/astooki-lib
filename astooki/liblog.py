@@ -47,6 +47,14 @@ WARNING = 4
 NOTICE = 5
 INFO = 6
 DEBUG = 7
+LVLDESC=['[EMERG]', \
+				 '[ALERT]', \
+				 '[CRIT ]', \
+				 '[ERROR]', \
+				 '[warn ]', \
+				 '[notic]', \
+ 				 '[info ]', \
+				 '[debug]']
 
 ## @brief Exit code for messages with the ERR level
 EXIT = -1
@@ -92,25 +100,30 @@ def initLogFile(logfile):
 # @param msg The message to print
 # @param err Exit status to use for verb == ERR
 def prNot(verb, msg, err=EXIT):
-	if (VERBOSITY >= verb):
-		if (verb >= INFO):
-			sys.stdout.write(DEBUGCL)
-			print "debug:", msg, RESETCL
-		elif (verb == WARNING):
-			sys.stdout.write(WARNCL)
-			print "WARNING!", msg, RESETCL
-		elif (verb == ERR):
-			sys.stdout.write(ERRORCL)
-			print "ERROR!", msg, RESETCL
-			sys.exit(err)
-		else:
-			print msg
+	# First save to file if LOGFD is set...
 	if (verb < DEBUG and LOGFD):
 		tm = time.localtime()
 		global LOGLASTDAY
 		if (LOGLASTDAY != tm[2]):
 			print >> LOGFD, "-"*20, time.asctime(tm), "-"*20
 			LOGLASTDAY = tm[2]
-		print >> LOGFD, time.strftime("%H:%M:%S", tm), verb, msg
+		print >> LOGFD, time.strftime("%H:%M:%S", tm), LVLDESC[verb], msg
 		LOGFD.flush()
+	# Then print to screen
+	if (VERBOSITY >= verb):
+		if (verb >= INFO):
+			sys.stdout.write(DEBUGCL)
+			print LVLDESC[verb], msg, RESETCL
+		elif (verb == WARNING):
+			sys.stdout.write(WARNCL)
+			print LVLDESC[verb], msg, RESETCL
+		elif (verb == ERR):
+			sys.stdout.write(ERRORCL)
+			print LVLDESC[verb], msg, RESETCL
+			# If we have an error, close the FD! otherwise the last message(s) will
+			# be lost.
+			if LOGFD: LOGFD.close()
+			sys.exit(err)
+		else:
+			print LVLDESC[verb], msg
 		
