@@ -1,0 +1,739 @@
+commit 4d26e4b55ca9e1bc0275a9342951f8d72282f2b7
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 26 17:36:26 2009 +0200
+
+    Row/col merge updated in sdimm+ analysis
+
+commit 5dd87ac8984f4e595423c4bf0edc78f48ea06e75
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 26 15:34:12 2009 +0200
+
+    Row/col sdimm+ update, some discrepancies in the data?
+
+commit 5ad8c75d4bda78b0194ee7a0c9099c0aa700cee0
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 26 14:29:11 2009 +0200
+
+    Updated doc, updated row/col sdimm+ analysis
+
+commit 11921e878aadcb76189e0382ed3fd38d05b2ce33
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 26 13:06:56 2009 +0200
+
+    More typo fixes in col-wise sdimm+
+
+commit f670a57f504ebb983f3be140fcfb2b8ded9fdc6f
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 26 13:03:28 2009 +0200
+
+    First typo fix in col-sdimm+
+
+commit 76059fd4e6f8bfdd8d55c482c0d402cb7d14de20
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 26 12:47:32 2009 +0200
+
+    Major documentation update, added column-wise SDIMM+
+
+commit 7818a194999a89cd31709eee7712ec683640f911
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Jun 24 19:26:59 2009 +0200
+
+    Initiating doxygen documentation
+
+commit c35871f73914eb7b0d86ca33664d718c8adf4b71
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 19 13:59:45 2009 +0200
+
+    Bugfix for sdimm when --nref=0
+
+commit 015ba10f031cbf999e1718fa3b436b22e2569734
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 19 13:35:03 2009 +0200
+
+    Updated 5-point interpolation method. Still needs to be checked.
+
+commit 1465fa4f84cdeb1b0fcaea8e0b6be5e4df75baf6
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 19 11:47:03 2009 +0200
+
+    Implemented nref in libsdimm, can select number of references to use now.
+
+commit cc8d7300f11b301502fade4ac3fcc9d1e4d34351
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 19 11:05:34 2009 +0200
+
+    plsize fix in libplot
+
+commit 8ea91fed28bcad08d089bf5730d5e2cabb9ec989
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 19 11:03:39 2009 +0200
+
+    Minor libplot.plotShifts plotrange update
+
+commit 6fd555cadd71e1a17d9e3c412dde95c7b30c4f07
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue Jun 16 20:29:50 2009 +0200
+
+    Import cairo, pyfits only when needed in libplot
+
+commit 0b98dac6c440d0e7fa62bb126b98d0f4683e45f4
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Mon Jun 15 11:21:25 2009 +0200
+
+    Minor typo updates
+
+commit 8e86e2f5e4fa8cae5888320b63fecbbd3444c2cf
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Mon Jun 15 10:56:38 2009 +0200
+
+    Minor variable nomenclature update.
+
+commit a0fc6e2529ba54b29f9da524134624b0b38b7f97
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Mon Jun 15 10:52:53 2009 +0200
+
+    libsdimm update: generalized noise covariance calculation for N references.
+
+commit 7e5206d2bd0db28004b57c6a6ff3f4813eed208a
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri Jun 12 18:00:35 2009 +0200
+
+    Trying to optimize libsdimm, not working (yet)
+
+commit 24dd08294ed7060c0bc843917c40cd08eee03069
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu Jun 11 13:15:54 2009 +0200
+
+    Updated covariance map calculation
+
+commit a74555a1fd9cc29999a0647cdb9432a33574957b
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu Jun 11 11:16:46 2009 +0200
+
+    Added libsdimm library, updated libshifts slightly.
+
+commit f5cd0680be2d420fb03c28edf367727f07af8f2b
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu Jun 4 14:53:40 2009 +0200
+
+    Typo fix. Braces *are* important.
+
+commit 3fa8e4f141325fb430e1215ec30ec6a9220f08c2
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu Jun 4 14:46:18 2009 +0200
+
+    Use only central 50% of the subaperture for RMS comparison.
+
+commit 6b97c70471c2ecd1fadcc6a7b19afb6ccd26032b
+Merge: ff1c725 3d0203c
+Author: Tim van Werkhoven <tim@polar.cluster.isp.astro.su.se>
+Date:   Thu Jun 4 14:43:16 2009 +0200
+
+    Merge branch 'master' of ssh://xs4all/home/c/cfpm/git/astooki-lib
+
+commit ff1c7258aa215ee2f24befb17e38918a9f28f7f0
+Author: Tim van Werkhoven <tim@polar.cluster.isp.astro.su.se>
+Date:   Thu Jun 4 14:42:11 2009 +0200
+
+    Minor fix in libfile regarding ['path'] things
+
+commit 3d0203c19bd1ce608ddf6a96cf4350d8b3fd7fdb
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu Jun 4 14:39:03 2009 +0200
+
+    Updated libshift output, display shift +- stddev and refaps used
+
+commit d8bcac037985374c0a374f84fd886d6d2a833931
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Mon Jun 1 13:21:35 2009 +0200
+
+    Minor update on saveData()
+
+commit 21ca6358865ebd7c3b12ec88c837819cf60fc229
+Author: Tim van Werkhoven <tim@polar.cluster.isp.astro.su.se>
+Date:   Fri May 29 16:34:42 2009 +0200
+
+    Fixed problem that would upcast data to float64.
+
+commit 2b3bdce1123f1b39b93c0f6c154a2999b24cb7e8
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri May 29 16:18:52 2009 +0200
+
+    Updated libshifts library, hopefully with better performance
+    
+    * Removed MASK_CIRCTINY, was only for testing
+    * Changed masking from if() to multiplication, hopefully faster
+
+commit 52add3c275fa495cd7ea62e9f46751e460992020
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 28 16:19:37 2009 +0200
+
+    Added masking to correlation function
+    
+    Correlations can now be done within a binary mask. This can be useful to
+    get 'rounder' meta-pupils.
+
+commit b3fbce38028f63b33ab2c5613d6b0e7857672aed
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed May 27 19:08:04 2009 +0200
+
+    Fixe path issue in restoreData()
+
+commit 94620f134506b77b9ad812071765c9fb3c0b1d3a
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed May 27 17:21:56 2009 +0200
+
+    Deprecated 'base' identifier in metadata files, obsoleted.
+
+commit 4e88f1f7acf29fdb3b9732d7be9dcdce769e76b6
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 26 22:52:06 2009 +0200
+
+    Use float64 instead of float32 for reading in data.
+
+commit 3a2af9ad1196cafee43604d6ccf33a03f3cf8bc7
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri May 22 18:42:31 2009 +0200
+
+    Slight README reformat.
+
+commit 5b1c005d03b62bf804a1e510f42a3bccf929a9c5
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed May 20 19:19:06 2009 +0200
+
+    astooki-lib: bundled in numpy distutil package for easier distribution.
+
+commit 3e07e2c34b9951aed9985b18c599e5fcd11685d0
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed May 20 14:13:09 2009 +0200
+
+    clibshifts: added clipping of measurements
+    libtomo: added calculation of forward matrix in C, which is better readable
+    and hopefully faster.
+
+commit e108de16089a0d679747e9025eacad58aecb6f89
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 19 11:27:34 2009 +0200
+
+    libtomo.py: split off from the watchdog. Only tomo functions go here.
+
+commit caef37b97dba6d1a2b411dd0d18883e4e7d06ea7
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 19 11:26:44 2009 +0200
+
+    clibshifts.py: added some sanity checks before calling the c library
+    libtomo: renamed to libwatchdog
+
+commit 6525fb990e59c05910aede6319d28cf9090271b6
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 19 11:26:28 2009 +0200
+
+    libshifts-c.test.py: Updated tests slightly.
+
+commit 1418e0057fe37f9eb9e2891dd5cc66aca57bcb97
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 19 11:25:58 2009 +0200
+
+    libsh: treat subap/subfield positions as floats.
+
+commit 438306dcba55d4d510a7a68ee6ff265139bbaf16
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 19 11:25:32 2009 +0200
+
+    liblog: do not rename old log files, append instead.
+
+commit f457959f22c5cb2428771db9399496bc19486d31
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 19 11:24:36 2009 +0200
+
+    Libshifts-c: shift measurement is now consistent without tricks. There
+    should probably be no more bugs.
+
+commit e7dbdc58b1050aa36c497f2f65a020b803e73ba7
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Sat May 16 12:57:55 2009 +0200
+
+    loadSaSfConf: Load data as floats now, suitable for subap coordinates at the lenslet.
+
+commit 423a196c3631e4d9f752af13775a12ff51a4b040
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Sat May 16 12:57:30 2009 +0200
+
+    Added calcTag() to calculate md5 tags for variables.
+
+commit 5bd875114eb4cc32dc3b6e681800e0cefba6b380
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Sat May 16 12:54:05 2009 +0200
+
+    Explicit use of int32 types, change in refopt parameter
+
+commit 868f6123f21449f7c31a6327519ae64419bff940
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 18:47:40 2009 +0200
+
+    Added different subfield sizes to the tests.
+
+commit 0947cd8c2c83e4912c4c4c3af77afda3f9182a2f
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 18:32:37 2009 +0200
+
+    Typo fix...
+
+commit 4413e18c3044c8ea60392eb20a52bddb37e10ea2
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 18:31:54 2009 +0200
+
+    Minor re-structuring.
+
+commit 5f4bb32b4a65d6ed63348b881a38f76f245341ef
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 18:16:15 2009 +0200
+
+    Generalized libshift tests, uses real granulation data now with various algorithms.
+
+commit 9f64b948a3f6eac091af54cc0f89b881a6c2b6e1
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 18:15:40 2009 +0200
+
+    Python wrapper for libshift library in C.
+
+commit 9970c2751bcbf0ad1a360ebfb13464c6a7862480
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 18:15:22 2009 +0200
+
+    Re-ordered defines a little.
+
+commit a449ec1ee9eef1c709f0d077d3a704bd83a00ee9
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 18:13:17 2009 +0200
+
+    Added direct cross-correlation comparison method.
+    
+    Cross correlation algorithm:
+    for x,y in res:
+    	match += img[x,y] * res[x,y]
+    N.B.: Cross correlation works much better when *squaring* the match value, i.e.
+    	match += (img[x,y] * res[x,y])**2.0
+
+commit 3e35e77cedd8c7bff23dd2004b940632330d59a9
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 16:14:23 2009 +0200
+
+    Fixed _comp_dbls, didn't work correct when difference was less than 1.
+
+commit 3088cc2f40d5e6ec437d9c0710f30ca8d1609b28
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 14:46:24 2009 +0200
+
+    Test script compares absolute difference squared now, gives identical results.
+
+commit 198634ec4a10c1427d12bfc97a42fddfc1ffd222
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 14:46:05 2009 +0200
+
+    Updated RMS calculation to match C version library.
+
+commit 384d4b084fa9be1ea010d6caffe3571e94037bb3
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 14:45:16 2009 +0200
+
+    Added absolute difference squared image comparison.
+
+commit 2eb30fdcda6d8e62e7efc905cc23ac108f4c0384
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 14:30:03 2009 +0200
+
+    C version of libshift now threaded.
+
+commit b24ac1aed765e0f3536b44e455e09dae4aac104b
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 14:29:44 2009 +0200
+
+    C version of libshift header file.
+
+commit b47372e37b184afb5d4562ab17fd1387d91d0719
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu May 7 14:29:25 2009 +0200
+
+    Libshift test script, branched from jot.py.
+
+commit a3dcf4ba6138fc4d60b12aa1e7aab41b166a925f
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed May 6 20:57:32 2009 +0200
+
+    Major update, first working version of C version of libshift.
+
+commit 3f8910d2c1730a62099e64b1f7b41fb3bed73833
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed May 6 20:56:42 2009 +0200
+
+    Disabled averaging per subfield, does not work very well.
+
+commit 54f4a1b6e1807822cafa83611c268b50ba8e41c6
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed May 6 20:56:17 2009 +0200
+
+    Fixed minor variable typo in error message.
+
+commit d8d06e61cd52b3dd9e06ad1b43334df5a958179e
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 5 15:44:22 2009 +0200
+
+    Work in progress on libshift-c. Compiles and runs now.
+
+commit 6498be4a188530b01991b1d8da18ad641843621a
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 5 15:43:58 2009 +0200
+
+    Moved init of logfile to separate function.
+
+commit 471628f4d9c8c21f2d8d4715cf04c1dd89d7c3f6
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 5 15:43:41 2009 +0200
+
+    Increased verbosity of saveOldFile()
+
+commit 9b154c9f50cae57f47878a39336a1cfd83f2a708
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue May 5 15:43:13 2009 +0200
+
+    Fixed storing refaps, need to explcitily check for None.
+
+commit fe827d48845db70abdbb1e7a0f2f4ff3bc6af64c
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Mon May 4 18:20:59 2009 +0200
+
+    Updated logging, loglevels same as system logging, logging to file now
+    supported.
+
+commit ea6fd674c426e13b77d3284df12c3fa1b111fa09
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Mon May 4 15:51:10 2009 +0200
+
+    Updated restoreData.
+    
+    restoreData: now parse meta data more robust.
+
+commit 71e13ebef584a6235d77a580409c9e59c6c58cd0
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri May 1 17:45:34 2009 +0200
+
+    Minor speed fix.
+
+commit 42cbfe984b471b49ad3b640e91705639c35210c8
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri May 1 17:45:04 2009 +0200
+
+    Added meta info to restoreData, tweaked other routines.
+
+commit 5314f26d3b594dd360eaa47ccc0e9c3fc8b00e73
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Fri May 1 16:13:56 2009 +0200
+
+    Cleaned routines, added restoreData(), streamlined datatype handling.
+
+commit d7e7cb795ccba23faebbc99028835d633d7af5fc
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu Apr 30 10:19:52 2009 +0200
+
+    Added limits back to interpolation functions.
+    
+    These shift-limits should really be done at the very end on the whole array.
+
+commit f7711cbde3eacf6df1f533527a2b5c46188518a0
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu Apr 30 09:49:51 2009 +0200
+
+    Updated executable headers, pointed incorrectly to /sw/bin/python2.5
+
+commit d1db83eb08a8f51097fca5e78272de73a7133e08
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu Apr 30 09:02:13 2009 +0200
+
+    Some speedtests for cross-correlation measurements.
+
+commit 29b671ba6cfac3d7f21fdccab529e00ffb7e4da1
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Thu Apr 30 09:00:56 2009 +0200
+
+    Smarter use of float32, prevent conversion in the first place.
+
+commit 39ea666e58dc83573797edbbe5b3c5ac70fbf8cf
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 17:39:16 2009 +0200
+
+    Minor speed tweaks to libshifts.py, trying to improve performance.
+
+commit 112906917c81d12a805e5dc283ec0a7fda7cbdde
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 16:47:55 2009 +0200
+
+    Initial libshifts library written in C.
+
+commit e98e9167463d819bb197d4e472de06bbaf0d006f
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 16:47:25 2009 +0200
+
+    Added timing to calcShifts().
+
+commit baffad0cbf6fe9bdac46600b83472bbfa242163b
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 16:47:01 2009 +0200
+
+    Added 'asfits' option to saveData()
+
+commit ad4c333128a13ad052b28ad4ac5e1209b187caa3
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 15:33:01 2009 +0200
+
+    Tried to increase the speed with various minor tweaks.
+
+commit 0627ed5daa69130c4eacdff6d422e32ec3c3f819
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 15:24:27 2009 +0200
+
+    Removed calcWfsDimmR0(), moved to libsh.py
+
+commit aeb541c8e9a1e957a47234e0db4adf373fb4c7d8
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 15:23:26 2009 +0200
+
+    Added routines, updated functions.
+    
+    Added procStatShift() which processes static shifts and returns an
+    average offset to be applied to subaperture positions for correcting the
+    field-of-view.
+    Added calcWfsDimmR0() from other libraries for calculating r_0 from
+    shifts.
+
+commit 06b41b891baac543dabffff94939bf4fd84a4b7d
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 15:21:55 2009 +0200
+
+    Updated loadData and saveData.
+    
+    loadData now also loads csv files. loadData now loads 'path' directly, without
+    adding suffixes.
+
+commit d33060c4a105ebde133229a48110dcfa0808ea82
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 15:20:38 2009 +0200
+
+    Set boxstyle to empty, commented out old plot routines.
+
+commit 191c9d715b3f7fbad507b7b83164168d8a6c01c3
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Wed Apr 29 15:18:30 2009 +0200
+
+    Fixed a bug in indexing for cross-correlation routines.
+    
+    Should not affect symmetric image-shift measurement (i.e. shift[0] ==
+    shift[1] and pos[0] == pos[1]).
+
+commit 19988b6c336619a9aa9aa0bfe61f959523551132
+Author: Tim van Werkhoven <t.i.m.vanwerkhoven@xs4all.nl>
+Date:   Tue Apr 28 12:47:12 2009 +0200
+
+    Added changes during svn -- git migration.
+
+commit 327aaaf42f96c622f796b708abdfcda8ca900ef7
+Author: tim <tim@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Thu Apr 23 14:56:33 2009 +0000
+
+    [process] Added libsh, a library-to-be for Shack-Hartmann things.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/process/trunk/watchdog@261 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit fe6095218c80a90a5e999bf5cb6f1f9aed5ee983
+Author: tim <tim@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Apr 22 17:28:57 2009 +0000
+
+    [auto-proxy]: waiting for input from michiel regarding handle_stdio()
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/process/trunk/watchdog@260 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit a63d37fa4c6d03128563b237625a18898981f4c8
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Tue Apr 21 07:52:43 2009 +0000
+
+    * work in progress, switching main SVN server
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/process/trunk/watchdog@255 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 3f6d94ce28a59779028459ff25bc25ad6fb0595f
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Mon Apr 20 07:25:11 2009 +0000
+
+    * End of last week commit.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/process/trunk/watchdog@254 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 3122e2a4c72d9b7673f900841f17c0760532334c
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Apr 8 15:55:27 2009 +0000
+
+    * Oooops, the correct $Id$ tag is like that, not $Id... Fixed now :P
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/process/trunk/watchdog@240 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 72954e251f5fd80dc74e6d583c22943e753429f6
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Apr 8 15:42:30 2009 +0000
+
+    * Added property to TODO
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/process/trunk/watchdog@239 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 26f3dcfe78c47a7997a16a71912d72974c62abdb
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Apr 8 14:19:04 2009 +0000
+
+    * Moving/renaming projects
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/process/trunk/watchdog@235 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 12d8281dd718584583e59c79ba3d8df2a4819188
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Apr 8 14:16:50 2009 +0000
+
+    * Moving projects.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/process/trunk/tomo-dat@234 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit db6527ae7cdd7ca0e71a1f242d7125a376836af8
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Apr 8 14:14:14 2009 +0000
+
+    * Restructure SVN directories, got a little messy. New structure:
+      - /process
+        WFWFS data-processing project.
+      - /simul
+        WFWFS simulation project
+      - /proxy
+        WFWFS data acquisition project
+    * Most old files went to /simul (trunk/ctomo, trunk/ctomo-py, trunk/kl,
+      trunk/notes, trunk/speedtests), trunk/tomo-dat went to /process
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/simul/trunk/tomo-dat@233 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit e5d7573cc83f9ce27e3e14128a3133d315f64d56
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Mar 11 16:10:34 2009 +0000
+
+    * Processing more streamlined, stores intermediate progress, but is a little
+      rough on the edges.
+    * Work on parallelisation over computers and cores to use the cluster.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@187 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 7e1d7849e1660b2d5a3c129651b54b1b304e2928
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Mar 11 10:53:34 2009 +0000
+
+    * Included scaling factor for correlation maps in visCorrMaps.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@186 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 1716ed342a8a54cd219aa99135d1d21a08dd0a3c
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Mar 11 10:30:31 2009 +0000
+
+    * Shift measurement works for complete subapertures, yay.
+    * Plotting to PDF works for one subfield, yay.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@185 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit a9645fce590fbf20c464ddb6f8a26b0b8dbc2d09
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Mar 11 10:17:01 2009 +0000
+
+    * Cairo problem: will not make surfaces for which the stride is not a
+      multiple of 4? I.e, bitmaps of 15x15 pixels have a stride of 15 (if
+      datatype is uint8), but cairo will not accept this. Work-around: embed
+      the bitmaps in a slightly larger array with the border set to 0.
+    * Shift measurements are incorrect now, do not take into account that the
+      correlation maps go from -shrange to +shrange, the center is effectively
+      off.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@184 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 871c0008655944565ccfc60adb0e2441da422eee
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Tue Mar 10 15:46:58 2009 +0000
+
+    * More progress on shifts, correlation maps of full subaps look ok
+    * PDF plotting in cairo seems a nice way to show the correlation maps + shift
+      vectors in one go
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@183 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 0b4813ead789b1d03e0e24879747401286c9c42b
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Mon Mar 9 17:57:51 2009 +0000
+
+    * FFT shift improved, different findings than Mats.
+    * Zooming very slow, need to improve.
+    * Try measuring real shifts next.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@182 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 0af2886cbca3842d51a61de27b90c09e49b8a93a
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Mon Mar 9 10:49:41 2009 +0000
+
+    * Update of libshifts.py, FFT comparison now implented, documentation &
+      commenting expanded.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@181 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit d99fe14587f53ae8deb558252cbe25240ba0b720
+Author: cfpm <cfpm@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Thu Mar 5 09:09:48 2009 +0000
+
+    * SVN migration, hope all went well...
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@180 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 7a03891c0d1ab6f14d85330d83ef645a98126f0e
+Author: 0315133 <0315133@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Thu Feb 19 16:26:04 2009 +0000
+
+    * Subimages are detected now, next is getting image shifts from the data.
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@177 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit ec11237ff3031029fa035a5777845f7e38e7a86d
+Author: 0315133 <0315133@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Feb 18 18:13:02 2009 +0000
+
+    * Work in progress, subaperture aligning on the way
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@176 3e7f9890-4d39-4c1b-bd15-92a42f99465a
+
+commit 04a68778d579f07364c9c237c8730eb261a9246a
+Author: 0315133 <0315133@3e7f9890-4d39-4c1b-bd15-92a42f99465a>
+Date:   Wed Feb 18 10:42:37 2009 +0000
+
+    * Initial commit for the WFWFS data processing scripts
+    
+    
+    git-svn-id: svn+ssh://polar/home/tim/svn/wfwfs/trunk/tomo-dat@175 3e7f9890-4d39-4c1b-bd15-92a42f99465a

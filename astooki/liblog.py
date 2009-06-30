@@ -47,6 +47,7 @@ WARNING = 4
 NOTICE = 5
 INFO = 6
 DEBUG = 7
+## @brief strings describing the different loglevel
 LVLDESC=['[EMERG]', \
 				 '[ALERT]', \
 				 '[CRIT ]', \
@@ -55,14 +56,17 @@ LVLDESC=['[EMERG]', \
 				 '[notic]', \
  				 '[info ]', \
 				 '[debug]']
+				
 
 ## @brief Exit code for messages with the ERR level
 EXIT = -1
 
+## @brief Stores logfile when set
 LOGFILE = None
 LOGFD = 0
 LOGLASTDAY = 0
 
+## @brief Verbosity level to use
 VERBOSITY = 4
 
 ## @brief Reset color codes

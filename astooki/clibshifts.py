@@ -13,6 +13,7 @@ information, consult the elaborate doxygen documentation.
 """
 
 ## @file clibshifts.py
+# @brief Python wrapper for libshifts-c.c library
 # @author Tim van Werkhoven (tim@astro.su.se)
 # @date 20090507
 # 
@@ -31,7 +32,7 @@ information, consult the elaborate doxygen documentation.
 # This package calculates image shifts and supsersedes the old Python module 
 # astooki.libshifts.
 # 
-# @section Finding a reference image
+# @section findrefsec Finding a reference image
 # 
 # One can define different sources as a reference subimage to compare the 
 # other subimages with. This can be tuned with the 'refmode' parameter of 
@@ -40,7 +41,7 @@ information, consult the elaborate doxygen documentation.
 # - Use user-supplied comparison image of same geometry as reference
 #   (REF_STATIC)
 # 
-# @section Comparing images
+# @section compimgsec Comparing images
 # 
 # There are several algorithms and implementations to compare two
 # two-dimensional images. Because it is at this point unclear which method
@@ -53,7 +54,7 @@ information, consult the elaborate doxygen documentation.
 # - Direct cross correlation
 # - (TODO: Absolute difference?, FFT?)
 # 
-# @section Finding the subpixel maximum
+# @section findmaxsec Finding the subpixel maximum
 # 
 # The above routines compare the images themselves, but to find the best 
 # (sub-pixel) image shift some interpolation is needed. The following methods 

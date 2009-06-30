@@ -36,12 +36,11 @@ import time
 # Local helper functions
 #=============================================================================
 
-## @brief Load ana file
-# @param path File to load
-# @return Data if successful, False otherwise.
 def _anaload(path):
 	"""
 	Load ana file using pyana.
+	@param path File to load
+	@return Data if successful, False otherwise.
 	"""
 	import pyana
 	try: data = pyana.getdata(path)

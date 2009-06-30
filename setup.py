@@ -6,7 +6,7 @@ setup.py -- setup file for the astooki-lib module
 Created by Tim van Werkhoven (t.i.m.vanwerkhoven@xs4all.nl) on 2009-05-20.
 Copyright (c) 2009 Tim van Werkhoven. All rights reserved.
 """
-GITREVISION="v20090626.0"
+GITREVISION="v20090626.0-1-gb3f4e3a"
 import sys
 
 # Try importing to see if we have NumPy available (we need this)
@@ -23,7 +23,7 @@ extlibs = []
 extlibs.append(\
 										Extension('_libshifts',
                     define_macros = [('MAJOR_VERSION', '0'),
-                                     ('MINOR_VERSION', '2')],
+                                     ('MINOR_VERSION', '1')],
                     include_dirs = [numpy.get_include()],
 										libraries = ["m", "pthread"],
                    	library_dirs = [''],
@@ -35,7 +35,7 @@ extlibs.append(\
 
 # Setup 
 setup(name = 'astooki',
-	version = "0.0.3-%s" % (GITREVISION),
+	version = "0.1.0-%s" % (GITREVISION),
 	description = 'Process and analyze astronomical data.',
 	author = 'Tim van Werkhoven',
 	author_email = 't.i.m.vanwerkhoven@xs4all.nl',

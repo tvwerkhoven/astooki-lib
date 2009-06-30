@@ -350,85 +350,87 @@ def optSubapConf(img, sapos, sasize, saifac):
 	return (len(optsapos), optsapos, optsize)
 
 
-def calcWfsDimmR0(shifts, sapos, sadiam, angscl, mind=2.0, wavelen=550e-9):
-	"""
-	Calculate the Friedmann parameter ($r_0$) from shifts measured in a 
-	Shack-Hartmann wavefront sensor. 'shifts' should be a set of image shifts 
-	with dimension N * SA * 2. N should be sufficiently large (~500 and more) 
-	to allow for a statistical analysis. 'sapos' should be the centroid 
-	positions of the subapertures (or subfields), 'sadiam' should be the 
-	diameter of the	subapertures. The units should be some consistent set, if 
-	the units are in SI, the output $r_0$ will be in centimeters. 'angscl' 
-	should be the angular image scale at the CCD in radians per pixel.
-	
-	This function is based on the method described in the 'The ESO
-	differential image motion monitor' by M. Sarazin and F. Roddier (1989).
-	
-	Returns a list with elements formatted as:
-	[r_0_long, r_0_trans, distance, sa1, sa2]
-	
-	'mind' is the minimum distance in units of 'sasize' to use for the 
-	analysis. The DIMM method is only valid for distances larger than twice 
-	the subaperture diameter. [2.0]
-	'wavelen' is the wavelength that the shifts are valid for [550e-9]
-	"""
-	
-	# Convert to ndarrays
-	shifts = N.array(shifts)
-	sapos = N.array(sapos)
-	
-	# Check data sanity
-	if (shifts.ndim != 3):
-		log.prNot(log.WARNING, "calcWfsDimmR0(): shifts incorrect shape, should be 3D")
-		return False
-	if (shifts.shape[1] != sapos.shape[0]):
-		log.prNot(log.WARNING, "calcWfsDimmR0(): shifts and sapos shapes do not match")
-		return
-	
-	r0list = []
-	# Loop over all subaperture-pairs
-	for sa1 in xrange(len(sapos)):
-		for sa2 in xrange(sa1+1, len(sapos)):
-			### Analyze subaperture pair sa1-sa2 here
-			# Calculate distance
-			diff = sapos[sa1]-sapos[sa2]
-			dist = ((diff**2.0).sum())**0.5
-			# Check if distance is > mind * sasize, skip if not
-			if (dist < mind * sadiam):
-				continue
-			
-			# Angle between the two points sapos[sa1] and sapos[sa2]
-			ang = N.arctan2(diff[1],diff[0])
-			# Construct rotation matrix
-			rotmat = N.array([	[N.cos(ang), -N.sin(ang)], \
-								[N.sin(ang), N.cos(ang)]])
-			# Calculate the differential image motion
-			dimm = shifts[:, sa1, :] - shifts[:, sa2, :]
-			# Rotate the shifts with rotmat
-			# TODO: this is probably not optimal
-			dimm_r = [N.dot(thisdimm, rotmat) for thisdimm in dimm]
-			dimm_r = N.array(dimm_r)
-			# Convert pixel shift to radian shift:
-			dimm_r *= angscl
-			
-			# Now calculate the longitudinal [0] and transversal [1] variance
-		 	(varl, vart) = N.var(dimm_r, axis=0)
-			# Process this according to Eqns. (13) and (14) to get $r_0$
-			# TODO: Eqns. might not be rewritten most efficiently
-			# SOLVED: 20090407
-			r0l = (2.0 * (wavelen**2.0) * \
-				(0.179 * sadiam**(-1./3) - 0.0968 * dist**(-1./3)) / varl) \
-				**(3./5)
-			# r0l = ((varl**2.0 / (2.0*wavelen)) * \
-			# 	(1.0 / (0.179*sadiam**(-1.0/3.0) - 0.0968*dist**(-1.0/3.0))))\
-			# 		**(-3.0/5.0)
-			r0t = (2.0 * (wavelen**2.0) * \
-				(0.179 * sadiam**(-1./3) - 0.1450 * dist**(-1./3)) / vart) \
-				**(3./5)
-			# r0t = ((varl**2.0 / (2.0*wavelen)) * \
-			# 	(1.0 / (0.179*sadiam**(-1.0/3.0) - 0.145*dist**(-1.0/3.0))))\
-			# 		**(-3.0/5.0)
-			r0list.append([dist, r0l, r0t, varl, vart, sa1, sa2])
-	
-	return N.array(r0list)
+# This is obsoleted by the SDIMM+ analysis
+#
+# def calcWfsDimmR0(shifts, sapos, sadiam, angscl, mind=2.0, wavelen=550e-9):
+# 	"""
+# 	Calculate the Friedmann parameter ($r_0$) from shifts measured in a 
+# 	Shack-Hartmann wavefront sensor. 'shifts' should be a set of image shifts 
+# 	with dimension N * SA * 2. N should be sufficiently large (~500 and more) 
+# 	to allow for a statistical analysis. 'sapos' should be the centroid 
+# 	positions of the subapertures (or subfields), 'sadiam' should be the 
+# 	diameter of the	subapertures. The units should be some consistent set, if 
+# 	the units are in SI, the output $r_0$ will be in centimeters. 'angscl' 
+# 	should be the angular image scale at the CCD in radians per pixel.
+# 	
+# 	This function is based on the method described in the 'The ESO
+# 	differential image motion monitor' by M. Sarazin and F. Roddier (1989).
+# 	
+# 	Returns a list with elements formatted as:
+# 	[r_0_long, r_0_trans, distance, sa1, sa2]
+# 	
+# 	'mind' is the minimum distance in units of 'sasize' to use for the 
+# 	analysis. The DIMM method is only valid for distances larger than twice 
+# 	the subaperture diameter. [2.0]
+# 	'wavelen' is the wavelength that the shifts are valid for [550e-9]
+# 	"""
+# 	
+# 	# Convert to ndarrays
+# 	shifts = N.array(shifts)
+# 	sapos = N.array(sapos)
+# 	
+# 	# Check data sanity
+# 	if (shifts.ndim != 3):
+# 		log.prNot(log.WARNING, "calcWfsDimmR0(): shifts incorrect shape, should be 3D")
+# 		return False
+# 	if (shifts.shape[1] != sapos.shape[0]):
+# 		log.prNot(log.WARNING, "calcWfsDimmR0(): shifts and sapos shapes do not match")
+# 		return
+# 	
+# 	r0list = []
+# 	# Loop over all subaperture-pairs
+# 	for sa1 in xrange(len(sapos)):
+# 		for sa2 in xrange(sa1+1, len(sapos)):
+# 			### Analyze subaperture pair sa1-sa2 here
+# 			# Calculate distance
+# 			diff = sapos[sa1]-sapos[sa2]
+# 			dist = ((diff**2.0).sum())**0.5
+# 			# Check if distance is > mind * sasize, skip if not
+# 			if (dist < mind * sadiam):
+# 				continue
+# 			
+# 			# Angle between the two points sapos[sa1] and sapos[sa2]
+# 			ang = N.arctan2(diff[1],diff[0])
+# 			# Construct rotation matrix
+# 			rotmat = N.array([	[N.cos(ang), -N.sin(ang)], \
+# 								[N.sin(ang), N.cos(ang)]])
+# 			# Calculate the differential image motion
+# 			dimm = shifts[:, sa1, :] - shifts[:, sa2, :]
+# 			# Rotate the shifts with rotmat
+# 			# TODO: this is probably not optimal
+# 			dimm_r = [N.dot(thisdimm, rotmat) for thisdimm in dimm]
+# 			dimm_r = N.array(dimm_r)
+# 			# Convert pixel shift to radian shift:
+# 			dimm_r *= angscl
+# 			
+# 			# Now calculate the longitudinal [0] and transversal [1] variance
+# 		 	(varl, vart) = N.var(dimm_r, axis=0)
+# 			# Process this according to Eqns. (13) and (14) to get $r_0$
+# 			# TODO: Eqns. might not be rewritten most efficiently
+# 			# SOLVED: 20090407
+# 			r0l = (2.0 * (wavelen**2.0) * \
+# 				(0.179 * sadiam**(-1./3) - 0.0968 * dist**(-1./3)) / varl) \
+# 				**(3./5)
+# 			# r0l = ((varl**2.0 / (2.0*wavelen)) * \
+# 			# 	(1.0 / (0.179*sadiam**(-1.0/3.0) - 0.0968*dist**(-1.0/3.0))))\
+# 			# 		**(-3.0/5.0)
+# 			r0t = (2.0 * (wavelen**2.0) * \
+# 				(0.179 * sadiam**(-1./3) - 0.1450 * dist**(-1./3)) / vart) \
+# 				**(3./5)
+# 			# r0t = ((varl**2.0 / (2.0*wavelen)) * \
+# 			# 	(1.0 / (0.179*sadiam**(-1.0/3.0) - 0.145*dist**(-1.0/3.0))))\
+# 			# 		**(-3.0/5.0)
+# 			r0list.append([dist, r0l, r0t, varl, vart, sa1, sa2])
+# 	
+# 	return N.array(r0list)
 

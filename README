@@ -6,6 +6,8 @@ used to process and analyze astronomical data. Currently, the focus is mainly
 on wavefront-sensor data, but the aim is to expand this to include other
 functionality as well.
 
+The latest version is available at http://github.com/tvwerkhoven/astooki-lib/
+
 This library is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE.
@@ -33,6 +35,9 @@ one can use astooki-py, a command-line tool which utilizes the libraries.
 
 Version history
 ===============
+
+20090630, v0.1.0:
+   * Final version for Stockholm
 
 20090520, v0.0.1:
    * Initial packaging in distutils.

@@ -1,17 +1,17 @@
-/**
+/*!
 @file libshifts-c.c
 @brief Image shift measurement library for Shack-Hartmann wavefront sensors -- fast C version
 @author Tim van Werkhoven (tim@astro.su.se)
 @date 20090429
 
-* About
+@section aboutsec About
 
 This is a threaded C version of the libshifts library. This library can be 
 used to calculate subpixel image shifts in various setups. Although the 
 routines are generic enough to be used for any image shift, the processing is 
 aimed at Shack-Hartmann wavefront sensor data.
 
-* Install
+@section installsec Install
 
 Preferably, install this using the Python distutil setup process using 
 setup.py. If this fails or is undesirable for some reason, compile this module 
@@ -19,15 +19,18 @@ manually:
 
 Compile with something like:
 
+<pre>
    gcc -ffast-math -O4 -c libshifts-c.c \
-    -I/path/to/lib/python2.5/site-packages/numpy/core/include \
-    -I/path/to//include/python2.5/ -Wall
-
+    -I/path/to/libs/python2.5/site-packages/numpy/core/include \
+    -I/path/to/include/python2.5/ -Wall
+</pre>
 Link with something like:
 
-   gcc -L/path/to/lib -shared libshifts-c.o -o _libshifts.so -Wall
+<pre>
+   gcc -L/path/to/libs -shared libshifts-c.o -o _libshifts.so -Wall
+</pre>
 
-* Usage
+@section usagesec Usage
 
 To use this module, refer to the wrapper Python module clibshifts.py. This 
 Python module takes care of some sanity checks such that the C library doesn't 

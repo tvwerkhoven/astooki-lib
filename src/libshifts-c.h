@@ -1,6 +1,6 @@
 /**
 @file libshifts-c.h
-@brief HEader file for libshifts-c.c
+@brief Header file for libshifts-c.c
 @author Tim van Werkhoven (tim@astro.su.se)
 @date 20090507
 
