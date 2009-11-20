@@ -292,7 +292,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						(rowsa2, ) + tuple(sapos[rowsa2])))
 					# Loop over all subfield rows (do this in C)
 					code = """
-					#line 177 "libsdimm.py"
+					#line 295 "libsdimm.py"
 					#define NQUANT 3
 					#define NCOV (NQUANT*2)
 					int sfrow, rowsf2, rowsf1, fr, aidx, i, r;
@@ -350,8 +350,8 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								
 								// NOISE PROPAGATION ANALYSIS: /////////////////////////////
 								for (r=0; r<Ndx_r[1]; r++)	{
-									cov[2].p = cov[2].x = cov[2].y = cov[2].c = 0.0;
-									cov[3].p = cov[3].x = cov[3].y = cov[3].c = 0.0;
+									cov[2].p = cov[2].x = cov[2].y = 0.0;
+									cov[3].p = cov[3].x = cov[3].y = 0.0;
 									
 									for (fr=0; fr<Ndx_a[0]; fr++) {
 										// Longitidinal covariance for *difference* over refs
@@ -440,7 +440,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						(colsa2, ) + tuple(sapos[colsa2])))
 					# Loop over all subfield cols (do this in C)
 					code = """
-					#line 177 "libsdimm.py"
+					#line 443 "libsdimm.py"
 					#define NQUANT 3
 					#define NCOV (NQUANT*2)
 					int sfcol, colsf2, colsf1, fr, aidx, i, r;
@@ -486,21 +486,6 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 									cov[1].x += dx_a(fr,colsf1,0);
 									cov[1].y += dx_a(fr,colsf2,0);
 									
-									// NOISE PROPAGATION ANALYSIS: /////////////////////////////
-									for (r=0; r<Ndx_r[1]; r++)	{
-										// Longitidinal covariance for *difference* over refs
-										cov[2].p += (dx_a(fr,colsf1,1) - dx_r(fr,r,colsf1,1)) * \\
-											(dx_a(fr,colsf2,1) - dx_r(fr,r,colsf2,1));
-										cov[2].x += dx_a(fr,colsf1,1) - dx_r(fr,r,colsf1,1);
-										cov[2].y += dx_a(fr,colsf2,1) - dx_r(fr,r,colsf2,1);
-									
-										// Transversal covariance for *difference* over refs
-										cov[3].p += (dx_a(fr,colsf1,0) - dx_r(fr,r,colsf1,0)) * \\
-											(dx_a(fr,colsf2,0) - dx_r(fr,r,colsf2,0));
-										cov[3].x += dx_a(fr,colsf1,0) - dx_r(fr,r,colsf1,0);
-										cov[3].y += dx_a(fr,colsf2,0) - dx_r(fr,r,colsf2,0);
-									}
-									
 									// Covariance for first single reference
 									cov[4].p += dx_r(fr,0,colsf1,1) * dx_r(fr,0,colsf2,1);
 									cov[4].x += dx_r(fr,0,colsf1,1);
@@ -511,22 +496,54 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 							    cov[5].y += dx_r(fr,0,colsf2,0);									
 								}
 								
-								// Normalize noise propagation
-								cov[2].p /= Ndx_r[1]; 
-								cov[2].x /= Ndx_r[1]; 
-								cov[2].y /= Ndx_r[1];
-								cov[3].p /= Ndx_r[1]; 
-								cov[3].x /= Ndx_r[1]; 
-								cov[3].y /= Ndx_r[1];
+								// NOISE PROPAGATION ANALYSIS: /////////////////////////////
+								for (r=0; r<Ndx_r[1]; r++)	{
+									cov[2].p = cov[2].x = cov[2].y = 0.0;
+									cov[3].p = cov[3].x = cov[3].y = 0.0;
+									
+									for (fr=0; fr<Ndx_a[0]; fr++) {
+										// Longitidinal covariance for *difference* over refs
+										cov[2].p += (dx_r(fr,r,colsf1,0) - dx_a(fr,colsf1,0)) * \\
+											(dx_r(fr,r,colsf2,0) - dx_a(fr,colsf2,0));
+										cov[2].x += dx_r(fr,r,colsf1,0) - dx_a(fr,colsf1,0);
+										cov[2].y += dx_r(fr,r,colsf2,0) - dx_a(fr,colsf2,0);
+								
+										// Transversal covariance for *difference* over refs
+										cov[3].p += (dx_r(fr,r,colsf1,1) - dx_a(fr,colsf1,1)) * \\
+											(dx_r(fr,r,colsf2,1) - dx_a(fr,colsf2,1));
+										cov[3].x += dx_r(fr,r,colsf1,1) - dx_a(fr,colsf1,1);
+										cov[3].y += dx_r(fr,r,colsf2,1) - dx_a(fr,colsf2,1);
+									}
+									
+									// Normalize noise propagation
+									cov[2].p /= Ndx_a[0]-1;
+									cov[2].x /= Ndx_a[0]-1;
+									cov[2].y /= Ndx_a[0]-1;
+									cov[3].p /= Ndx_a[0]-1;
+									cov[3].x /= Ndx_a[0]-1;
+									cov[3].y /= Ndx_a[0]-1;
+									
+									cov[2].c += cov[2].p - (cov[2].x * cov[2].y);
+									cov[3].c += cov[3].p - (cov[3].x * cov[3].y);
+								}
+								
+								// Divide by the number of references used
+								cov[2].c /= Ndx_r[1];
+								cov[3].c /= Ndx_r[1];
 								
 								// Normalize values and calculate covariance
 								for (i=0; i<NCOV; i++) {
+									// skip noise analysis (from old code, ugly)
+									if (i == 2 || i == 3) continue;
 									cov[i].p /= Ndx_a[0]-1;
 									cov[i].x /= Ndx_a[0]-1;
 									cov[i].y /= Ndx_a[0]-1; 
 									cov[i].c = cov[i].p - (cov[i].x * cov[i].y);
-									sd_rc(i, sidx, aidx) += cov[i].c;
 								}
+								
+								// Copy to output array
+								for (i=0; i<NCOV; i++)
+									sd_rc(i, sidx, aidx) += cov[i].c;
 								
 								// Increase multiplicity for this (s, a) pair by one
 								sd_rc(NCOV, sidx, aidx) += 1;
