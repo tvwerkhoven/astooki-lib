@@ -379,9 +379,9 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 									cov[3].c += cov[3].p - (cov[3].x * cov[3].y);
 								}
 								
-								// Divide by the number of references used
-								cov[2].c /= Ndx_r[1];
-								cov[3].c /= Ndx_r[1];
+								// Normalize error bias (divide by (N_ref*(N_ref-1))
+								cov[2].c /= (Ndx_r[1] * (Ndx_r[1]-1));
+								cov[3].c /= (Ndx_r[1] * (Ndx_r[1]-1));
 								
 								// Normalize values and calculate covariance
 								for (i=0; i<NCOV; i++) {
