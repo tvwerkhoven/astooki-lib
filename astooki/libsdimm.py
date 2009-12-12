@@ -273,19 +273,19 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								// the various quantities.
 								for (fr=0; fr<Ndx_r[0]; fr++) {
 									// Transversal average
-									Cxy(fr, 0, sidx, aidx) = \\
+									Cxy(fr, 0, sidx, aidx) += \\
 										dx_a(fr,rowsf1,0) * dx_a(fr,rowsf2,0);
 									// Longitudinal average
-									Cxy(fr, 1, sidx, aidx) = \\
+									Cxy(fr, 1, sidx, aidx) += \\
 										dx_a(fr,rowsf1,1) * dx_a(fr,rowsf2,1);
 									
 									// Loop over all reference subapertures
 									for (r=0; r<Ndx_r[1]; r++)	{
 										// Longitidunal 
-										Cxy(fr, 2 + 2*r + 0, sidx, aidx) = \\
+										Cxy(fr, 2 + 2*r + 0, sidx, aidx) += \\
 											dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0);
 										// Transversal
-										Cxy(fr, 2 + 2*r + 1, sidx, aidx) = \\
+										Cxy(fr, 2 + 2*r + 1, sidx, aidx) += \\
 											dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
 									}
 								}
