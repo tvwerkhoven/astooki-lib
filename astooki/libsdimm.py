@@ -296,28 +296,28 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								for (fr=0; fr<Ndx_ra[0]; fr++) {
 									// Transversal average
 									Cxy(fr, 0, sidx, aidx) += \\
-										dx_a(fr,colsf1,0) * dx_a(fr,colsf2,0);
+										dx_a(fr,colsf1,1) * dx_a(fr,colsf2,1);
 									// Longitudinal average
 									Cxy(fr, 1, sidx, aidx) += \\
-										dx_a(fr,colsf1,1) * dx_a(fr,colsf2,1);
+										dx_a(fr,colsf1,0) * dx_a(fr,colsf2,0);
 									
 									// Loop over all reference subapertures
 									for (r=0; r<Ndx_ra[1]; r++)	{
 										// Error bias map (long.)
 										Cxy(fr, 2, sidx, aidx) += \\
-											(dx_ra(fr,r,colsf1,0) - dx_a(fr,colsf1,0)) * \\
-												(dx_ra(fr,r,colsf2,0) - dx_a(fr,colsf2,0));
-										// Error bias map (trans.)
-										Cxy(fr, 3, sidx, aidx) += \\
 											(dx_ra(fr,r,colsf1,1) - dx_a(fr,colsf1,1)) * \\
 												(dx_ra(fr,r,colsf2,1) - dx_a(fr,colsf2,1));
+										// Error bias map (trans.)
+										Cxy(fr, 3, sidx, aidx) += \\
+											(dx_ra(fr,r,colsf1,0) - dx_a(fr,colsf1,0)) * \\
+												(dx_ra(fr,r,colsf2,0) - dx_a(fr,colsf2,0));
 										
 										// Longitidunal 
 										Cxy(fr, 4 + 2*r + 0, sidx, aidx) += \\
-											dx_ra(fr,r,colsf1,0) * dx_ra(fr,r,colsf2,0);
+											dx_ra(fr,r,colsf1,1) * dx_ra(fr,r,colsf2,1);
 										// Transversal
 										Cxy(fr, 4 + 2*r + 1, sidx, aidx) += \\
-											dx_ra(fr,r,colsf1,1) * dx_ra(fr,r,colsf2,1);
+											dx_ra(fr,r,colsf1,0) * dx_ra(fr,r,colsf2,0);
 									}
 									// Normalize error bias map
 									Cxy(fr, 2, sidx, aidx) /= Ndx_ra[1];
