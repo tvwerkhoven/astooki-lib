@@ -34,92 +34,6 @@ import astooki.liblog as log
 ## @brief Compilation flags for scipy.weave() code
 __COMPILE_OPTS = "-Wall -O3 -ffast-math -msse -msse2"
 
-## @brief Compute the SDIMM+ covariance maps
-#
-# NB: This function is deprecated, use computeSdimmCovWeave() instead
-# 
-# @param shifts The shift measurements for a dataset
-# @param sapos The centroid subaperture centroid positions
-# @param sfpos The centroid subfield positions
-# @param skipsa List of (bad) subapertures to skip
-# @param row Use row-wise comparison of subapertures
-# @param col Use column-wise comparison of subapertures
-def computeSdimmCov(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
-	
-	log.prNot(log.ERR, "This function is deprecated, please use computeSdimmCovWeave() intead!")
-	
-	# Average over number of references
-	shifts_a = shifts.mean(axis=1)
-	# Take difference if number of references is 2 or more
-	if (shifts.shape[1] >= 2):
-		shifts_d = (shifts[:,0] - shifts[:,1]) * 0.5
-	else:
-		shifts_d = None
-	
-	# These will hold the sdimm correlation values
-	sdimm_a = []
-		
-	### Loop over all *rows*
-	### ====================
-	if row:
-		# Get unique SA row positions
-		sarows = N.unique(sapos[:,1])
-		# Get unique SF row positions
-		sfrows = N.unique(sfpos[:,1])		
-		# Loop over all subaperture rows
-		for sarowpos in sarows:
-			# Get a list of all subapertures at this row (i.e. same y coordinate)
-			salist = N.argwhere(sapos[:,1] == sarowpos).flatten()
-			# Exclude bad subaps which are in the list 'skipsa'
-			salist = N.lib.arraysetops.setdiff1d(salist, skipsa)
-			# Loop over all subapertures in this row
-			for rowsa1 in salist:
-				othersa = salist[sapos[salist,0] >= sapos[rowsa1,0]]
-				for rowsa2 in othersa:
-					#if (rowsa == refsa): continue
-					log.prNot(log.NOTICE, "ROW: sa %d @ (%g,%g) <-> sa %d @ (%g,%g)."% \
-						(rowsa1, ) + tuple(rowsa1) + (rowsa2, ) + tuple(rowsa2))
-					# Calculate the distance between these two subaps
-					s = sapos[rowsa2, 0] - sapos[rowsa1, 0]
-					# s = sapos[rowsa, 0] - sapos[refsa, 0]
-					# Pre-calculate difference
-					dx = shifts_a[:, rowsa1, :, :] - shifts_a[:, rowsa2, :, :]
-					dx_d = shifts_d[:, rowsa1, :, :] - shifts_d[:, rowsa2, :, :]
-					# Loop over all subfield rows
-					for sfrowpos in sfrows:
-						# Get a list of all subfields at this row (i.e. same y coordinate)
-						sflist = N.argwhere(sfpos[:,1] == sfrowpos).flatten()
-						# Take a reference subaperture in this row (the one on the left)
-						#rowsf = refsf = sflist[N.argmin(sfpos[sflist][:,0])]
-						# Loop over all subfields in this row
-						for rowsf1 in sflist:
-							othersf = sflist[sfpos[sflist,0] >= \
-							 	sfpos[rowsf1,0]]
-							# Loop over all other subfields
-							for rowsf2 in othersf:
-								a = sfpos[rowsf2, 0] - sfpos[rowsf1, 0]
-								#dx_s0 = shifts_a[:, rowsa1, rowsf1, :] - \
-								#	shifts_a[:, rowsa2, rowsf1, :]
-								#dx_s02 = dx[:,rowsf1]
-								#dx_sa = shifts_a[:, rowsa1, rowsf2, :] - \
-								#	shifts_a[:, rowsa2, rowsf2, :]
-								#dx_sa2 = dx[:,rowsf2]
-								#print (dx_s02 - dx_s0).sum(), (dx_sa2 - dx_sa).sum()
-								C_lsa = (N.cov(dx[:,rowsf1,0], dx[:,rowsf2,0]))[0,1]
-								C_tsa = (N.cov(dx[:,rowsf1,1], dx[:,rowsf2,1]))[0,1]
-								C_lsa_d = (N.cov(dx_d[:,rowsf1,0], dx_d[:,rowsf2,0]))[0,1]
-								C_tsa_d = (N.cov(dx_d[:,rowsf1,1], dx_d[:,rowsf2,1]))[0,1]
-								# C_lsa = (N.cov(dx_s0[:,0], dx_sa[:,0]))[0,1]
-								# C_tsa = (N.cov(dx_s0[:,1], dx_sa[:,1]))[0,1]
-								sdimm_a.append([0, s, a, C_lsa, C_tsa, C_lsa_d, C_tsa_d, \
-									rowsa1, rowsa2, rowsf1, rowsf2])
-	if col:
-		log.prNot(log.WARNING, "Column-wise comparison not implemented.")
-	
-	return N.array(sdimm_a)
-
-
-
 ## @brief Merge row- and column-covariance maps 
 #
 # @param covmaps List of covariance maps to combine
@@ -185,6 +99,13 @@ def mergeMaps(covmaps, multmaps, slists, alists):
 # @param refs Number of references to use from the shift data (0=max)
 # @param row Use row-wise comparison of subapertures
 # @param col Use column-wise comparison of subapertures
+# 
+# @returns returns a tuple (slist, alist, Cxy, mult), where slist is the list
+# of s values, alist is the list of a value, Cxy is the 'covariance' map,
+# which has dimensions (nfiles, 2*(1+nref)+2, len(slist), len(alist)), mult is
+# the multiplicity of Cxy and gives the number of pairs of 
+# subapertures-subfields for each (s,a)-pair. Quantities stored in Cxy are 
+# described in pyatk.py and in the function itself.
 def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=False):
 	
 	import scipy as S
@@ -213,10 +134,10 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 	log.prNot(log.INFO, "Got s values: %s" % str(slist))
 	log.prNot(log.INFO, "Got a values: %s" % str(alist))
 	
-	# Allocate memory for Cx,y(s,a). x2 for longitudinal and transversal, x2 
-	# for maps itself + error bias maps, *(1+nref) for every reference *and* the
-	# average over the reference subapertures
-	Cxy = N.zeros((nfiles, 2*2*(1+nref), len(slist), len(alist)))
+	# Allocate memory for Cx,y(s,a). x2 for longitudinal and transversal,
+	# x(1+nref+2) for every reference *and* the average over the reference
+	# subapertures *and* the error bias maps for the average
+	Cxy = N.zeros((nfiles, 2*(1+nref)+2, len(slist), len(alist)))
 	# Multiplicity map, number of (s,a)-pairs.
 	mult = N.zeros((len(slist), len(alist)))
 	if row:
@@ -281,13 +202,25 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 									
 									// Loop over all reference subapertures
 									for (r=0; r<Ndx_r[1]; r++)	{
+										// Error bias map (long.)
+										Cxy(fr, 2, sidx, aidx) += \\
+											(dx_r(fr,r,rowsf1,0) - dx_a(fr,rowsf1,0)) * \\
+												(dx_r(fr,r,rowsf2,0) - dx_a(fr,rowsf2,0));
+										// Error bias map (trans.)
+										Cxy(fr, 3, sidx, aidx) += \\
+											(dx_r(fr,r,rowsf1,1) - dx_a(fr,rowsf1,1)) * \\
+												(dx_r(fr,r,rowsf2,1) - dx_a(fr,rowsf2,1));
+										
 										// Longitidunal 
-										Cxy(fr, 2 + 2*r + 0, sidx, aidx) += \\
+										Cxy(fr, 4 + 2*r + 0, sidx, aidx) += \\
 											dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0);
 										// Transversal
-										Cxy(fr, 2 + 2*r + 1, sidx, aidx) += \\
+										Cxy(fr, 4 + 2*r + 1, sidx, aidx) += \\
 											dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
 									}
+									// Normalize error bias map
+									Cxy(fr, 3, sidx, aidx) /= Ndx_r[1];
+									Cxy(fr, 4, sidx, aidx) /= Ndx_r[1];
 								}
 								
 								// Increase multiplicity for this (s, a) pair by one
