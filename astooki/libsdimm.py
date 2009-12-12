@@ -194,10 +194,10 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								// Loop over all frames to calculate the expectation value of
 								// the various quantities.
 								for (fr=0; fr<Ndx_ra[0]; fr++) {
-									// Transversal average
+									// Longitudinal average
 									Cxy(fr, 0, sidx, aidx) += \\
 										dx_a(fr,rowsf1,0) * dx_a(fr,rowsf2,0);
-									// Longitudinal average
+									// Transversal average
 									Cxy(fr, 1, sidx, aidx) += \\
 										dx_a(fr,rowsf1,1) * dx_a(fr,rowsf2,1);
 									
@@ -294,10 +294,10 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								// Loop over all frames to calculate the expectation value of
 								// the various quantities.
 								for (fr=0; fr<Ndx_ra[0]; fr++) {
-									// Transversal average
+									// Longitudinal average
 									Cxy(fr, 0, sidx, aidx) += \\
 										dx_a(fr,colsf1,1) * dx_a(fr,colsf2,1);
-									// Longitudinal average
+									// Transversal average
 									Cxy(fr, 1, sidx, aidx) += \\
 										dx_a(fr,colsf1,0) * dx_a(fr,colsf2,0);
 									
