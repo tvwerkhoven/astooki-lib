@@ -241,11 +241,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 	
 	log.prNot(log.INFO, "Using %d references for SDIMM+ calculations." % (refs))
 	shifts = shifts[:,0:refs]
-	
-	# Average over number of references
-	log.prNot(log.INFO, "Averaging shift over references...")
-	shifts_a = shifts.mean(axis=1)
-	
+		
 	# Get the different values of s and a we have to work on:
 	slist = getDist(sapos, skip=skipsa, row=row, col=col)
 	alist = getDist(sfpos, skip=[], row=row, col=col)
@@ -277,8 +273,11 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					s = N.round(sapos[rowsa2, 0] - sapos[rowsa1, 0], 7)
 					sidx = int(N.argwhere(slist == s).flatten())
 					# Pre-calculate shift-difference between subapertures
-					dx_a = shifts_a[:, rowsa1, :, :] - shifts_a[:, rowsa2, :, :]
 					dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
+					# Subtract average from dx_r signals
+					dx_r_avg = N.sum(dx_r, axis=0) / dx_r.shape[0]
+					# Calculate average over reference subapertures
+					dx_a = dx_r.mean(axis=1)
 					
 					log.prNot(log.NOTICE, "ROW: sa %d @ (%g,%g) <-> sa %d @ (%g,%g)."% \
 						((rowsa1, ) + tuple(sapos[rowsa1]) + \
@@ -422,12 +421,14 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					# errors
 					s = N.round(sapos[colsa2, 1] - sapos[colsa1, 1], 7)
 					sidx = int(N.argwhere(slist == s).flatten())
-					# Pre-calculate difference between subapertures
-					dx_a = shifts_a[:, colsa1, :, :] - shifts_a[:, colsa2, :, :]
-					#dx_d = shifts_d[:, colsa1, :, :] - shifts_d[:, colsa2, :, :]
-					dx_r = shifts[:, :, colsa1, :, :] - shifts[:, :, colsa2, :, :]
-					# log.prNot(log.NOTICE, "COL: Comparing subap %d with subap %d." % \
-					# 	(colsa1, colsa2))
+					
+					# Pre-calculate shift-difference between subapertures
+					dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
+					# Subtract average from dx_r signals
+					dx_r_avg = N.sum(dx_r, axis=0) / dx_r.shape[0]
+					# Calculate average over reference subapertures
+					dx_a = dx_r.mean(axis=1)
+					
 					log.prNot(log.NOTICE, "COL: sa %d @ (%g,%g) <-> sa %d @ (%g,%g)."% \
 						((colsa1, ) + tuple(sapos[colsa1]) + \
 						(colsa2, ) + tuple(sapos[colsa2])))
