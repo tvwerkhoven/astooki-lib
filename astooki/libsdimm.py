@@ -271,7 +271,10 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								
 								// Loop over all frames to calculate the expectation value of
 								// the various quantities.
-								for (fr=0; fr<Ndx_r[0]; fr++) {
+								// TvW: only process first 13 frames for speedup 
+								// (just testing)
+								//for (fr=0; fr<Ndx_r[0]; fr++) {
+								for (fr=0; fr<13; fr++) {
 									// Transversal average
 									Cxy(0, fr, sidx, aidx) = \\
 										dx_a(fr,rowsf1,0) * dx_a(fr,rowsf2,0);
