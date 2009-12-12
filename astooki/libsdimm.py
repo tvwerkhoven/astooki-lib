@@ -123,9 +123,10 @@ def computeSdimmCov(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 ## @brief Merge row- and column-covariance maps 
 #
 # @param covmaps List of covariance maps to combine
+# @param multmaps List of multiplicty maps to combine
 # @param slists List of s coordinates for each map
 # @param alists List of a coordinates for each map
-def mergeMaps(covmaps, slists, alists, intpl=False, intplf=2):
+def mergeMaps(covmaps, multmaps, slists, alists):
 	
 	# First get all s's and a's
 	slist = []
@@ -134,6 +135,8 @@ def mergeMaps(covmaps, slists, alists, intpl=False, intplf=2):
 		slist.extend(sl)
 	for al in alists:
 		alist.extend(al)
+	
+	# Get only unique values
 	alist = N.lib.arraysetops.unique1d(alist).flatten()
 	slist = N.lib.arraysetops.unique1d(slist).flatten()
 	
@@ -141,69 +144,28 @@ def mergeMaps(covmaps, slists, alists, intpl=False, intplf=2):
 	log.prNot(log.INFO, "mergeMap(): Got a: %s" % str(alist))
 	
 	# Make a new map big enough to hold all data
-	covmap = N.zeros((covmaps[0].shape[0], len(slist), len(alist)))
+	mult = N.zeros(len(slist), len(alist))
+	covmap = N.zeros((covmaps[0].shape[:-2]) + mult.shape)
 	
 	# Loop over the maps, insert into the bigger map
 	for n in range(len(covmaps)):
 		cmap = covmaps[n]
 		# Loop over this covmap in s-direction
-		for _s in range(cmap.shape[1]):
+		for _s in range(cmap.shape[-2]):
 			print n, _s, slists[n][_s], N.argwhere(slist == slists[n][_s])
 			# Find the index for this s in the new covmap:
 			sidx = int(N.argwhere(slist == slists[n][_s]).flatten())
 			# Loop over this covmap in a-direction
-			for _a in range(cmap.shape[2]):
+			for _a in range(cmap.shape[-1]):
 				# Find the index for this a in the new covmap:
-				aidx = int(N.argwhere(alist == alists[n][_a]).flatten())				
-				#covmap[:-1,sidx,aidx] += (cmap[:-1,_s,_a] )
-				covmap[:-1,sidx,aidx] += (cmap[:-1,_s,_a] *cmap[-1,_s,_a] )
-				covmap[-1,sidx,aidx] += cmap[-1,_s,_a] 
+				aidx = int(N.argwhere(alist == alists[n][_a]).flatten())
+				covmap[...,sidx,aidx] += cmap[...,_s,_a] * multmaps[n][_s,_a]
+				mult[sidx,aidx] += multmaps[n][_s,_a]
 	
 	# Normalize the map
-	covmap[:-1] /= covmap[-1]
+	covmap /= mult.reshape( (1,)*(covmap.ndim-2) + mult.shape )
 	
-	# Interpolate combined maps into a smooth map
-	if (intpl):
-		log.prNot(log.WARNING, "mergeMap(): Interpolation has issues, do not use.")
-		intpl = False
-	
-	if (intpl):
-		# Reform coordinates to correct format for interp2d
-		mask = covmap[-1] > 0
-		sint2 = N.array([slist] * len(alist)).T
-		aint2 = N.array([alist] * len(slist))		
-		sa = N.array([sint2,aint2])
-		# Filter out coordinates for which we have no measurements
-	 	sa = sa[:, mask]
-		
-		# Alternative method, usings loops to make things clearer
-		sint = []
-		aint = []
-		for sidx in range(covmap.shape[1]):
-			s = slist[sidx]
-			for aidx in range(covmap.shape[2]):
-				a = alist[aidx]
-				if (mask[sidx,aidx]):
-					sint.append(s)
-					aint.append(a)
-		# At this point, sint and sa[0] are equal, as are aint and sa[1]
-		
-		# New (regular) grid to interpolate on
-		news = N.arange(len(slist)*intplf) * max(slist) / (len(slist)*intplf - 1)
-		newa = N.arange(len(alist)*intplf) * max(alist) / (len(alist)*intplf - 1)
-		
-		import scipy as S
-		import scipy.interpolate
-		intdat = covmap[0, mask].flatten()
-		# Do interpolation
-		intpl = S.interpolate.interp2d(sa[0], sa[1], intdat, kind='linear')
-		log.prNot(log.INFO, "Interpolation set up.")
-		covint = intpl(news,newa).T
-		# Filter out bad values
-		covint[mask == False] = 0
-		return (news, newa, covint)
-	
-	return (slist, alist, covmap)
+	return (slist, alist, covmap, mult)
 
 
 ## @brief Compute the SDIMM+ covariance maps
@@ -350,6 +312,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						extra_compile_args= [__COMPILE_OPTS], \
 						type_converters=S.weave.converters.blitz)
 	if col:
+		return False
 		sacols = N.unique(sapos[:,0])
 		sfcols = N.unique(sfpos[:,0])
 		# Loop over all subaperture cols
