@@ -66,8 +66,6 @@ def mergeMaps(covmaps, multmaps, slists, alists):
 		cmap = covmaps[n]
 		# Loop over this covmap in s-direction
 		for _s in range(cmap.shape[-2]):
-			log.prNot(log.INFO, "Map %d, old sidx=%d, value=%d, new sidx=%d", \
-				n, _s, slists[n][_s], N.argwhere(slist == slists[n][_s]))
 			# Find the index for this s in the new covmap:
 			sidx = int(N.argwhere(slist == slists[n][_s]).flatten())
 			# Loop over this covmap in a-direction
