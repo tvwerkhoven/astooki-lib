@@ -239,7 +239,6 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						extra_compile_args= [__COMPILE_OPTS], \
 						type_converters=S.weave.converters.blitz)
 	if col:
-		return False
 		sacols = N.unique(sapos[:,0])
 		sfcols = N.unique(sfpos[:,0])
 		# Loop over all subaperture cols
@@ -271,7 +270,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						(colsa2, ) + tuple(sapos[colsa2])))
 					# Loop over all subfield cols (do this in C)
 					code = """
-					#line 274 "libsdimm.py"
+					#line 273 "libsdimm.py"
 					int sfcol, colsf2, colsf1, fr, aidx, i, r;
 					double a;
 
