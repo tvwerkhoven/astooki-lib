@@ -54,8 +54,8 @@ def mergeMaps(covmaps, multmaps, slists, alists):
 	alist = N.lib.arraysetops.unique1d(alist).flatten()
 	slist = N.lib.arraysetops.unique1d(slist).flatten()
 	
-	log.prNot(log.INFO, "mergeMap(): Got s: %s" % str(slist))
-	log.prNot(log.INFO, "mergeMap(): Got a: %s" % str(alist))
+	log.prNot(log.INFO, "mergeMap(): Found unique s: %s" % str(slist))
+	log.prNot(log.INFO, "mergeMap(): Found unique a: %s" % str(alist))
 	
 	# Make a new map big enough to hold all data
 	mult = N.zeros((len(slist), len(alist)))
@@ -66,7 +66,8 @@ def mergeMaps(covmaps, multmaps, slists, alists):
 		cmap = covmaps[n]
 		# Loop over this covmap in s-direction
 		for _s in range(cmap.shape[-2]):
-			print n, _s, slists[n][_s], N.argwhere(slist == slists[n][_s])
+			log.prNot(log.XNFO, "Map %d, old sidx=%d, value=%d, new sidx=%d", \
+				n, _s, slists[n][_s], N.argwhere(slist == slists[n][_s])
 			# Find the index for this s in the new covmap:
 			sidx = int(N.argwhere(slist == slists[n][_s]).flatten())
 			# Loop over this covmap in a-direction
@@ -145,6 +146,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 		sfrows = N.unique(sfpos[:,1])
 		# Loop over all subaperture rows
 		for sarowpos in sarows:
+			log.prNot(log.NOTICE, "Processing next row now...")
 			# Get a list of all subapertures at this row (i.e. same y coordinate)
 			salist = N.argwhere(sapos[:,1] == sarowpos).flatten()
 			# Exclude bad subaps
@@ -219,8 +221,8 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 											dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
 									}
 									// Normalize error bias map
+									Cxy(fr, 2, sidx, aidx) /= Ndx_r[1];
 									Cxy(fr, 3, sidx, aidx) /= Ndx_r[1];
-									Cxy(fr, 4, sidx, aidx) /= Ndx_r[1];
 								}
 								
 								// Increase multiplicity for this (s, a) pair by one
