@@ -248,18 +248,10 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						(rowsa2, ) + tuple(sapos[rowsa2])))
 					# Loop over all subfield rows (do this in C)
 					code = """
-					#line 289 "libsdimm.py"
-					#define NQUANT 3
-					#define NCOV (NQUANT*2)
+					#line 251 "libsdimm.py"
 					int sfrow, rowsf2, rowsf1, fr, aidx, i, r;
 					double a;
-					struct covar {
-						float p;			// E(x * y)
-						float x;			// E(x)
-						float y;			// E(y)
-						float c;			// E(x * y) - E(x) * E(y) = Cov(x,y)
-					};
-					struct covar cov[NCOV];
+
 					for (sfrow=0; sfrow < Nsfrows[0]; sfrow++) {
 						// current row is: sfrow @ sfrows[sfrow];
 						for (rowsf1=0; rowsf1 < Nsfpos[0]; rowsf1++) {
@@ -282,7 +274,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								for (fr=0; fr<Ndx_r[0]; fr++) {
 									// Transversal average
 									Cxy(0, fr, sidx, aidx) = \\
-										dx_a(fr,rowsf1,0) * dx_a(fr,rowsf1,0)
+										dx_a(fr,rowsf1,0) * dx_a(fr,rowsf2,0);
 									// Longitudinal average
 									Cxy(1, fr, sidx, aidx) = \\
 										dx_a(fr,rowsf1,1) * dx_a(fr,rowsf2,1);
@@ -291,15 +283,15 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 									for (r=0; r<Ndx_r[1]; r++)	{
 										// Longitidunal 
 										Cxy(2 + 2*r + 0, fr, sidx, aidx) = \\
-											dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0)
+											dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0);
 										// Transversal
 										Cxy(2 + 2*r + 1, fr, sidx, aidx) = \\
-											dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1)
+											dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
 									}
 								}
 								
 								// Increase multiplicity for this (s, a) pair by one
-								multi(sidx, aidx) += 1;
+								mult(sidx, aidx) += 1;
 							}
 						}
 					}
