@@ -216,7 +216,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 	# Allocate memory for Cx,y(s,a). x2 for longitudinal and transversal, x2 
 	# for maps itself + error bias maps, *(1+nref) for every reference *and* the
 	# average over the reference subapertures
-	Cxy = N.zeros((2*2*(1+nref), nfiles, len(slist), len(alist)))
+	Cxy = N.zeros((nfiles, 2*2*(1+nref), len(slist), len(alist)))
 	# Multiplicity map, number of (s,a)-pairs.
 	mult = N.zeros((len(slist), len(alist)))
 	if row:
@@ -271,24 +271,21 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								
 								// Loop over all frames to calculate the expectation value of
 								// the various quantities.
-								// TvW: only process first 13 frames for speedup 
-								// (just testing)
-								//for (fr=0; fr<Ndx_r[0]; fr++) {
-								for (fr=0; fr<13; fr++) {
+								for (fr=0; fr<Ndx_r[0]; fr++) {
 									// Transversal average
-									Cxy(0, fr, sidx, aidx) = \\
+									Cxy(fr, 0, sidx, aidx) = \\
 										dx_a(fr,rowsf1,0) * dx_a(fr,rowsf2,0);
 									// Longitudinal average
-									Cxy(1, fr, sidx, aidx) = \\
+									Cxy(fr, 1, sidx, aidx) = \\
 										dx_a(fr,rowsf1,1) * dx_a(fr,rowsf2,1);
 									
 									// Loop over all reference subapertures
 									for (r=0; r<Ndx_r[1]; r++)	{
 										// Longitidunal 
-										Cxy(2 + 2*r + 0, fr, sidx, aidx) = \\
+										Cxy(fr, 2 + 2*r + 0, sidx, aidx) = \\
 											dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0);
 										// Transversal
-										Cxy(2 + 2*r + 1, fr, sidx, aidx) = \\
+										Cxy(fr, 2 + 2*r + 1, sidx, aidx) = \\
 											dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
 									}
 								}
