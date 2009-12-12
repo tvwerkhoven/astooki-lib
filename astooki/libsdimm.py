@@ -161,8 +161,9 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					sidx = int(N.argwhere(slist == s).flatten())
 					# Pre-calculate shift-difference between subapertures
 					dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
-					# Subtract average from dx_r signals
-					dx_ra = N.sum(dx_r, axis=0) / dx_r.shape[0]
+					# Subtract average over all files from dx_r
+					dx_r_avg = N.mean(dx_r, axis=0)
+					dx_ra = dx_r - dx_r_avg.reshape( (1,) + dx_r_avg.shape )
 					# Calculate average over reference subapertures
 					dx_a = dx_ra.mean(axis=1)
 					
@@ -260,11 +261,12 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					
 					# Pre-calculate shift-difference between subapertures
 					dx_r = shifts[:, :, colsa1, :, :] - shifts[:, :, colsa2, :, :]
-					# Subtract average from dx_r signals
-					dx_ra = N.sum(dx_r, axis=0) / dx_r.shape[0]
+					# Subtract average over all files from dx_r
+					dx_r_avg = N.mean(dx_r, axis=0)
+					dx_ra = dx_r - dx_r_avg.reshape( (1,) + dx_r_avg.shape )
 					# Calculate average over reference subapertures
 					dx_a = dx_ra.mean(axis=1)
-					
+										
 					log.prNot(log.NOTICE, "COL: sa %d @ (%g,%g) <-> sa %d @ (%g,%g)."% \
 						((colsa1, ) + tuple(sapos[colsa1]) + \
 						(colsa2, ) + tuple(sapos[colsa2])))
