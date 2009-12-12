@@ -335,7 +335,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					return_val = 1;
 					"""
 					one = S.weave.inline(code, \
-						['Cxy', 'mult', 'sidx', 'sfrows', 'sfpos', 'alist', \
+						['Cxy', 'mult', 'sidx', 'sfcols', 'sfpos', 'alist', \
 							'dx_a', 'dx_ra'], \
 						extra_compile_args= [__COMPILE_OPTS], \
 						type_converters=S.weave.converters.blitz)
