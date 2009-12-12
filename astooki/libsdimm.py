@@ -162,9 +162,9 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					# Pre-calculate shift-difference between subapertures
 					dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
 					# Subtract average from dx_r signals
-					dx_r_avg = N.sum(dx_r, axis=0) / dx_r.shape[0]
+					dx_ra = N.sum(dx_r, axis=0) / dx_r.shape[0]
 					# Calculate average over reference subapertures
-					dx_a = dx_r.mean(axis=1)
+					dx_a = dx_ra.mean(axis=1)
 					
 					log.prNot(log.NOTICE, "ROW: sa %d @ (%g,%g) <-> sa %d @ (%g,%g)."% \
 						((rowsa1, ) + tuple(sapos[rowsa1]) + \
@@ -194,7 +194,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								
 								// Loop over all frames to calculate the expectation value of
 								// the various quantities.
-								for (fr=0; fr<Ndx_r[0]; fr++) {
+								for (fr=0; fr<Ndx_ra[0]; fr++) {
 									// Transversal average
 									Cxy(fr, 0, sidx, aidx) += \\
 										dx_a(fr,rowsf1,0) * dx_a(fr,rowsf2,0);
@@ -203,26 +203,26 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 										dx_a(fr,rowsf1,1) * dx_a(fr,rowsf2,1);
 									
 									// Loop over all reference subapertures
-									for (r=0; r<Ndx_r[1]; r++)	{
+									for (r=0; r<Ndx_ra[1]; r++)	{
 										// Error bias map (long.)
 										Cxy(fr, 2, sidx, aidx) += \\
-											(dx_r(fr,r,rowsf1,0) - dx_a(fr,rowsf1,0)) * \\
-												(dx_r(fr,r,rowsf2,0) - dx_a(fr,rowsf2,0));
+											(dx_ra(fr,r,rowsf1,0) - dx_a(fr,rowsf1,0)) * \\
+												(dx_ra(fr,r,rowsf2,0) - dx_a(fr,rowsf2,0));
 										// Error bias map (trans.)
 										Cxy(fr, 3, sidx, aidx) += \\
-											(dx_r(fr,r,rowsf1,1) - dx_a(fr,rowsf1,1)) * \\
-												(dx_r(fr,r,rowsf2,1) - dx_a(fr,rowsf2,1));
+											(dx_ra(fr,r,rowsf1,1) - dx_a(fr,rowsf1,1)) * \\
+												(dx_ra(fr,r,rowsf2,1) - dx_a(fr,rowsf2,1));
 										
 										// Longitidunal 
 										Cxy(fr, 4 + 2*r + 0, sidx, aidx) += \\
-											dx_r(fr,r,rowsf1,0) * dx_r(fr,r,rowsf2,0);
+											dx_ra(fr,r,rowsf1,0) * dx_ra(fr,r,rowsf2,0);
 										// Transversal
 										Cxy(fr, 4 + 2*r + 1, sidx, aidx) += \\
-											dx_r(fr,r,rowsf1,1) * dx_r(fr,r,rowsf2,1);
+											dx_ra(fr,r,rowsf1,1) * dx_ra(fr,r,rowsf2,1);
 									}
 									// Normalize error bias map
-									Cxy(fr, 2, sidx, aidx) /= Ndx_r[1];
-									Cxy(fr, 3, sidx, aidx) /= Ndx_r[1];
+									Cxy(fr, 2, sidx, aidx) /= Ndx_ra[1];
+									Cxy(fr, 3, sidx, aidx) /= Ndx_ra[1];
 								}
 								
 								// Increase multiplicity for this (s, a) pair by one
@@ -235,7 +235,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					"""
 					one = S.weave.inline(code, \
 						['Cxy', 'mult', 'sidx', 'sfrows', 'sfpos', 'alist', \
-							'dx_a', 'dx_r'], \
+							'dx_a', 'dx_ra'], \
 						extra_compile_args= [__COMPILE_OPTS], \
 						type_converters=S.weave.converters.blitz)
 	if col:
@@ -259,11 +259,11 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					sidx = int(N.argwhere(slist == s).flatten())
 					
 					# Pre-calculate shift-difference between subapertures
-					dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
+					dx_r = shifts[:, :, colsa1, :, :] - shifts[:, :, colsa2, :, :]
 					# Subtract average from dx_r signals
-					dx_r_avg = N.sum(dx_r, axis=0) / dx_r.shape[0]
+					dx_ra = N.sum(dx_r, axis=0) / dx_r.shape[0]
 					# Calculate average over reference subapertures
-					dx_a = dx_r.mean(axis=1)
+					dx_a = dx_ra.mean(axis=1)
 					
 					log.prNot(log.NOTICE, "COL: sa %d @ (%g,%g) <-> sa %d @ (%g,%g)."% \
 						((colsa1, ) + tuple(sapos[colsa1]) + \
@@ -293,7 +293,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 								
 								// Loop over all frames to calculate the expectation value of
 								// the various quantities.
-								for (fr=0; fr<Ndx_r[0]; fr++) {
+								for (fr=0; fr<Ndx_ra[0]; fr++) {
 									// Transversal average
 									Cxy(fr, 0, sidx, aidx) += \\
 										dx_a(fr,colsf1,0) * dx_a(fr,colsf2,0);
@@ -302,26 +302,26 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 										dx_a(fr,colsf1,1) * dx_a(fr,colsf2,1);
 									
 									// Loop over all reference subapertures
-									for (r=0; r<Ndx_r[1]; r++)	{
+									for (r=0; r<Ndx_ra[1]; r++)	{
 										// Error bias map (long.)
 										Cxy(fr, 2, sidx, aidx) += \\
-											(dx_r(fr,r,colsf1,0) - dx_a(fr,colsf1,0)) * \\
-												(dx_r(fr,r,colsf2,0) - dx_a(fr,colsf2,0));
+											(dx_ra(fr,r,colsf1,0) - dx_a(fr,colsf1,0)) * \\
+												(dx_ra(fr,r,colsf2,0) - dx_a(fr,colsf2,0));
 										// Error bias map (trans.)
 										Cxy(fr, 3, sidx, aidx) += \\
-											(dx_r(fr,r,colsf1,1) - dx_a(fr,colsf1,1)) * \\
-												(dx_r(fr,r,colsf2,1) - dx_a(fr,colsf2,1));
+											(dx_ra(fr,r,colsf1,1) - dx_a(fr,colsf1,1)) * \\
+												(dx_ra(fr,r,colsf2,1) - dx_a(fr,colsf2,1));
 										
 										// Longitidunal 
 										Cxy(fr, 4 + 2*r + 0, sidx, aidx) += \\
-											dx_r(fr,r,colsf1,0) * dx_r(fr,r,colsf2,0);
+											dx_ra(fr,r,colsf1,0) * dx_ra(fr,r,colsf2,0);
 										// Transversal
 										Cxy(fr, 4 + 2*r + 1, sidx, aidx) += \\
-											dx_r(fr,r,colsf1,1) * dx_r(fr,r,colsf2,1);
+											dx_ra(fr,r,colsf1,1) * dx_ra(fr,r,colsf2,1);
 									}
 									// Normalize error bias map
-									Cxy(fr, 2, sidx, aidx) /= Ndx_r[1];
-									Cxy(fr, 3, sidx, aidx) /= Ndx_r[1];
+									Cxy(fr, 2, sidx, aidx) /= Ndx_ra[1];
+									Cxy(fr, 3, sidx, aidx) /= Ndx_ra[1];
 								}
 								
 								// Increase multiplicity for this (s, a) pair by one
@@ -333,7 +333,8 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					return_val = 1;
 					"""
 					one = S.weave.inline(code, \
-						['sd_rc', 'sidx', 'sfcols', 'sfpos', 'alist', 'dx_a', 'dx_r'], \
+						['Cxy', 'mult', 'sidx', 'sfrows', 'sfpos', 'alist', \
+							'dx_a', 'dx_ra'], \
 						extra_compile_args= [__COMPILE_OPTS], \
 						type_converters=S.weave.converters.blitz)
 	
