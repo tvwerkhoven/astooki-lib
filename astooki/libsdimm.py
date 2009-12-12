@@ -277,17 +277,17 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 					for (sfcol=0; sfcol < Nsfcols[0]; sfcol++) {
 						// current col is: sfcol @ sfcols[sfcol];
 						for (colsf1=0; colsf1 < Nsfpos[0]; colsf1++) {
-							// Current subfield is: colsf1 @ sfpos[colsf1, 1]
+							// Current subfield is: colsf1 @ sfpos[colsf1, 0]
 							// Check if this subfield is in the correct col:
-							if (sfpos(colsf1, 1) != sfcols(sfcol)) continue;
+							if (sfpos(colsf1, 0) != sfcols(sfcol)) continue;
 							for (colsf2=0; colsf2 < Nsfpos[0]; colsf2++) {
-								// Current subfield is: colsf2 @ sfpos[colsf2, 1]
+								// Current subfield is: colsf2 @ sfpos[colsf2, 0]
 								// Check if this subfield is in the correct col:
-								if (sfpos(colsf2, 1) != sfcols(sfcol)) continue;
-								// Check if colsf2 is located right of colsf1
-								if (sfpos(colsf2, 0) < sfpos(colsf1, 0)) continue;
+								if (sfpos(colsf2, 0) != sfcols(sfcol)) continue;
+								// Check if colsf2 is located above of colsf1
+								if (sfpos(colsf2, 1) < sfpos(colsf1, 1)) continue;
 								
-								a = sfpos(colsf2, 0) - sfpos(colsf1, 0);
+								a = sfpos(colsf2, 1) - sfpos(colsf1, 1);
 								for (aidx=0; aidx < Nalist[0]; aidx++)
 									if (alist(aidx) == a) break;
 								
