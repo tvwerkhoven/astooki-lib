@@ -6,7 +6,7 @@ setup.py -- setup file for the astooki-lib module
 Created by Tim van Werkhoven (t.i.m.vanwerkhoven@xs4all.nl) on 2009-05-20.
 Copyright (c) 2009 Tim van Werkhoven. All rights reserved.
 """
-GITREVISION="v20090626.0-17-g31731eb"
+GITREVISION="v20090626.0-18-g4f7f53b"
 import sys
 
 # Try importing to see if we have NumPy available (we need this)

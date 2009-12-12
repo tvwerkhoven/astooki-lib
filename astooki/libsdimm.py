@@ -171,7 +171,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						(rowsa2, ) + tuple(sapos[rowsa2])))
 					# Loop over all subfield rows (do this in C)
 					code = """
-					#line 251 "libsdimm.py"
+					#line 174 "libsdimm.py"
 					int sfrow, rowsf2, rowsf1, fr, aidx, i, r;
 					double a;
 
@@ -244,6 +244,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 		sfcols = N.unique(sfpos[:,0])
 		# Loop over all subaperture cols
 		for sacolpos in sacols:
+			log.prNot(log.NOTICE, "Processing next column now...")
 			# Get a list of all subapertures at this col (i.e. same x coordinate)
 			salist = N.argwhere(sapos[:,0] == sacolpos).flatten()
 			# Exclude bad subaps
@@ -270,117 +271,66 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						(colsa2, ) + tuple(sapos[colsa2])))
 					# Loop over all subfield cols (do this in C)
 					code = """
-					#line 443 "libsdimm.py"
-					#define NQUANT 3
-					#define NCOV (NQUANT*2)
+					#line 274 "libsdimm.py"
 					int sfcol, colsf2, colsf1, fr, aidx, i, r;
 					double a;
-					struct covar {
-						float p;			// E(x * y)
-						float x;			// E(x)
-						float y;			// E(y)
-						float c;			// E(x * y) - E(x) * E(y) = Cov(x,y)
-					};
-					struct covar cov[NCOV];
+
 					for (sfcol=0; sfcol < Nsfcols[0]; sfcol++) {
 						// current col is: sfcol @ sfcols[sfcol];
 						for (colsf1=0; colsf1 < Nsfpos[0]; colsf1++) {
-							// Current subfield is: colsf1 @ sfpos[colsf1, 0]
+							// Current subfield is: colsf1 @ sfpos[colsf1, 1]
 							// Check if this subfield is in the correct col:
-							if (sfpos(colsf1, 0) != sfcols(sfcol)) continue;
+							if (sfpos(colsf1, 1) != sfcols(sfcol)) continue;
 							for (colsf2=0; colsf2 < Nsfpos[0]; colsf2++) {
-								// Current subfield is: colsf2 @ sfpos[colsf2, 0]
+								// Current subfield is: colsf2 @ sfpos[colsf2, 1]
 								// Check if this subfield is in the correct col:
-								if (sfpos(colsf2, 0) != sfcols(sfcol)) continue;
+								if (sfpos(colsf2, 1) != sfcols(sfcol)) continue;
 								// Check if colsf2 is located right of colsf1
-								if (sfpos(colsf2, 1) < sfpos(colsf1, 1)) continue;
-								a = sfpos(colsf2, 1) - sfpos(colsf1, 1);
+								if (sfpos(colsf2, 0) < sfpos(colsf1, 0)) continue;
+								
+								a = sfpos(colsf2, 0) - sfpos(colsf1, 0);
 								for (aidx=0; aidx < Nalist[0]; aidx++)
 									if (alist(aidx) == a) break;
 								
-								// Set variables to zero
-								for (i=0; i<NCOV; i++)
-									cov[i].p = cov[i].x = cov[i].y = cov[i].c = 0.0;
-								
-								// Loop over all frames to calculate the mean of various 
-								// quantities, then calculate the cov. from this
-								for (fr=0; fr<Ndx_a[0]; fr++) {
-									// SDIMM COVARIANCE OF DATA: ///////////////////////////////
-									// Longitidinal covariance for mean over references
-									cov[0].p += dx_a(fr,colsf1,1) * dx_a(fr,colsf2,1);
-									cov[0].x += dx_a(fr,colsf1,1);
-									cov[0].y += dx_a(fr,colsf2,1);
+								// Loop over all frames to calculate the expectation value of
+								// the various quantities.
+								for (fr=0; fr<Ndx_r[0]; fr++) {
+									// Transversal average
+									Cxy(fr, 0, sidx, aidx) += \\
+										dx_a(fr,colsf1,0) * dx_a(fr,colsf2,0);
+									// Longitudinal average
+									Cxy(fr, 1, sidx, aidx) += \\
+										dx_a(fr,colsf1,1) * dx_a(fr,colsf2,1);
 									
-									// Transversal covariance for mean over references
-									cov[1].p += dx_a(fr,colsf1,0) * dx_a(fr,colsf2,0);
-									cov[1].x += dx_a(fr,colsf1,0);
-									cov[1].y += dx_a(fr,colsf2,0);
-									
-									// Covariance for first single reference
-									cov[4].p += dx_r(fr,0,colsf1,1) * dx_r(fr,0,colsf2,1);
-									cov[4].x += dx_r(fr,0,colsf1,1);
-									cov[4].y += dx_r(fr,0,colsf2,1);
-									
-							    cov[5].p += dx_r(fr,0,colsf1,0) * dx_r(fr,0,colsf2,0);
-							    cov[5].x += dx_r(fr,0,colsf1,0);
-							    cov[5].y += dx_r(fr,0,colsf2,0);									
-								}
-								
-								// NOISE PROPAGATION ANALYSIS: /////////////////////////////
-								for (r=0; r<Ndx_r[1]; r++)	{
-									cov[2].p = cov[2].x = cov[2].y = 0.0;
-									cov[3].p = cov[3].x = cov[3].y = 0.0;
-									
-									for (fr=0; fr<Ndx_a[0]; fr++) {
-										// Longitidinal covariance for *difference* over refs
-										cov[2].p += (dx_r(fr,r,colsf1,0) - dx_a(fr,colsf1,0)) * \\
-											(dx_r(fr,r,colsf2,0) - dx_a(fr,colsf2,0));
-										cov[2].x += dx_r(fr,r,colsf1,0) - dx_a(fr,colsf1,0);
-										cov[2].y += dx_r(fr,r,colsf2,0) - dx_a(fr,colsf2,0);
-								
-										// Transversal covariance for *difference* over refs
-										cov[3].p += (dx_r(fr,r,colsf1,1) - dx_a(fr,colsf1,1)) * \\
-											(dx_r(fr,r,colsf2,1) - dx_a(fr,colsf2,1));
-										cov[3].x += dx_r(fr,r,colsf1,1) - dx_a(fr,colsf1,1);
-										cov[3].y += dx_r(fr,r,colsf2,1) - dx_a(fr,colsf2,1);
+									// Loop over all reference subapertures
+									for (r=0; r<Ndx_r[1]; r++)	{
+										// Error bias map (long.)
+										Cxy(fr, 2, sidx, aidx) += \\
+											(dx_r(fr,r,colsf1,0) - dx_a(fr,colsf1,0)) * \\
+												(dx_r(fr,r,colsf2,0) - dx_a(fr,colsf2,0));
+										// Error bias map (trans.)
+										Cxy(fr, 3, sidx, aidx) += \\
+											(dx_r(fr,r,colsf1,1) - dx_a(fr,colsf1,1)) * \\
+												(dx_r(fr,r,colsf2,1) - dx_a(fr,colsf2,1));
+										
+										// Longitidunal 
+										Cxy(fr, 4 + 2*r + 0, sidx, aidx) += \\
+											dx_r(fr,r,colsf1,0) * dx_r(fr,r,colsf2,0);
+										// Transversal
+										Cxy(fr, 4 + 2*r + 1, sidx, aidx) += \\
+											dx_r(fr,r,colsf1,1) * dx_r(fr,r,colsf2,1);
 									}
-									
-									// Normalize noise propagation
-									cov[2].p /= Ndx_a[0]-1;
-									cov[2].x /= Ndx_a[0]-1;
-									cov[2].y /= Ndx_a[0]-1;
-									cov[3].p /= Ndx_a[0]-1;
-									cov[3].x /= Ndx_a[0]-1;
-									cov[3].y /= Ndx_a[0]-1;
-									
-									cov[2].c += cov[2].p - (cov[2].x * cov[2].y);
-									cov[3].c += cov[3].p - (cov[3].x * cov[3].y);
+									// Normalize error bias map
+									Cxy(fr, 2, sidx, aidx) /= Ndx_r[1];
+									Cxy(fr, 3, sidx, aidx) /= Ndx_r[1];
 								}
-								
-								// Normalize error bias (divide by (N_ref*(N_ref-1))
-								cov[2].c /= (Ndx_r[1] * (Ndx_r[1]-1));
-								cov[3].c /= (Ndx_r[1] * (Ndx_r[1]-1));
-								
-								// Normalize values and calculate covariance
-								for (i=0; i<NCOV; i++) {
-									// skip noise analysis (from old code, ugly)
-									if (i == 2 || i == 3) continue;
-									cov[i].p /= Ndx_a[0]-1;
-									cov[i].x /= Ndx_a[0]-1;
-									cov[i].y /= Ndx_a[0]-1; 
-									cov[i].c = cov[i].p - (cov[i].x * cov[i].y);
-								}
-								
-								// Copy to output array
-								for (i=0; i<NCOV; i++)
-									sd_rc(i, sidx, aidx) += cov[i].c;
 								
 								// Increase multiplicity for this (s, a) pair by one
-								sd_rc(NCOV, sidx, aidx) += 1;
+								mult(sidx, aidx) += 1;
 							}
 						}
 					}
-										
+					
 					return_val = 1;
 					"""
 					one = S.weave.inline(code, \
