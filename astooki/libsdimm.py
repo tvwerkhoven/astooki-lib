@@ -70,10 +70,8 @@ def computeSdimmCov(shifts, sapos, sfpos, skipsa=[], row=True, col=False):
 		for sarowpos in sarows:
 			# Get a list of all subapertures at this row (i.e. same y coordinate)
 			salist = N.argwhere(sapos[:,1] == sarowpos).flatten()
-			# Exclude bad subaps
+			# Exclude bad subaps which are in the list 'skipsa'
 			salist = N.lib.arraysetops.setdiff1d(salist, skipsa)
-			# Take a reference subaperture in this row (the one on the left)
-			#refsa = salist[N.argmin(sapos[salist][:,0])]
 			# Loop over all subapertures in this row
 			for rowsa1 in salist:
 				othersa = salist[sapos[salist,0] >= sapos[rowsa1,0]]
@@ -270,23 +268,18 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 			salist = N.argwhere(sapos[:,1] == sarowpos).flatten()
 			# Exclude bad subaps
 			salist = N.lib.arraysetops.setdiff1d(salist, skipsa)
-			# Take a reference subaperture in this row (the one on the left)
-			#refsa = salist[N.argmin(sapos[salist][:,0])]
 			# Loop over all subapertures in this row
 			for rowsa1 in salist:
 				othersa = salist[sapos[salist,0] >= sapos[rowsa1,0]]
 				for rowsa2 in othersa:
-					#if (rowsa == refsa): continue
 					# Calculate the distance between these two subaps
 					# FIXME: Need to round off 's' values because we get numerical errors
 					s = N.round(sapos[rowsa2, 0] - sapos[rowsa1, 0], 7)
 					sidx = int(N.argwhere(slist == s).flatten())
-					# Pre-calculate difference between subapertures
+					# Pre-calculate shift-difference between subapertures
 					dx_a = shifts_a[:, rowsa1, :, :] - shifts_a[:, rowsa2, :, :]
-					#dx_d = shifts_d[:, rowsa1, :, :] - shifts_d[:, rowsa2, :, :]
 					dx_r = shifts[:, :, rowsa1, :, :] - shifts[:, :, rowsa2, :, :]
-					# log.prNot(log.NOTICE, "ROW: Comparing subap %d with subap %d." % \
-					# 	(rowsa1, rowsa2))
+					
 					log.prNot(log.NOTICE, "ROW: sa %d @ (%g,%g) <-> sa %d @ (%g,%g)."% \
 						((rowsa1, ) + tuple(sapos[rowsa1]) + \
 						(rowsa2, ) + tuple(sapos[rowsa2])))

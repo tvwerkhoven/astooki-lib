@@ -172,7 +172,7 @@ def computeFwdMatrix(lh, lsize, lorig, lcells, sasize, sapos, sfang, sffov, matr
 							fwdmatrix[woff, off + cy * lcells[0] + cx] = isect
 	elif (engine == 'c'):
 		code = """
-		#line 177 "libtomo.py"
+		#line 175 "libtomo.py"
 		#ifndef max
 		#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
 		#endif

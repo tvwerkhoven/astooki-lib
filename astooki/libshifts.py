@@ -165,7 +165,7 @@ def crossCorrWeave(img, ref, pos, range):
 	#raise RuntimeWarning("crossCorrWeave() is not really working at the moment, probably some gradient or bias issue.")
 	
 	code = """
-	#line 175 "libshifts.py" (debugging info for compilation)
+	#line 168 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -266,7 +266,7 @@ def sqDiffWeave(img, ref, pos, range):
 	# print ref.shape
 	
 	code = """
-	#line 276 "libshifts.py" (debugging info for compilation)
+	#line 269 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -367,7 +367,7 @@ def absDiffSqWeave(img, ref, pos, range):
 	diffmap = N.empty((range[1]*2+1, range[0]*2+1), dtype=N.float32)
 	
 	code = """
-	#line 383 "libshifts.py" (debugging info for compilation)
+	#line 370 "libshifts.py" (debugging info for compilation)
 	// We need minmax functions
 	#ifndef max
 	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -624,7 +624,7 @@ def quadInt2dWeave(data, range, limit=None):
 	# coordinate of the maximum.
 	submap = data[start[0]-1:start[0]+2, start[1]-1:start[1]+2]
 	code = """
-	#line 615 "libshifts.py" (debugging info)
+	#line 627 "libshifts.py" (debugging info)
 	double a2, a3, a4, a5, a6;
 	
 	a2 = 0.5 * (submap(2,1) -submap(0,1));
