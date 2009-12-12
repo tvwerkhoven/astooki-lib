@@ -144,7 +144,7 @@ def mergeMaps(covmaps, multmaps, slists, alists):
 	log.prNot(log.INFO, "mergeMap(): Got a: %s" % str(alist))
 	
 	# Make a new map big enough to hold all data
-	mult = N.zeros(len(slist), len(alist))
+	mult = N.zeros((len(slist), len(alist)))
 	covmap = N.zeros((covmaps[0].shape[:-2]) + mult.shape)
 	
 	# Loop over the maps, insert into the bigger map
@@ -218,7 +218,7 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 	# average over the reference subapertures
 	Cxy = N.zeros((2*2*(1+nref), nfiles, len(slist), len(alist)))
 	# Multiplicity map, number of (s,a)-pairs.
-	mult = N.zeros(len(slist), len(alist))
+	mult = N.zeros((len(slist), len(alist)))
 	if row:
 		sarows = N.unique(sapos[:,1])
 		sfrows = N.unique(sfpos[:,1])
