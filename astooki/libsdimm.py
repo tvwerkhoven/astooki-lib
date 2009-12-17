@@ -101,8 +101,8 @@ def mergeMaps(covmaps, multmaps, slists, alists):
 # 
 # @returns returns a tuple (slist, alist, Cxy, mult), where slist is the list
 # of s values, alist is the list of a value, Cxy is the 'covariance' map,
-# which has dimensions (nfiles, 2*(1+nref)+2, len(slist), len(alist)), mult is
-# the multiplicity of Cxy and gives the number of pairs of 
+# which has dimensions (nfiles, 2*(1+nref)+2+4, len(slist), len(alist)), mult
+# is the multiplicity of Cxy and gives the number of pairs of 
 # subapertures-subfields for each (s,a)-pair. Quantities stored in Cxy are 
 # described in pyatk.py and in the function itself.
 def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=False):
@@ -134,9 +134,10 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 	log.prNot(log.INFO, "Got a values: %s" % str(alist))
 	
 	# Allocate memory for Cx,y(s,a). x2 for longitudinal and transversal,
-	# x(1+nref+2) for every reference *and* the average over the reference
-	# subapertures *and* the error bias maps for the average
-	Cxy = N.zeros((nfiles, 2*(1+nref)+2, len(slist), len(alist)))
+	# x(1+nref)+2+4 for every reference *and* the average over the reference
+	# subapertures *and* the error bias maps for the average *and* some 
+	# crossterms
+	Cxy = N.zeros((nfiles, 2*(1+nref)+2+4, len(slist), len(alist)))
 	# Multiplicity map, number of (s,a)-pairs.
 	mult = N.zeros((len(slist), len(alist)))
 	if row:
@@ -213,15 +214,27 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 												(dx_ra(fr,r,rowsf2,1) - dx_a(fr,rowsf2,1));
 										
 										// Longitidunal 
-										Cxy(fr, 4 + 2*r + 0, sidx, aidx) += \\
+										Cxy(fr, 8 + 2*r + 0, sidx, aidx) += \\
 											dx_ra(fr,r,rowsf1,0) * dx_ra(fr,r,rowsf2,0);
 										// Transversal
-										Cxy(fr, 4 + 2*r + 1, sidx, aidx) += \\
+										Cxy(fr, 8 + 2*r + 1, sidx, aidx) += \\
 											dx_ra(fr,r,rowsf1,1) * dx_ra(fr,r,rowsf2,1);
 									}
 									// Normalize error bias map
 									Cxy(fr, 2, sidx, aidx) /= Ndx_ra[1];
 									Cxy(fr, 3, sidx, aidx) /= Ndx_ra[1];
+									
+									// Cross terms, ref1 with ref2 longitudinal
+									Cxy(fr, 4, sidx, aidx) += \\
+										dx_ra(fr,0,rowsf1,0) * dx_ra(fr,1,rowsf2,0);
+									Cxy(fr, 5, sidx, aidx) += \\
+										dx_ra(fr,1,rowsf1,0) * dx_ra(fr,0,rowsf2,0);
+									
+									// Cross terms, ref1 with ref2 transversal
+									Cxy(fr, 6, sidx, aidx) += \\
+										dx_ra(fr,0,rowsf1,1) * dx_ra(fr,1,rowsf2,1);
+									Cxy(fr, 7, sidx, aidx) += \\
+										dx_ra(fr,1,rowsf1,1) * dx_ra(fr,0,rowsf2,1);
 								}
 								
 								// Increase multiplicity for this (s, a) pair by one
@@ -313,15 +326,27 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 												(dx_ra(fr,r,colsf2,0) - dx_a(fr,colsf2,0));
 										
 										// Longitidunal 
-										Cxy(fr, 4 + 2*r + 0, sidx, aidx) += \\
+										Cxy(fr, 8 + 2*r + 0, sidx, aidx) += \\
 											dx_ra(fr,r,colsf1,1) * dx_ra(fr,r,colsf2,1);
 										// Transversal
-										Cxy(fr, 4 + 2*r + 1, sidx, aidx) += \\
+										Cxy(fr, 8 + 2*r + 1, sidx, aidx) += \\
 											dx_ra(fr,r,colsf1,0) * dx_ra(fr,r,colsf2,0);
 									}
 									// Normalize error bias map
 									Cxy(fr, 2, sidx, aidx) /= Ndx_ra[1];
 									Cxy(fr, 3, sidx, aidx) /= Ndx_ra[1];
+									
+									// Cross terms, ref1 with ref2 longitudinal
+									Cxy(fr, 4, sidx, aidx) += \\
+										dx_ra(fr,0,colsf1,1) * dx_ra(fr,1,colsf2,1);
+									Cxy(fr, 5, sidx, aidx) += \\
+										dx_ra(fr,1,colsf1,1) * dx_ra(fr,0,colsf2,1);
+									
+									// Cross terms, ref1 with ref2 transversal
+									Cxy(fr, 6, sidx, aidx) += \\
+										dx_ra(fr,0,colsf1,0) * dx_ra(fr,1,colsf2,0);
+									Cxy(fr, 7, sidx, aidx) += \\
+										dx_ra(fr,1,colsf1,0) * dx_ra(fr,0,colsf2,0);
 								}
 								
 								// Increase multiplicity for this (s, a) pair by one
