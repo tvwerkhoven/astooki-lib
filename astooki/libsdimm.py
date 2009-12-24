@@ -132,6 +132,9 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 	alist = N.unique(alist)
 	log.prNot(log.INFO, "Got s values: %s" % str(slist))
 	log.prNot(log.INFO, "Got a values: %s" % str(alist))
+	log.prNot(log.INFO, "Got shifts.shape: %s" % str(shifts.shape))
+	log.prNot(log.INFO, "Got sfpos.shape: %s" % str(sfpos.shape))
+	log.prNot(log.INFO, "Got sapos.shape: %s" % str(sapos.shape))
 	
 	# Allocate memory for Cx,y(s,a). x2 for longitudinal and transversal,
 	# x(1+nref)+2+4 for every reference *and* the average over the reference
@@ -171,9 +174,9 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						(rowsa2, ) + tuple(sapos[rowsa2])))
 					# Loop over all subfield rows (do this in C)
 					code = """
-					#line 174 "libsdimm.py"
+					#line 177 "libsdimm.py"
 					int sfrow, rowsf2, rowsf1, fr, aidx, i, r;
-					double a;
+					double a, errl, errt;
 
 					for (sfrow=0; sfrow < Nsfrows[0]; sfrow++) {
 						// current row is: sfrow @ sfrows[sfrow];
@@ -202,15 +205,14 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 									Cxy(fr, 1, sidx, aidx) += \\
 										dx_a(fr,rowsf1,1) * dx_a(fr,rowsf2,1);
 									
+									errl = errt = 0.0;
 									// Loop over all reference subapertures
 									for (r=0; r<Ndx_ra[1]; r++)	{
 										// Error bias map (long.)
-										Cxy(fr, 2, sidx, aidx) += \\
-											(dx_ra(fr,r,rowsf1,0) - dx_a(fr,rowsf1,0)) * \\
+										errl += (dx_ra(fr,r,rowsf1,0) - dx_a(fr,rowsf1,0)) * \\
 												(dx_ra(fr,r,rowsf2,0) - dx_a(fr,rowsf2,0));
 										// Error bias map (trans.)
-										Cxy(fr, 3, sidx, aidx) += \\
-											(dx_ra(fr,r,rowsf1,1) - dx_a(fr,rowsf1,1)) * \\
+										errt += (dx_ra(fr,r,rowsf1,1) - dx_a(fr,rowsf1,1)) * \\
 												(dx_ra(fr,r,rowsf2,1) - dx_a(fr,rowsf2,1));
 										
 										// Longitidunal 
@@ -221,8 +223,8 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 											dx_ra(fr,r,rowsf1,1) * dx_ra(fr,r,rowsf2,1);
 									}
 									// Normalize error bias map
-									Cxy(fr, 2, sidx, aidx) /= Ndx_ra[1];
-									Cxy(fr, 3, sidx, aidx) /= Ndx_ra[1];
+									Cxy(fr, 2, sidx, aidx) += errl/Ndx_ra[1];
+									Cxy(fr, 3, sidx, aidx) += errt/Ndx_ra[1];
 									
 									// Cross terms, ref1 with ref2 longitudinal
 									Cxy(fr, 4, sidx, aidx) += \\
@@ -283,9 +285,9 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 						(colsa2, ) + tuple(sapos[colsa2])))
 					# Loop over all subfield cols (do this in C)
 					code = """
-					#line 273 "libsdimm.py"
+					#line 289 "libsdimm.py"
 					int sfcol, colsf2, colsf1, fr, aidx, i, r;
-					double a;
+					double a, errl, errt;
 
 					for (sfcol=0; sfcol < Nsfcols[0]; sfcol++) {
 						// current col is: sfcol @ sfcols[sfcol];
@@ -314,15 +316,14 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 									Cxy(fr, 1, sidx, aidx) += \\
 										dx_a(fr,colsf1,0) * dx_a(fr,colsf2,0);
 									
+									errl = errt = 0.0;
 									// Loop over all reference subapertures
 									for (r=0; r<Ndx_ra[1]; r++)	{
 										// Error bias map (long.)
-										Cxy(fr, 2, sidx, aidx) += \\
-											(dx_ra(fr,r,colsf1,1) - dx_a(fr,colsf1,1)) * \\
+										errl += (dx_ra(fr,r,colsf1,1) - dx_a(fr,colsf1,1)) * \\
 												(dx_ra(fr,r,colsf2,1) - dx_a(fr,colsf2,1));
 										// Error bias map (trans.)
-										Cxy(fr, 3, sidx, aidx) += \\
-											(dx_ra(fr,r,colsf1,0) - dx_a(fr,colsf1,0)) * \\
+										errt += (dx_ra(fr,r,colsf1,0) - dx_a(fr,colsf1,0)) * \\
 												(dx_ra(fr,r,colsf2,0) - dx_a(fr,colsf2,0));
 										
 										// Longitidunal 
@@ -333,8 +334,8 @@ def computeSdimmCovWeave(shifts, sapos, sfpos, skipsa=[], refs=0, row=True, col=
 											dx_ra(fr,r,colsf1,0) * dx_ra(fr,r,colsf2,0);
 									}
 									// Normalize error bias map
-									Cxy(fr, 2, sidx, aidx) /= Ndx_ra[1];
-									Cxy(fr, 3, sidx, aidx) /= Ndx_ra[1];
+									Cxy(fr, 2, sidx, aidx) += errl/Ndx_ra[1];
+									Cxy(fr, 3, sidx, aidx) += errt/Ndx_ra[1];
 									
 									// Cross terms, ref1 with ref2 longitudinal
 									Cxy(fr, 4, sidx, aidx) += \\
