@@ -35,7 +35,7 @@ extlibs.append(\
 
 # Setup 
 setup(name = 'astooki',
-	version = "0.1.0-%s" % (GITREVISION),
+	version = GITREVISION,
 	description = 'Process and analyze astronomical data.',
 	author = 'Tim van Werkhoven',
 	author_email = 't.i.m.vanwerkhoven@xs4all.nl',
