@@ -19,10 +19,9 @@ The docstrings provide concice runtime information. For more elaborate
 documentation, consult the doxygen documentation.
 """
 
-GITREVISION=""
 
 __all__ = ["astooki"]
-__version__ = GITREVISION
+__version__ = "v0.3.0"
 
 ## @mainpage Astooki-lib
 # 
