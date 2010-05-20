@@ -37,18 +37,31 @@ import subprocess				# For running eps2pdf in a shell
 # Data processing & plotting functions
 #=============================================================================
 
-def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag=1.0, allsh=False, title=None, legend=True):
+def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag=1.0, allsh=False, allshstyle=2, showvecs=True, showsa=True, showsf=True, title=None, legend=True, cleanup=False, swapxy=False):
 	"""
-	Plot 'shifts', which should be a N * Nref * Nsa * Nsf * 2 array. Array will 
-	be averaged over Nref before processing. 'filebase' should be a complete uri 
-	which will be appended with eps, pdf and txt for various output formats. 
-	'sapos', 'sasize', 'sfpos' and 'sfsize' should hold subaperture position and 
-	-size and subfield position and -size, respectively.
+	Plot 'shifts', which should be a N_files * N_ref * N_sa * N_sf * 2 array.
+  Array will be averaged over N_ref before processing. 'filebase' should be a
+  complete uri which will be appended with eps, pdf and txt for various output
+  formats. 'sapos', 'sasize', 'sfpos' and 'sfsize' should hold subaperture
+  position and -size and subfield position and -size, respectively.
+	
 	"""
+	
+	if (swapxy):
+		# Swap x and y position everywhere. Simply re-slice the arrays like this:
+		shifts = shifts[...,::-1]
+		sapos = sapos[...,::-1]
+		sasize = sasize[...,::-1]
+		sfpos = sfpos[...,::-1]
+		sfsize = sfsize[...,::-1]
 	
 	# Output filenames
 	plotfile = filebase + '.eps'
 	infofile =  filebase + '-info.txt'
+	datafile = filebase + '-data.dat'
+	alldatafile = filebase + '-alldata.dat'
+	gnuplotfile = filebase + '-plot.plt'
+	
 	# Dimensions
 	nfile = shifts.shape[0]
 	nref = shifts.shape[1]
@@ -63,9 +76,7 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag
 	shiftsplall = (shifts.reshape(nfile,-1,2) * mag) + allcpos.reshape(1,-1, 2)
 	shiftsplall = shiftsplall.reshape(-1, 2)
 	shiftspl = (N.mean(shifts, axis=0)).reshape(-1,2) * mag
-	datafile = os.path.join('/tmp', 'tmpgnuplot-%f' % (time.time()))
 	N.savetxt(datafile, N.concatenate((allcpos, shiftspl), axis=1))
-	delfiles = [datafile]
 	
 	# Init plotting
 	gp = Gnuplot.Gnuplot()
@@ -80,10 +91,10 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag
 	
 	# Set plotting range
 	if plrange == None:
-		xran = (min(sapos[:,0]) - 0.5*sasize[0], \
-			max(sapos[:,0]) + 1.5*sasize[0])
-		yran = (min(sapos[:,1]) - 0.5*sasize[1], \
-			max(sapos[:,1]) + 1.5*sasize[1])
+		xran = (min(sapos[:,0]) + N.floor(N.min(shifts[...,0])) - 0.5*sasize[0], \
+			max(sapos[:,0]) + N.ceil(N.max(shifts[...,0])) + 1.5*sasize[0] + 1)
+		yran = (min(sapos[:,1]) + N.floor(N.min(shifts[...,1])) - 0.5*sasize[1], \
+			max(sapos[:,1]) + N.ceil(N.max(shifts[...,1])) + 1.5*sasize[1])
 	else:
 		xran = tuple(N.array(plrange[0])*1.0)
 		yran = tuple(N.array(plrange[1])*1.0)
@@ -107,27 +118,26 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag
 	
 	# Loop over sapos and sfpos
 	box = 1
-	for _sa in xrange(len(sapos)):
-		_sapos = sapos[_sa]
-		# Draw subaperture boxes
-		gp('set obj %d rect from %d,%d to %d,%d fs empty lw 0.4' % \
-			(box, _sapos[0], _sapos[1], _sapos[0]+sasize[0], _sapos[1]+sasize[1]))
-		box += 1
-		
-		for _sf in xrange(len(sfpos)):
-			_sfpos = _sapos + sfpos[_sf]
-			# Draw subfield boxes
-			gp('set obj %d rect from %d,%d to %d,%d fs empty lw 0.2' % \
-				(box, _sfpos[0], _sfpos[1], _sfpos[0]+sfsize[0], _sfpos[1]+sfsize[1]))
+	if (showsa == True):
+		for _sa in xrange(len(sapos)):
+			_sapos = sapos[_sa]
+			# Draw subaperture boxes
+			gp('set obj %d rect from %d,%d to %d,%d fs empty lw 0.4' % \
+				(box, _sapos[0], _sapos[1], _sapos[0]+sasize[0], _sapos[1]+sasize[1]))
 			box += 1
 			
-			shvec = shifts[:, _sa, _sf, :]
-			shvec_avg = N.mean(shvec, axis=0)
-	
+			if (showsf == True):
+				for _sf in xrange(len(sfpos)):
+					_sfpos = _sapos + sfpos[_sf]
+					# Draw subfield boxes
+					gp('set obj %d rect from %d,%d to %d,%d fs empty lw 0.2' % \
+						(box, _sfpos[0], _sfpos[1], \
+						_sfpos[0]+sfsize[0], _sfpos[1]+sfsize[1]))
+					box += 1
 	
 	if (legend is True):
 		# Draw vector corresponding with the overall average shift
-		avgshift = N.mean((shvec[...,0]**2.0 + shvec[...,1]**2.0)**0.5)
+		avgshift = N.mean((shifts[...,0]**2.0 + shifts[...,1]**2.0)**0.5)
 		if (avgshift < 1.0): avgshift = 1.0
 		avgshift = N.round(avgshift)
 		legsize = avgshift * mag
@@ -143,16 +153,23 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag
 	# If allsh is True, add dots for all individual measured shifts
 	gp('set style line 1 lt 1 lw 0.6 lc rgb "red"')
 	gp('set style line 2 pt 0 ps 0.6 lt 0 lw 0.6 lc rgb "blue"')
-	if (allsh is True):
-		datafilea = os.path.join('/tmp', 'tmpgnuplot-%f' % (time.time()))
-		N.savetxt(datafilea, shiftsplall)
-		delfiles.append(datafilea)
-		gp('plot "%s" with points ls 2 title "All WFWFS shifts", "%s" using 1:2:3:4 with vectors nohead ls 1 title "WFWFS shifts"' % \
-		 	(datafilea, datafile))
-	else:
-		# Plot the actual vectors from file now
-		gp('plot "%s" using 1:2:3:4 with vectors nohead ls 1 title "WFWFS shifts"' %\
-		 	(datafile))
+	plotcmd = ''
+	prefix = "plot "
+	
+	# Save all data, we might plot it but otherwise we can use it elsewhere
+	N.savetxt(alldatafile, shiftsplall)
+	if (allsh == True):
+		plotcmd += prefix + '"%s" with dots ls %d title "All WFWFS shifts"' % (alldatafile, allshstyle)
+		prefix = ", "
+	if (showvecs == True):
+		plotcmd += prefix +'"%s" using 1:2:3:4 with vec nohead ls 1 title "WFWFS shifts"' % (datafile)
+		prefix = ", "
+	
+	if (plotcmd != ''): 
+		gp(plotcmd)
+	
+	# Save gnuplot output for further reference.
+	gp.save(gnuplotfile)
 	
 	_waitForFile(plotfile)
 	_convertPdf(plotfile)
@@ -175,9 +192,7 @@ def plotShifts(filebase, shifts, sapos, sasize, sfpos, sfsize, plrange=None, mag
 	 	(minsh[0], minsh[1], maxsh[0], maxsh[1])
 	print >> f, "percentage at maximum (clipped): %-3.2f" % (clip)
 	f.close()
-	
-	# Remove datafiles
-	rmFiles(delfiles)
+		
 	# Done
 
 
